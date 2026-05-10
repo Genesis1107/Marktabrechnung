@@ -164,6 +164,7 @@
     <button class="tab-btn active" onclick="showTab('tab-kasse')">🪙 Kassenzählung</button>
     <button class="tab-btn" onclick="showTab('tab-buchung')">📝 Buchung</button>
     <button class="tab-btn" onclick="showTab('tab-uebersicht')">📜 Übersicht</button>
+    <button class="tab-btn" onclick="showTab('tab-abschluss')">🏁 Abschluss</button>
     <button class="tab-btn" onclick="showTab('tab-daten')">💾 Daten</button>
   </div>
 
@@ -398,6 +399,133 @@
     </div>
   </div>
 
+  <!-- TAB 5: KASSENABSCHLUSS -->
+  <div id="tab-abschluss" class="tab-panel">
+
+    <div class="info-box">
+      <strong>🏁 Kassenabschluss</strong>
+      Wähle Markt und Jahr. Der Abschluss zeigt alle Einnahmen und Ausgaben, berechnet den Abgabebetrag an die Firma und kann gedruckt werden. Kartenumsätze fließen nur in die Statistik, nicht in die Kassenabgabe.
+    </div>
+
+    <div class="form-grid" style="margin-bottom:16px;">
+      <div class="form-group">
+        <label>Markt</label>
+        <select id="ab-markt" onchange="calcAbschluss()">
+          <option value="">— Markt wählen —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Jahr</label>
+        <select id="ab-jahr" onchange="calcAbschluss()">
+          <option value="">— Jahr wählen —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Kassenrest (€)</label>
+        <input type="number" id="ab-rest" value="400" min="0" step="0.01" oninput="calcAbschluss()">
+      </div>
+    </div>
+
+    <div id="ab-result" style="display:none;">
+
+      <!-- DRUCKBARER BEREICH -->
+      <div id="ab-print-area">
+
+        <div style="text-align:center;margin-bottom:20px;">
+          <div style="font-family:'Cinzel',serif;font-size:1.3rem;font-weight:700;letter-spacing:2px;" id="ab-titel">Kassenabschluss</div>
+          <div style="font-family:'Cinzel',serif;font-size:0.8rem;color:var(--ink-light);margin-top:4px;" id="ab-untertitel"></div>
+        </div>
+
+        <!-- EINNAHMEN -->
+        <div class="coin-section">
+          <h3>📈 Einnahmen</h3>
+          <table class="coin-table" style="width:100%;">
+            <thead><tr><th>Position</th><th>Zahlungsart</th><th style="text-align:right">Betrag</th></tr></thead>
+            <tbody id="ab-einnahmen-rows"></tbody>
+            <tfoot>
+              <tr style="border-top:2px solid var(--wax-gold);">
+                <td colspan="2" style="font-family:'Cinzel',serif;font-weight:600;font-size:0.85rem;padding:6px 8px;">Einnahmen gesamt</td>
+                <td style="text-align:right;font-family:'Cinzel',serif;font-weight:700;font-size:1rem;padding:6px 8px;color:var(--green);" id="ab-einnahmen-sum"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- AUSGABEN -->
+        <div class="coin-section">
+          <h3>📉 Ausgaben</h3>
+          <table class="coin-table" style="width:100%;">
+            <thead><tr><th>Position</th><th>Zahlungsart</th><th style="text-align:right">Betrag</th></tr></thead>
+            <tbody id="ab-ausgaben-rows"></tbody>
+            <tfoot>
+              <tr style="border-top:2px solid var(--wax-gold);">
+                <td colspan="2" style="font-family:'Cinzel',serif;font-weight:600;font-size:0.85rem;padding:6px 8px;">Ausgaben gesamt</td>
+                <td style="text-align:right;font-family:'Cinzel',serif;font-weight:700;font-size:1rem;padding:6px 8px;color:var(--red);" id="ab-ausgaben-sum"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- ERGEBNIS -->
+        <div class="coin-section" style="background:rgba(255,255,255,0.4);">
+          <h3>⚖ Ergebnis</h3>
+          <table class="coin-table" style="width:100%;">
+            <tbody>
+              <tr>
+                <td style="padding:6px 8px;font-family:'Cinzel',serif;font-size:0.85rem;">Bar-Einnahmen</td>
+                <td style="text-align:right;padding:6px 8px;font-family:'Cinzel',serif;" id="ab-r-barein"></td>
+              </tr>
+              <tr>
+                <td style="padding:6px 8px;font-family:'Cinzel',serif;font-size:0.85rem;">Karten-Einnahmen</td>
+                <td style="text-align:right;padding:6px 8px;font-family:'Cinzel',serif;" id="ab-r-kartein"></td>
+              </tr>
+              <tr>
+                <td style="padding:6px 8px;font-family:'Cinzel',serif;font-size:0.85rem;">Ausgaben gesamt</td>
+                <td style="text-align:right;padding:6px 8px;font-family:'Cinzel',serif;color:var(--red);" id="ab-r-aus"></td>
+              </tr>
+              <tr style="border-top:1px solid var(--parchment-dark);">
+                <td style="padding:6px 8px;font-family:'Cinzel',serif;font-size:0.9rem;font-weight:600;">Gesamtgewinn (inkl. Karte)</td>
+                <td style="text-align:right;padding:6px 8px;font-family:'Cinzel',serif;font-weight:700;font-size:1.1rem;" id="ab-r-gewinn"></td>
+              </tr>
+              <tr style="border-top:2px solid var(--wax-gold);background:rgba(184,134,11,0.08);">
+                <td style="padding:8px 8px;font-family:'Cinzel',serif;font-size:0.85rem;">Bar-Einnahmen</td>
+                <td style="text-align:right;padding:8px 8px;font-family:'Cinzel',serif;" id="ab-r-barein2"></td>
+              </tr>
+              <tr style="background:rgba(184,134,11,0.08);">
+                <td style="padding:6px 8px;font-family:'Cinzel',serif;font-size:0.85rem;">− Bar-Ausgaben</td>
+                <td style="text-align:right;padding:6px 8px;font-family:'Cinzel',serif;color:var(--red);" id="ab-r-baraus"></td>
+              </tr>
+              <tr style="background:rgba(184,134,11,0.08);">
+                <td style="padding:6px 8px;font-family:'Cinzel',serif;font-size:0.85rem;">− Kassenrest</td>
+                <td style="text-align:right;padding:6px 8px;font-family:'Cinzel',serif;color:var(--ink-light);" id="ab-r-rest"></td>
+              </tr>
+              <tr style="background:rgba(139,26,26,0.1);border-top:2px solid var(--wax-red);">
+                <td style="padding:10px 8px;font-family:'Cinzel',serif;font-size:1rem;font-weight:700;letter-spacing:1px;">ABGABE AN FIRMA</td>
+                <td style="text-align:right;padding:10px 8px;font-family:'Cinzel',serif;font-weight:700;font-size:1.3rem;color:var(--wax-red);" id="ab-r-abgabe"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:30px;display:grid;grid-template-columns:1fr 1fr;gap:30px;" class="print-only-show">
+          <div style="border-top:1px solid var(--ink);padding-top:6px;font-family:'Cinzel',serif;font-size:0.75rem;color:var(--ink-light);text-align:center;">Datum / Unterschrift Kassenwart</div>
+          <div style="border-top:1px solid var(--ink);padding-top:6px;font-family:'Cinzel',serif;font-size:0.75rem;color:var(--ink-light);text-align:center;">Datum / Unterschrift Geschäftsführung</div>
+        </div>
+
+      </div><!-- end print area -->
+
+      <div class="export-row" style="margin-top:20px;">
+        <button class="export-btn" onclick="printAbschluss()">🖨 Abschluss drucken</button>
+      </div>
+
+    </div><!-- end ab-result -->
+
+    <div id="ab-empty" style="text-align:center;color:var(--ink-light);font-style:italic;padding:30px;opacity:0.6;">
+      Bitte Markt und Jahr auswählen.
+    </div>
+
+  </div>
+
 </div>
 
 <script>
@@ -413,10 +541,11 @@ function showTab(id) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  const idx = ['tab-kasse','tab-buchung','tab-uebersicht','tab-daten'].indexOf(id);
+  const idx = ['tab-kasse','tab-buchung','tab-uebersicht','tab-abschluss','tab-daten'].indexOf(id);
   document.querySelectorAll('.tab-btn')[idx].classList.add('active');
   if (id === 'tab-uebersicht') renderTable();
   if (id === 'tab-kasse') renderKasseList();
+  if (id === 'tab-abschluss') initAbschluss();
 }
 
 // ── KASSENZÄHLUNG ──
@@ -488,6 +617,8 @@ function saveKasse() {
     betrag: ist,
     soll, diff: ist - soll,
     anfang,
+    coins, bills,
+    muenzen, scheine,
     zahlung: 'Bar',
     notiz: kasseNotiz
   });
@@ -608,17 +739,46 @@ function renderTable() {
     if (e.type === 'kasse') {
       const diffCls = e.diff > 0.005 ? 'amount-income' : e.diff < -0.005 ? 'amount-expense' : '';
       const diffTxt = (e.diff >= 0 ? '+' : '') + fmt(e.diff);
+      const coinDefs = [{id:'m-200',val:2,label:'2,00 €'},{id:'m-100',val:1,label:'1,00 €'},{id:'m-050',val:0.5,label:'0,50 €'}];
+      const billDefs = [{id:'b-5',val:5,label:'5,00 €'},{id:'b-10',val:10,label:'10,00 €'},{id:'b-20',val:20,label:'20,00 €'},{id:'b-50',val:50,label:'50,00 €'},{id:'b-100',val:100,label:'100,00 €'},{id:'b-200',val:200,label:'200,00 €'}];
+      const coins = e.coins || {};
+      const bills = e.bills || {};
+      const coinRows = coinDefs.filter(c=>(coins[c.id]||0)>0).map(c =>
+        `<tr><td style="padding:2px 6px;color:var(--ink-light);">${c.label}</td><td style="padding:2px 6px;text-align:right;">${coins[c.id]||0} Stk.</td><td style="padding:2px 6px;text-align:right;color:var(--green);">${fmt((coins[c.id]||0)*c.val)}</td></tr>`
+      ).join('');
+      const billRows = billDefs.filter(b=>(bills[b.id]||0)>0).map(b =>
+        `<tr><td style="padding:2px 6px;color:var(--ink-light);">${b.label}</td><td style="padding:2px 6px;text-align:right;">${bills[b.id]||0} Stk.</td><td style="padding:2px 6px;text-align:right;color:var(--green);">${fmt((bills[b.id]||0)*b.val)}</td></tr>`
+      ).join('');
+      const stuekelungHtml = `
+        <table style="margin-top:6px;width:100%;font-size:0.78rem;border-collapse:collapse;">
+          <tr><td colspan="3" style="padding:3px 6px;font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:1px;color:var(--ink-light);text-transform:uppercase;border-bottom:1px solid var(--parchment-dark);">🪙 Münzen</td></tr>
+          ${coinRows || '<tr><td colspan="3" style="padding:2px 6px;color:var(--ink-light);font-style:italic;">Keine Münzen</td></tr>'}
+          <tr><td colspan="3" style="padding:3px 6px;font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:1px;color:var(--ink-light);text-transform:uppercase;border-bottom:1px solid var(--parchment-dark);border-top:1px solid var(--parchment-dark);">💵 Scheine</td></tr>
+          ${billRows || '<tr><td colspan="3" style="padding:2px 6px;color:var(--ink-light);font-style:italic;">Keine Scheine</td></tr>'}
+          <tr style="border-top:1px solid var(--parchment-dark);">
+            <td colspan="2" style="padding:3px 6px;font-family:'Cinzel',serif;font-size:0.7rem;font-weight:600;">Anfangsbestand</td>
+            <td style="padding:3px 6px;text-align:right;font-family:'Cinzel',serif;font-weight:600;">${fmt(e.anfang)}</td>
+          </tr>
+          <tr>
+            <td colspan="2" style="padding:3px 6px;font-family:'Cinzel',serif;font-size:0.7rem;font-weight:600;">Soll-Bestand</td>
+            <td style="padding:3px 6px;text-align:right;font-family:'Cinzel',serif;font-weight:600;">${fmt(e.soll)}</td>
+          </tr>
+          <tr>
+            <td colspan="2" style="padding:3px 6px;font-family:'Cinzel',serif;font-size:0.7rem;font-weight:600;">Differenz</td>
+            <td style="padding:3px 6px;text-align:right;font-family:'Cinzel',serif;font-weight:600;" class="${diffCls}">${diffTxt}</td>
+          </tr>
+        </table>`;
       return `<tr style="background:rgba(184,134,11,0.08);">
-        <td>${e.datum.split('-').reverse().join('.')}</td>
-        <td>${e.markt}</td>
-        <td>🪙 Kassenzählung${e.notiz?`<br><small style="color:var(--ink-light);font-style:italic;">${e.notiz}</small>`:''}<br>
-          <small style="color:var(--ink-light);">Anfang: ${fmt(e.anfang)} · Soll: ${fmt(e.soll)} · Diff: <span class="${diffCls}">${diffTxt}</span></small>
+        <td style="vertical-align:top;">${e.datum.split('-').reverse().join('.')}</td>
+        <td style="vertical-align:top;">${e.markt}</td>
+        <td>🪙 Kassenzählung${e.notiz?`<br><small style="color:var(--ink-light);font-style:italic;">${e.notiz}</small>`:''}
+          ${stuekelungHtml}
         </td>
-        <td>Kassenzählung</td>
-        <td>Bar</td>
-        <td><span class="badge" style="background:rgba(184,134,11,0.15);color:var(--wax-gold);border:1px solid var(--wax-gold);">Zählung</span></td>
-        <td style="text-align:right;font-family:'Cinzel',serif;font-weight:600;">${fmt(e.betrag)}</td>
-        <td><button class="del-btn" onclick="deleteEntry(${e.id})">✕</button></td>
+        <td style="vertical-align:top;">Kassenzählung</td>
+        <td style="vertical-align:top;">Bar</td>
+        <td style="vertical-align:top;"><span class="badge" style="background:rgba(184,134,11,0.15);color:var(--wax-gold);border:1px solid var(--wax-gold);">Zählung</span></td>
+        <td style="text-align:right;vertical-align:top;font-family:'Cinzel',serif;font-weight:600;">${fmt(e.betrag)}</td>
+        <td style="vertical-align:top;"><button class="del-btn" onclick="deleteEntry(${e.id})">✕</button></td>
       </tr>`;
     }
     return `<tr>
@@ -642,8 +802,26 @@ function save() {
 
 function exportCSV() {
   if (entries.length === 0) { alert('Keine Einträge vorhanden.'); return; }
-  const hdr = ['Datum','Markt','Bezeichnung','Kategorie','Typ','Betrag (EUR)','Zahlungsart','Notiz'];
-  const rows = entries.map(e=>[e.datum.split('-').reverse().join('.'), e.markt, e.bezeichnung, e.kategorie, e.type==='income'?'Einnahme':'Ausgabe', e.betrag.toFixed(2).replace('.',','), e.zahlung, e.notiz]);
+  const coinDefs = [{id:'m-200',val:2,label:'2,00 EUR'},{id:'m-100',val:1,label:'1,00 EUR'},{id:'m-050',val:0.5,label:'0,50 EUR'}];
+  const billDefs = [{id:'b-5',val:5,label:'5,00 EUR'},{id:'b-10',val:10,label:'10,00 EUR'},{id:'b-20',val:20,label:'20,00 EUR'},{id:'b-50',val:50,label:'50,00 EUR'},{id:'b-100',val:100,label:'100,00 EUR'},{id:'b-200',val:200,label:'200,00 EUR'}];
+  const hdr = ['Datum','Markt','Bezeichnung','Kategorie','Typ','Betrag (EUR)','Zahlungsart','Notiz',
+    'Muenzen 2,00 EUR','Muenzen 1,00 EUR','Muenzen 0,50 EUR',
+    'Scheine 5 EUR','Scheine 10 EUR','Scheine 20 EUR','Scheine 50 EUR','Scheine 100 EUR','Scheine 200 EUR',
+    'Anfangsbestand','Soll-Bestand','Differenz'];
+  const rows = entries.map(e => {
+    const typ = e.type==='income'?'Einnahme': e.type==='expense'?'Ausgabe':'Kassenzählung';
+    const coins = e.coins || {};
+    const bills = e.bills || {};
+    return [
+      e.datum.split('-').reverse().join('.'), e.markt, e.bezeichnung, e.kategorie, typ,
+      e.betrag.toFixed(2).replace('.',','), e.zahlung||'', e.notiz||'',
+      ...coinDefs.map(c => (coins[c.id]||0)),
+      ...billDefs.map(b => (bills[b.id]||0)),
+      e.anfang != null ? e.anfang.toFixed(2).replace('.',',') : '',
+      e.soll   != null ? e.soll.toFixed(2).replace('.',',')   : '',
+      e.diff   != null ? e.diff.toFixed(2).replace('.',',')   : ''
+    ];
+  });
   const csv = [hdr,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
   dl('\uFEFF'+csv,'Marktabrechnung.csv','text/csv;charset=utf-8;');
 }
@@ -687,7 +865,121 @@ function dl(content, filename, mime) {
 
 function printReport() { window.print(); }
 
-// Init
+// ── KASSENABSCHLUSS ──
+function initAbschluss() {
+  const marktSel = document.getElementById('ab-markt');
+  const jahrSel  = document.getElementById('ab-jahr');
+  const curMarkt = marktSel.value;
+  const curJahr  = jahrSel.value;
+
+  const märkte = [...new Set(entries.filter(e=>e.type!=='kasse').map(e=>e.markt))].filter(Boolean).sort();
+  const jahre  = [...new Set(entries.filter(e=>e.type!=='kasse').map(e=>e.datum.slice(0,4)))].filter(Boolean).sort().reverse();
+
+  marktSel.innerHTML = '<option value="">— Markt wählen —</option>' + märkte.map(m=>`<option value="${m}"${m===curMarkt?' selected':''}>${m}</option>`).join('');
+  jahrSel.innerHTML  = '<option value="">— Jahr wählen —</option>'  + jahre.map(j=>`<option value="${j}"${j===curJahr?' selected':''}>${j}</option>`).join('');
+
+  calcAbschluss();
+}
+
+function calcAbschluss() {
+  const markt = document.getElementById('ab-markt').value;
+  const jahr  = document.getElementById('ab-jahr').value;
+  const rest  = parseFloat(document.getElementById('ab-rest').value)||0;
+
+  const resultEl = document.getElementById('ab-result');
+  const emptyEl  = document.getElementById('ab-empty');
+
+  if (!markt || !jahr) {
+    resultEl.style.display = 'none';
+    emptyEl.style.display  = 'block';
+    return;
+  }
+
+  // Filter: nur Buchungen für diesen Markt+Jahr, keine kasse-Einträge
+  const buchungen = entries.filter(e =>
+    e.type !== 'kasse' &&
+    e.markt === markt &&
+    e.datum.startsWith(jahr)
+  );
+
+  const einnahmen = buchungen.filter(e => e.type === 'income');
+  const ausgaben  = buchungen.filter(e => e.type === 'expense');
+
+  const barEin   = einnahmen.filter(e=>e.zahlung==='Bar').reduce((s,e)=>s+e.betrag,0);
+  const karteEin = einnahmen.filter(e=>e.zahlung!=='Bar').reduce((s,e)=>s+e.betrag,0);
+  const barAus   = ausgaben.filter(e=>e.zahlung==='Bar').reduce((s,e)=>s+e.betrag,0);
+  const karteAus = ausgaben.filter(e=>e.zahlung!=='Bar').reduce((s,e)=>s+e.betrag,0);
+  const gesamtEin = barEin + karteEin;
+  const gesamtAus = barAus + karteAus;
+  const gewinn    = gesamtEin - gesamtAus;
+  const abgabe    = barEin - barAus - rest;
+
+  // Titel
+  document.getElementById('ab-titel').textContent = `Kassenabschluss – ${markt}`;
+  document.getElementById('ab-untertitel').textContent = `Jahr ${jahr} · Erstellt am ${new Date().toLocaleDateString('de-DE')}`;
+
+  // Einnahmen-Tabelle
+  const einRows = einnahmen.map(e => `
+    <tr>
+      <td style="padding:5px 8px;">${e.bezeichnung}${e.notiz?` <small style="color:var(--ink-light);font-style:italic;">(${e.notiz})</small>`:''}<br>
+        <small style="color:var(--ink-light);">${e.datum.split('-').reverse().join('.')} · ${e.kategorie}</small>
+      </td>
+      <td style="padding:5px 8px;">${e.zahlung}</td>
+      <td style="text-align:right;padding:5px 8px;color:var(--green);font-family:'Cinzel',serif;">${fmt(e.betrag)}</td>
+    </tr>`).join('');
+  document.getElementById('ab-einnahmen-rows').innerHTML = einRows || '<tr><td colspan="3" style="padding:8px;font-style:italic;color:var(--ink-light);">Keine Einnahmen</td></tr>';
+  document.getElementById('ab-einnahmen-sum').textContent = fmt(gesamtEin);
+
+  // Ausgaben-Tabelle
+  const ausRows = ausgaben.map(e => `
+    <tr>
+      <td style="padding:5px 8px;">${e.bezeichnung}${e.notiz?` <small style="color:var(--ink-light);font-style:italic;">(${e.notiz})</small>`:''}<br>
+        <small style="color:var(--ink-light);">${e.datum.split('-').reverse().join('.')} · ${e.kategorie}</small>
+      </td>
+      <td style="padding:5px 8px;">${e.zahlung}</td>
+      <td style="text-align:right;padding:5px 8px;color:var(--red);font-family:'Cinzel',serif;">${fmt(e.betrag)}</td>
+    </tr>`).join('');
+  document.getElementById('ab-ausgaben-rows').innerHTML = ausRows || '<tr><td colspan="3" style="padding:8px;font-style:italic;color:var(--ink-light);">Keine Ausgaben</td></tr>';
+  document.getElementById('ab-ausgaben-sum').textContent = fmt(gesamtAus);
+
+  // Ergebnis
+  document.getElementById('ab-r-barein').textContent   = fmt(barEin);
+  document.getElementById('ab-r-kartein').textContent  = fmt(karteEin);
+  document.getElementById('ab-r-aus').textContent      = '− ' + fmt(gesamtAus);
+  const gewinnEl = document.getElementById('ab-r-gewinn');
+  gewinnEl.textContent  = fmt(gewinn);
+  gewinnEl.style.color  = gewinn >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('ab-r-barein2').textContent  = fmt(barEin);
+  document.getElementById('ab-r-baraus').textContent   = fmt(barAus);
+  document.getElementById('ab-r-rest').textContent     = fmt(rest);
+  const abgabeEl = document.getElementById('ab-r-abgabe');
+  abgabeEl.textContent = fmt(Math.max(0, abgabe));
+
+  resultEl.style.display = 'block';
+  emptyEl.style.display  = 'none';
+}
+
+function printAbschluss() {
+  const area = document.getElementById('ab-print-area').innerHTML;
+  const win  = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">
+    <title>Kassenabschluss</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+    <style>
+      body{font-family:'IM Fell English',Georgia,serif;color:#2a1a0e;padding:30px;max-width:800px;margin:0 auto;}
+      h3{font-family:'Cinzel',serif;font-size:0.78rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#5c3d1e;margin:16px 0 10px;border-bottom:1px solid #e8d5a3;padding-bottom:4px;}
+      table{width:100%;border-collapse:collapse;font-size:0.9rem;margin-bottom:10px;}
+      th{font-family:'Cinzel',serif;font-size:0.65rem;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:#5c3d1e;padding:6px 8px;text-align:left;border-bottom:1px solid #e8d5a3;}
+      td{padding:5px 8px;border-bottom:1px solid #f0e8d0;}
+      .section{background:#faf4e4;border:1px solid #e8d5a3;border-radius:3px;padding:12px 14px;margin:10px 0;}
+      @media print{body{padding:15px;}}
+    </style>
+  </head><body>${area}</body></html>`);
+  win.document.close();
+  setTimeout(()=>win.print(), 600);
+}
+
+// ── INIT ──
 renderTable(); renderKasseList(); calcKasse(); updateDataLists();
 </script>
 </body>
