@@ -627,23 +627,52 @@ input.error { border-bottom-color: var(--red); background: rgba(122,28,28,0.06);
           <span style="font-family:'Cinzel',serif;font-weight:700;color:var(--red);" id="ab-ausgaben-sum"></span>
         </div>
 
-        <div class="section-title" style="margin-top:16px;">⚖ Ergebnis</div>
+        <div class="section-title" style="margin-top:16px;">🏁 Kassenabschluss</div>
         <div class="coin-section" style="padding:0;overflow:hidden;">
-          <div class="ab-ergebnis-row"><span class="ab-label">Bar-Einnahmen</span><span class="ab-val" id="ab-r-barein"></span></div>
-          <div class="ab-ergebnis-row"><span class="ab-label">Karten-Einnahmen</span><span class="ab-val" id="ab-r-kartein"></span></div>
-          <div class="ab-ergebnis-row"><span class="ab-label">− Ausgaben gesamt</span><span class="ab-val" style="color:var(--red);" id="ab-r-aus"></span></div>
-          <div class="ab-ergebnis-row" style="border-bottom:2px solid var(--wax-gold);padding:10px 12px;">
-            <span style="font-family:'Cinzel',serif;font-size:0.88rem;font-weight:600;">Gesamtgewinn (inkl. Karte)</span>
-            <span style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;" id="ab-r-gewinn"></span>
+          <div class="ab-ergebnis-row">
+            <span class="ab-label">Soll-Kassenbestand<br>
+              <small>Bareinnahmen + Anfangsbestand − Bar-Ausgaben</small>
+            </span>
+            <span class="ab-val" style="color:var(--green);" id="ab-r-sollkasse"></span>
           </div>
-          <div class="ab-ergebnis-row" style="background:rgba(184,134,11,0.06);"><span class="ab-label">Bar-Einnahmen</span><span class="ab-val" id="ab-r-barein2"></span></div>
-          <div class="ab-ergebnis-row" style="background:rgba(184,134,11,0.06);"><span class="ab-label">− Bar-Ausgaben</span><span class="ab-val" style="color:var(--red);" id="ab-r-baraus"></span></div>
-          <div class="ab-ergebnis-row" style="background:rgba(184,134,11,0.06);"><span class="ab-label">− Kassenrest</span><span class="ab-val" style="color:var(--ink-light);" id="ab-r-rest"></span></div>
+          <div class="ab-ergebnis-row">
+            <span class="ab-label">− Kassenrest (verbleibt in Kasse)</span>
+            <span class="ab-val" style="color:var(--ink-light);" id="ab-r-rest"></span>
+          </div>
         </div>
 
         <div class="ab-abgabe-box">
           <span class="ab-abgabe-label">Abgabe an Firma</span>
           <span class="ab-abgabe-val" id="ab-r-abgabe"></span>
+        </div>
+
+        <!-- Mittelherkunft / Mittelverwendung -->
+        <div class="section-title" style="margin-top:20px;">📊 Mittelherkunft &amp; Verwendung</div>
+        <div class="coin-section" style="padding:0;overflow:hidden;">
+          <div class="ab-ergebnis-row" style="background:rgba(45,90,39,0.05);">
+            <span class="ab-label" style="font-family:'Cinzel',serif;font-size:0.7rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Herkunft</span>
+            <span></span>
+          </div>
+          <div class="ab-ergebnis-row"><span class="ab-label">Bar-Einnahmen gesamt</span><span class="ab-val" style="color:var(--green);" id="ab-r-barein"></span></div>
+          <div class="ab-ergebnis-row"><span class="ab-label">Karten-Einnahmen</span><span class="ab-val" style="color:var(--green);" id="ab-r-kartein"></span></div>
+          <div class="ab-ergebnis-row" style="border-bottom:2px solid var(--wax-gold);padding:10px 12px;">
+            <span style="font-family:'Cinzel',serif;font-size:0.85rem;font-weight:600;">Gesamtumsatz</span>
+            <span style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;" id="ab-r-gesamtumsatz"></span>
+          </div>
+          <div class="ab-ergebnis-row" style="background:rgba(122,28,28,0.04);">
+            <span class="ab-label" style="font-family:'Cinzel',serif;font-size:0.7rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Verwendung</span>
+            <span></span>
+          </div>
+          <div class="ab-ergebnis-row"><span class="ab-label">Karten → bereits auf Konto</span><span class="ab-val" style="color:var(--ink-light);" id="ab-r-kartein2"></span></div>
+          <div class="ab-ergebnis-row"><span class="ab-label">Ausgaben → bereits bezahlt</span><span class="ab-val" style="color:var(--red);" id="ab-r-aus"></span></div>
+          <div class="ab-ergebnis-row" style="border-top:2px solid var(--wax-gold);padding:10px 12px;">
+            <span style="font-family:'Cinzel',serif;font-size:0.85rem;font-weight:600;">Abgabe an Firma</span>
+            <span style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--wax-red);" id="ab-r-abgabe2"></span>
+          </div>
+          <div class="ab-ergebnis-row" style="background:rgba(184,134,11,0.06);border-top:1px dashed var(--parchment-dark);">
+            <span class="ab-label" style="font-style:italic;">+ Kassenrest (Wechselgeld, kein Umsatz)</span>
+            <span class="ab-val" style="color:var(--ink-light);" id="ab-r-rest2"></span>
+          </div>
         </div>
 
         <div style="margin-top:30px;display:grid;grid-template-columns:1fr 1fr;gap:24px;">
@@ -1166,17 +1195,25 @@ function calcAbschluss() {
       </div>`).join('');
   document.getElementById('ab-ausgaben-sum').textContent = fmt(gesamtAus);
 
-  // Ergebnis
-  document.getElementById('ab-r-barein').textContent  = fmt(barEin);
-  document.getElementById('ab-r-kartein').textContent = fmt(karteEin);
-  document.getElementById('ab-r-aus').textContent     = fmt(gesamtAus);
-  const gewinnEl = document.getElementById('ab-r-gewinn');
-  gewinnEl.textContent = fmt(gewinn);
-  gewinnEl.style.color = gewinn >= 0 ? 'var(--green)' : 'var(--red)';
-  document.getElementById('ab-r-barein2').textContent = fmt(barEin);
-  document.getElementById('ab-r-baraus').textContent  = fmt(barAus);
-  document.getElementById('ab-r-rest').textContent    = fmt(rest);
-  document.getElementById('ab-r-abgabe').textContent  = fmt(Math.max(0, abgabe));
+  // Soll-Kassenbestand: Bareinnahmen + Anfangsbestand − Bar-Ausgaben
+  const anfangsbestand = marktZaehlungen.length > 0 ? marktZaehlungen[0].anfang : 0;
+  const sollKasse = barEin + anfangsbestand - barAus;
+  const abgabe    = sollKasse - rest;
+  const gesamtumsatz = barEin + karteEin;
+
+  // Kassenabschluss
+  document.getElementById('ab-r-sollkasse').textContent = fmt(sollKasse);
+  document.getElementById('ab-r-rest').textContent      = fmt(rest);
+  document.getElementById('ab-r-abgabe').textContent    = fmt(Math.max(0, abgabe));
+
+  // Mittelherkunft / Verwendung
+  document.getElementById('ab-r-barein').textContent      = fmt(barEin);
+  document.getElementById('ab-r-kartein').textContent     = fmt(karteEin);
+  document.getElementById('ab-r-gesamtumsatz').textContent = fmt(gesamtumsatz);
+  document.getElementById('ab-r-kartein2').textContent    = fmt(karteEin);
+  document.getElementById('ab-r-aus').textContent         = fmt(gesamtAus);
+  document.getElementById('ab-r-abgabe2').textContent     = fmt(Math.max(0, abgabe));
+  document.getElementById('ab-r-rest2').textContent       = fmt(rest);
 
   document.getElementById('ab-result').style.display = 'block';
   document.getElementById('ab-empty').style.display  = 'none';
