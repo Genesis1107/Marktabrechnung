@@ -2,279 +2,367 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Marktabrechnung – Mittelalterhandel</title>
-<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Marktabrechnung">
+<title>Marktabrechnung</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --parchment: #f5e9c9;
-    --parchment-dark: #e8d5a3;
-    --ink: #2a1a0e;
-    --ink-light: #5c3d1e;
-    --wax-red: #8b1a1a;
-    --wax-gold: #b8860b;
-    --gold: #c9922a;
-    --green: #2d5a27;
-    --red: #7a1c1c;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: #1a0f05;
-    background-image: radial-gradient(ellipse at 20% 20%, #3a1e08 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, #2a1205 0%, transparent 50%);
-    min-height: 100vh;
-    font-family: 'IM Fell English', Georgia, serif;
-    color: var(--ink);
-    padding: 16px;
-  }
-  .scroll-container {
-    max-width: 900px; margin: 0 auto;
-    background: var(--parchment);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
-    border-radius: 4px;
-    box-shadow: 0 0 0 8px #5c3d1e, 0 0 0 12px #3a2210, 0 20px 60px rgba(0,0,0,0.8), inset 0 0 80px rgba(139,101,43,0.2);
-    padding: 40px 44px 60px; position: relative;
-  }
-  .scroll-container::before, .scroll-container::after {
-    content: ''; position: absolute; left: 0; right: 0; height: 30px;
-    background: linear-gradient(to bottom, #5c3d1e, var(--parchment));
-  }
-  .scroll-container::before { top: 0; border-radius: 4px 4px 0 0; }
-  .scroll-container::after { bottom: 0; border-radius: 0 0 4px 4px; background: linear-gradient(to top, #5c3d1e, var(--parchment)); }
+:root {
+  --parchment: #f5e9c9;
+  --parchment-dark: #e0c97a;
+  --ink: #1e1208;
+  --ink-light: #4a2e10;
+  --wax-red: #8b1a1a;
+  --wax-gold: #b8860b;
+  --gold: #c9922a;
+  --green: #1e4d1a;
+  --green-light: #2d5a27;
+  --red: #7a1c1c;
+  --nav-h: 64px;
+}
 
-  header { text-align: center; margin-bottom: 28px; padding-top: 10px; }
-  .ornament { font-size: 1.8rem; color: var(--gold); letter-spacing: 8px; display: block; margin: 6px 0; }
-  h1 { font-family: 'Cinzel', serif; font-size: 2rem; font-weight: 700; color: var(--ink); letter-spacing: 3px; line-height: 1.2; text-shadow: 1px 1px 0 rgba(255,255,255,0.3); }
-  h2 { font-family: 'Cinzel', serif; font-size: 1rem; font-weight: 600; color: var(--ink-light); letter-spacing: 2px; margin: 24px 0 12px; border-bottom: 1px solid var(--parchment-dark); padding-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
-  /* TABS */
-  .tab-nav { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 2px solid var(--wax-gold); }
-  .tab-btn { flex: 1; padding: 10px 4px; background: rgba(255,255,255,0.2); border: 1px solid var(--parchment-dark); border-bottom: none; font-family: 'Cinzel', serif; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.8px; cursor: pointer; color: var(--ink-light); transition: all 0.2s; text-transform: uppercase; }
-  .tab-btn.active { background: rgba(184,134,11,0.18); border-color: var(--wax-gold); color: var(--ink); box-shadow: inset 0 -2px 0 var(--wax-gold); }
-  .tab-panel { display: none; }
-  .tab-panel.active { display: block; }
+html, body { height: 100%; }
 
-  /* INPUTS */
-  label { font-family: 'Cinzel', serif; font-size: 0.68rem; font-weight: 600; letter-spacing: 1.5px; color: var(--ink-light); text-transform: uppercase; }
-  input, select {
-    background: rgba(255,255,255,0.45); border: 1px solid var(--parchment-dark); border-bottom: 2px solid var(--wax-gold);
-    border-radius: 2px; padding: 7px 10px; font-family: 'IM Fell English', Georgia, serif; font-size: 0.95rem; color: var(--ink);
-    outline: none; transition: all 0.2s; width: 100%;
-  }
-  input:focus, select:focus { background: rgba(255,255,255,0.75); border-bottom-color: var(--wax-red); box-shadow: 0 2px 8px rgba(139,26,26,0.15); }
-  .form-group { display: flex; flex-direction: column; gap: 4px; }
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; }
-  .form-grid .full { grid-column: 1/-1; }
+body {
+  background: #1a0f05;
+  font-family: 'IM Fell English', Georgia, serif;
+  color: var(--ink);
+  padding-bottom: var(--nav-h);
+  min-height: 100vh;
+}
 
-  /* KASSENZÄHLUNG */
-  .coin-section { background: rgba(255,255,255,0.25); border: 1px solid var(--parchment-dark); border-radius: 3px; padding: 14px 16px; margin: 12px 0; }
-  .coin-section h3 { font-family: 'Cinzel', serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 2px; color: var(--ink-light); text-transform: uppercase; margin-bottom: 12px; }
-  .coin-table { width: 100%; border-collapse: collapse; }
-  .coin-table th { font-family: 'Cinzel', serif; font-size: 0.62rem; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-light); padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--parchment-dark); }
-  .coin-table td { padding: 5px 8px; vertical-align: middle; }
-  .coin-table td input { width: 90px; padding: 5px 8px; font-size: 0.9rem; text-align: right; }
-  .coin-table .denom { font-family: 'Cinzel', serif; font-weight: 600; font-size: 0.9rem; white-space: nowrap; }
-  .coin-table .subtotal { font-family: 'Cinzel', serif; font-weight: 600; font-size: 0.9rem; color: var(--green); text-align: right; white-space: nowrap; }
-  .kasse-total-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 16px; }
-  .kasse-total-box { background: rgba(255,255,255,0.35); border: 1px solid var(--parchment-dark); border-radius: 3px; padding: 10px 12px; text-align: center; }
-  .kasse-total-box .ktb-label { font-family: 'Cinzel', serif; font-size: 0.6rem; letter-spacing: 1.5px; color: var(--ink-light); text-transform: uppercase; display: block; margin-bottom: 4px; }
-  .kasse-total-box .ktb-value { font-family: 'Cinzel', serif; font-size: 1.15rem; font-weight: 700; }
-  .diff-pos { color: var(--green); }
-  .diff-neg { color: var(--red); }
-  .diff-zero { color: var(--ink); }
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: calc(var(--nav-h) + 16px); left: 50%; transform: translateX(-50%) translateY(20px);
+  background: #1e1208ee; color: var(--parchment); font-family: 'Cinzel', serif; font-size: 0.85rem;
+  padding: 10px 22px; border-radius: 20px; letter-spacing: 1px; z-index: 999;
+  opacity: 0; transition: all 0.3s; pointer-events: none; white-space: nowrap;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-  /* TYPE TOGGLE */
-  .type-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-  .type-btn { padding: 10px; border: 2px solid var(--parchment-dark); border-radius: 2px; background: rgba(255,255,255,0.3); font-family: 'Cinzel', serif; font-size: 0.78rem; font-weight: 600; letter-spacing: 1px; cursor: pointer; transition: all 0.2s; color: var(--ink-light); }
-  .type-btn.income.active { background: rgba(45,90,39,0.15); border-color: var(--green); color: var(--green); }
-  .type-btn.expense.active { background: rgba(122,28,28,0.12); border-color: var(--red); color: var(--red); }
+/* ── BOTTOM NAV ── */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0; height: var(--nav-h);
+  background: #1e1208;
+  border-top: 2px solid var(--wax-gold);
+  display: flex; z-index: 100;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; background: none; border: none; cursor: pointer;
+  color: rgba(245,233,201,0.6); transition: all 0.2s; padding: 6px 2px;
+  min-height: 44px;
+}
+.nav-btn .nav-icon { font-size: 1.4rem; line-height: 1; }
+.nav-btn .nav-label { font-family: 'Cinzel', serif; font-size: 0.58rem; letter-spacing: 1px; text-transform: uppercase; color: rgba(245,233,201,0.65); }
+.nav-btn.active { color: var(--gold); }
+.nav-btn.active .nav-label { color: var(--gold); font-weight: 600; }
 
-  /* BUTTONS */
-  .submit-btn { width: 100%; padding: 12px; background: linear-gradient(135deg, #8b1a1a 0%, #6b1414 100%); color: var(--parchment); border: none; border-radius: 2px; font-family: 'Cinzel', serif; font-size: 0.88rem; font-weight: 600; letter-spacing: 2px; cursor: pointer; margin-top: 14px; transition: all 0.2s; box-shadow: 0 3px 12px rgba(139,26,26,0.3), inset 0 1px 0 rgba(255,255,255,0.15); text-transform: uppercase; }
-  .submit-btn:hover { background: linear-gradient(135deg, #a02020 0%, #7a1818 100%); transform: translateY(-1px); }
-  .submit-btn.green-btn { background: linear-gradient(135deg, #2d5a27 0%, #1e3d1b 100%); box-shadow: 0 3px 12px rgba(45,90,39,0.3); }
-  .submit-btn.green-btn:hover { background: linear-gradient(135deg, #367030 0%, #254820 100%); }
-  .submit-btn.grey-btn { background: linear-gradient(135deg, #555 0%, #333 100%); box-shadow: none; }
-  .export-row { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
-  .export-btn { flex: 1; min-width: 110px; padding: 10px; border: 2px solid var(--wax-gold); border-radius: 2px; background: rgba(184,134,11,0.1); font-family: 'Cinzel', serif; font-size: 0.7rem; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink); cursor: pointer; transition: all 0.2s; }
-  .export-btn:hover { background: rgba(184,134,11,0.25); }
+/* ── PAGES ── */
+.page { display: none; min-height: calc(100vh - var(--nav-h)); }
+.page.active { display: block; }
 
-  /* SUMMARY */
-  .summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
-  .card { background: rgba(255,255,255,0.35); border: 1px solid var(--parchment-dark); border-radius: 3px; padding: 12px 14px; text-align: center; }
-  .card .card-label { font-family: 'Cinzel', serif; font-size: 0.6rem; letter-spacing: 2px; color: var(--ink-light); text-transform: uppercase; margin-bottom: 5px; display: block; }
-  .card .card-value { font-family: 'Cinzel', serif; font-size: 1.15rem; font-weight: 700; }
-  .card.income .card-value { color: var(--green); }
-  .card.expense .card-value { color: var(--red); }
-  .card.anfang .card-value { color: var(--ink-light); }
+/* ── PAGE HEADER ── */
+.page-header {
+  background: linear-gradient(to bottom, #2a1505, #1a0f05);
+  border-bottom: 2px solid var(--wax-gold);
+  padding: 16px 20px 14px;
+  text-align: center;
+  position: sticky; top: 0; z-index: 50;
+}
+.page-header h2 {
+  font-family: 'Cinzel', serif; font-size: 1rem; font-weight: 700;
+  color: var(--parchment); letter-spacing: 3px; text-transform: uppercase;
+  border: none; margin: 0; padding: 0; display: block;
+}
+.page-header .sub { font-size: 0.75rem; color: rgba(245,233,201,0.55); margin-top: 2px; font-style: italic; }
 
-  /* TABLE */
-  .entries-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 8px; }
-  .entries-table thead tr { background: rgba(139,101,43,0.18); border-bottom: 2px solid var(--wax-gold); }
-  .entries-table th { font-family: 'Cinzel', serif; font-size: 0.6rem; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-light); padding: 7px 8px; text-align: left; }
-  .entries-table td { padding: 7px 8px; border-bottom: 1px solid rgba(139,101,43,0.2); vertical-align: middle; }
-  .entries-table tr:hover td { background: rgba(255,255,255,0.3); }
-  .badge { display: inline-block; padding: 2px 7px; border-radius: 2px; font-family: 'Cinzel', serif; font-size: 0.6rem; font-weight: 600; letter-spacing: 1px; }
-  .badge.income { background: rgba(45,90,39,0.15); color: var(--green); border: 1px solid rgba(45,90,39,0.3); }
-  .badge.expense { background: rgba(122,28,28,0.12); color: var(--red); border: 1px solid rgba(122,28,28,0.25); }
-  .amount-income { color: var(--green); font-weight: 600; }
-  .amount-expense { color: var(--red); font-weight: 600; }
-  .del-btn { background: none; border: none; color: var(--ink-light); cursor: pointer; font-size: 0.85rem; opacity: 0.5; transition: opacity 0.2s; padding: 2px 6px; }
-  .del-btn:hover { opacity: 1; color: var(--red); }
-  .filter-row { display: flex; gap: 10px; margin-bottom: 12px; align-items: flex-end; flex-wrap: wrap; }
-  .filter-row .form-group { min-width: 120px; flex: 1; }
-  .empty-msg { text-align: center; color: var(--ink-light); font-style: italic; padding: 20px; opacity: 0.6; }
-  hr.divider { border: none; border-top: 1px solid var(--parchment-dark); margin: 22px 0; }
+/* ── CONTENT WRAPPER ── */
+.page-content {
+  background: var(--parchment);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.07'/%3E%3C/svg%3E");
+  min-height: calc(100vh - var(--nav-h) - 60px);
+  padding: 16px 16px 32px;
+  max-width: 640px; margin: 0 auto;
+}
 
-  .info-box { background: rgba(184,134,11,0.1); border: 1px solid var(--wax-gold); border-radius: 3px; padding: 10px 14px; font-size: 0.85rem; color: var(--ink-light); margin-bottom: 14px; line-height: 1.6; }
-  .info-box strong { font-family: 'Cinzel', serif; font-size: 0.75rem; display: block; margin-bottom: 4px; }
+/* ── SECTION TITLES ── */
+.section-title {
+  font-family: 'Cinzel', serif; font-size: 0.72rem; font-weight: 600;
+  letter-spacing: 2px; color: var(--ink-light); text-transform: uppercase;
+  margin: 20px 0 10px; padding-bottom: 5px;
+  border-bottom: 1px solid var(--parchment-dark);
+  display: flex; align-items: center; gap: 6px;
+}
 
-  .kb-list { list-style: none; }
-  .kb-item { background: rgba(255,255,255,0.3); border: 1px solid var(--parchment-dark); border-radius: 3px; padding: 12px 16px; margin-bottom: 10px; transition: all 0.2s; }
-  .kb-item:hover { background: rgba(255,255,255,0.5); border-color: var(--wax-gold); }
-  .kb-item .kb-title { font-family: 'Cinzel', serif; font-size: 0.9rem; font-weight: 600; color: var(--ink); }
-  .kb-item .kb-meta { font-size: 0.8rem; color: var(--ink-light); margin-top: 3px; }
-  .kb-item .kb-profit { font-family: 'Cinzel', serif; font-size: 1rem; font-weight: 700; float: right; }
+/* ── FORMS ── */
+.form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+label {
+  font-family: 'Cinzel', serif; font-size: 0.7rem; font-weight: 600;
+  letter-spacing: 1.5px; color: var(--ink-light); text-transform: uppercase;
+}
+input, select {
+  background: rgba(255,255,255,0.55);
+  border: 1px solid var(--parchment-dark);
+  border-bottom: 2px solid var(--wax-gold);
+  border-radius: 3px; padding: 11px 12px;
+  font-family: 'IM Fell English', Georgia, serif;
+  font-size: 1rem; color: var(--ink);
+  outline: none; transition: all 0.2s; width: 100%;
+  min-height: 44px;
+}
+input:focus, select:focus {
+  background: rgba(255,255,255,0.85);
+  border-bottom-color: var(--wax-red);
+  box-shadow: 0 2px 10px rgba(139,26,26,0.15);
+}
+input.error { border-bottom-color: var(--red); background: rgba(122,28,28,0.06); }
+.field-error { font-size: 0.75rem; color: var(--red); font-style: italic; margin-top: 2px; display: none; }
+.field-error.show { display: block; }
 
-  @media (max-width: 600px) {
-    .scroll-container { padding: 28px 14px 50px; }
-    .form-grid { grid-template-columns: 1fr; }
-    .summary-cards { grid-template-columns: 1fr 1fr; }
-    .kasse-total-row { grid-template-columns: 1fr; }
-    h1 { font-size: 1.4rem; }
-    .tab-btn { font-size: 0.58rem; padding: 8px 2px; }
-  }
-  @media print {
-    body { background: white; padding: 0; }
-    .scroll-container { box-shadow: none; border: none; padding: 20px; }
-    .tab-nav, .submit-btn, .del-btn, .export-row, .filter-row { display: none !important; }
-    .tab-panel { display: block !important; }
-  }
+/* ── TYPE TOGGLE ── */
+.type-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.type-btn {
+  padding: 13px 10px; border: 2px solid var(--parchment-dark); border-radius: 3px;
+  background: rgba(255,255,255,0.3); font-family: 'Cinzel', serif; font-size: 0.82rem;
+  font-weight: 600; letter-spacing: 1px; cursor: pointer; transition: all 0.2s;
+  color: var(--ink-light); min-height: 44px;
+}
+.type-btn.income.active { background: rgba(30,77,26,0.12); border-color: var(--green-light); color: var(--green); box-shadow: 0 0 12px rgba(30,77,26,0.15); }
+.type-btn.expense.active { background: rgba(122,28,28,0.1); border-color: var(--red); color: var(--red); box-shadow: 0 0 12px rgba(122,28,28,0.12); }
+
+/* ── BUTTONS ── */
+.btn-primary {
+  width: 100%; padding: 14px; border: none; border-radius: 3px;
+  font-family: 'Cinzel', serif; font-size: 0.9rem; font-weight: 600;
+  letter-spacing: 2px; cursor: pointer; transition: all 0.2s;
+  text-transform: uppercase; min-height: 48px;
+  background: linear-gradient(135deg, #8b1a1a 0%, #6b1414 100%);
+  color: var(--parchment);
+  box-shadow: 0 3px 14px rgba(139,26,26,0.3), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary.green { background: linear-gradient(135deg, #2d5a27 0%, #1e3d1b 100%); box-shadow: 0 3px 14px rgba(45,90,39,0.3); }
+.btn-primary.grey  { background: linear-gradient(135deg, #555 0%, #333 100%); box-shadow: none; }
+.btn-primary.gold  { background: linear-gradient(135deg, #b8860b 0%, #8a6208 100%); box-shadow: 0 3px 14px rgba(184,134,11,0.3); }
+
+.btn-secondary {
+  flex: 1; min-width: 100px; padding: 11px 8px; min-height: 44px;
+  border: 2px solid var(--wax-gold); border-radius: 3px;
+  background: rgba(184,134,11,0.1); font-family: 'Cinzel', serif;
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--ink); cursor: pointer; transition: all 0.2s;
+}
+.btn-secondary:active { background: rgba(184,134,11,0.25); }
+.btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+
+/* ── SUMMARY CARDS ── */
+.summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.sum-card {
+  background: rgba(255,255,255,0.4); border: 1px solid var(--parchment-dark);
+  border-radius: 4px; padding: 12px 14px; text-align: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+}
+.sum-card .sc-label { font-family: 'Cinzel', serif; font-size: 0.62rem; letter-spacing: 2px; color: var(--ink-light); text-transform: uppercase; display: block; margin-bottom: 4px; }
+.sum-card .sc-value { font-family: 'Cinzel', serif; font-size: 1.2rem; font-weight: 700; }
+.sum-card.income .sc-value { color: var(--green); }
+.sum-card.expense .sc-value { color: var(--red); }
+
+/* ── COIN TABLE ── */
+.coin-section {
+  background: rgba(255,255,255,0.28); border: 1px solid var(--parchment-dark);
+  border-radius: 4px; padding: 14px; margin: 10px 0;
+}
+.coin-section-title {
+  font-family: 'Cinzel', serif; font-size: 0.7rem; font-weight: 600;
+  letter-spacing: 2px; color: var(--ink-light); text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.coin-row {
+  display: grid; grid-template-columns: 80px 1fr auto;
+  align-items: center; gap: 10px; margin-bottom: 8px;
+}
+.coin-denom { font-family: 'Cinzel', serif; font-weight: 600; font-size: 0.95rem; color: var(--ink); }
+.coin-row input { text-align: right; font-size: 1rem; padding: 10px 12px; }
+.coin-subtotal { font-family: 'Cinzel', serif; font-weight: 600; font-size: 0.9rem; color: var(--green-light); min-width: 80px; text-align: right; }
+.coin-total-row {
+  display: grid; grid-template-columns: 80px 1fr auto;
+  align-items: center; gap: 10px;
+  border-top: 1px solid var(--parchment-dark); padding-top: 8px; margin-top: 4px;
+}
+.coin-total-label { font-family: 'Cinzel', serif; font-size: 0.68rem; font-weight: 600; letter-spacing: 1px; color: var(--ink-light); text-transform: uppercase; grid-column: 1/3; }
+.coin-total-val { font-family: 'Cinzel', serif; font-weight: 700; font-size: 1rem; color: var(--green); text-align: right; }
+
+/* ── RESULT BOX ── */
+.result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+.result-box {
+  background: rgba(255,255,255,0.4); border: 1px solid var(--parchment-dark);
+  border-radius: 4px; padding: 10px; text-align: center;
+}
+.result-box .rb-label { font-family: 'Cinzel', serif; font-size: 0.58rem; letter-spacing: 1.5px; color: var(--ink-light); text-transform: uppercase; display: block; margin-bottom: 4px; }
+.result-box .rb-value { font-family: 'Cinzel', serif; font-size: 1.05rem; font-weight: 700; }
+.result-box .rb-sub { font-size: 0.62rem; color: var(--ink-light); margin-top: 2px; }
+
+/* ── ENTRY CARDS (Mobile-friendly list) ── */
+.entry-card {
+  background: rgba(255,255,255,0.38); border: 1px solid var(--parchment-dark);
+  border-radius: 4px; padding: 12px 14px; margin-bottom: 8px;
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.entry-card .ec-main { font-size: 0.95rem; font-weight: 600; color: var(--ink); }
+.entry-card .ec-meta { font-size: 0.78rem; color: var(--ink-light); margin-top: 2px; }
+.entry-card .ec-amount { font-family: 'Cinzel', serif; font-size: 1.1rem; font-weight: 700; text-align: right; align-self: start; }
+.entry-card .ec-amount.income { color: var(--green); }
+.entry-card .ec-amount.expense { color: var(--red); }
+.entry-card .ec-amount.kasse { color: var(--wax-gold); }
+.entry-card .ec-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-family: 'Cinzel', serif; font-size: 0.6rem; font-weight: 600; letter-spacing: 1px;
+  margin-top: 4px;
+}
+.ec-badge.income  { background: rgba(30,77,26,0.12); color: var(--green); border: 1px solid rgba(30,77,26,0.25); }
+.ec-badge.expense { background: rgba(122,28,28,0.1); color: var(--red); border: 1px solid rgba(122,28,28,0.2); }
+.ec-badge.kasse   { background: rgba(184,134,11,0.12); color: var(--wax-gold); border: 1px solid rgba(184,134,11,0.3); }
+.entry-card .ec-actions { grid-column: 2; grid-row: 1/4; display: flex; align-items: flex-start; padding-top: 2px; }
+.del-btn {
+  background: none; border: none; color: var(--ink-light); cursor: pointer;
+  font-size: 1rem; opacity: 0.4; padding: 6px; transition: opacity 0.2s; min-width: 36px; min-height: 36px;
+  display: flex; align-items: center; justify-content: center;
+}
+.del-btn:active { opacity: 1; color: var(--red); }
+
+/* ── KASSE LIST ── */
+.kasse-card {
+  background: rgba(255,255,255,0.35); border: 1px solid var(--parchment-dark);
+  border-radius: 4px; padding: 14px; margin-bottom: 10px;
+}
+.kasse-card .kc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.kasse-card .kc-title { font-family: 'Cinzel', serif; font-size: 0.9rem; font-weight: 600; color: var(--ink); }
+.kasse-card .kc-diff { font-family: 'Cinzel', serif; font-size: 1rem; font-weight: 700; }
+.kasse-card .kc-meta { font-size: 0.78rem; color: var(--ink-light); margin-bottom: 8px; }
+.kasse-card .kc-detail { font-size: 0.78rem; color: var(--ink-light); }
+.kasse-card .kc-stueck {
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--parchment-dark);
+  display: none;
+}
+.kasse-card .kc-stueck.open { display: block; }
+.kasse-card .kc-stueck table { width: 100%; font-size: 0.78rem; border-collapse: collapse; }
+.kasse-card .kc-stueck td { padding: 3px 6px; }
+.toggle-stueck {
+  background: none; border: 1px solid var(--parchment-dark); border-radius: 10px;
+  font-family: 'Cinzel', serif; font-size: 0.6rem; letter-spacing: 1px;
+  color: var(--ink-light); cursor: pointer; padding: 3px 10px; margin-top: 6px;
+  min-height: 28px;
+}
+
+/* ── FILTER BAR ── */
+.filter-bar {
+  display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
+}
+.filter-bar select, .filter-bar input {
+  flex: 1; min-width: 100px; padding: 9px 10px; font-size: 0.88rem; min-height: 40px;
+}
+
+/* ── INFO BOX ── */
+.info-box {
+  background: rgba(184,134,11,0.1); border: 1px solid var(--wax-gold);
+  border-radius: 4px; padding: 12px 14px; font-size: 0.88rem;
+  color: var(--ink-light); margin-bottom: 14px; line-height: 1.6;
+}
+.info-box strong { font-family: 'Cinzel', serif; font-size: 0.72rem; display: block; margin-bottom: 4px; }
+
+/* ── ABSCHLUSS ── */
+.abschluss-result { margin-top: 16px; }
+.ab-ergebnis-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 9px 12px; border-bottom: 1px solid rgba(139,101,43,0.2);
+  font-size: 0.9rem;
+}
+.ab-ergebnis-row .ab-label { color: var(--ink-light); }
+.ab-ergebnis-row .ab-val { font-family: 'Cinzel', serif; font-weight: 600; }
+.ab-abgabe-box {
+  background: rgba(139,26,26,0.08); border: 2px solid var(--wax-red);
+  border-radius: 4px; padding: 14px; margin-top: 14px; text-align: center;
+}
+.ab-abgabe-box .ab-abgabe-label { font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-light); display: block; margin-bottom: 4px; }
+.ab-abgabe-box .ab-abgabe-val { font-family: 'Cinzel', serif; font-size: 1.8rem; font-weight: 700; color: var(--wax-red); }
+
+/* ── BACKUP REMINDER ── */
+.backup-banner {
+  background: rgba(139,26,26,0.1); border: 1px solid var(--wax-red);
+  border-radius: 4px; padding: 10px 14px; margin-bottom: 14px;
+  font-size: 0.85rem; color: var(--red); display: none;
+}
+.backup-banner.show { display: block; }
+
+/* ── EMPTY STATE ── */
+.empty-state { text-align: center; padding: 32px 16px; color: var(--ink-light); opacity: 0.6; font-style: italic; }
+
+/* ── PRINT ── */
+@media print {
+  .bottom-nav, .btn-row, .del-btn, .toggle-stueck, .filter-bar, .page-header { display: none !important; }
+  body { padding-bottom: 0; background: white; }
+  .page { display: block !important; }
+  .page-content { padding: 0; }
+}
+
+/* ── DESKTOP ── */
+@media (min-width: 640px) {
+  body { padding: 20px 20px calc(var(--nav-h) + 20px); background: #1a0f05; }
+  .page-content { border-radius: 4px; box-shadow: 0 0 0 6px #5c3d1e, 0 0 0 10px #3a2210, 0 16px 40px rgba(0,0,0,0.7); padding: 24px 32px 40px; }
+  .result-grid { grid-template-columns: repeat(3, 1fr); }
+  .summary-grid { grid-template-columns: repeat(4, 1fr); }
+}
 </style>
 </head>
 <body>
-<div class="scroll-container">
-  <header>
-    <span class="ornament">⚜ ✦ ⚜</span>
-    <h1>Marktabrechnung</h1>
-    <div style="font-family:'IM Fell English SC',serif;color:var(--ink-light);font-size:0.9rem;margin-top:6px;letter-spacing:2px;">Mittelalterlicher Handel</div>
-    <span class="ornament" style="font-size:1.2rem;">— ✦ —</span>
-  </header>
 
-  <div class="tab-nav">
-    <button class="tab-btn active" onclick="showTab('tab-kasse')">🪙 Kassenzählung</button>
-    <button class="tab-btn" onclick="showTab('tab-buchung')">📝 Buchung</button>
-    <button class="tab-btn" onclick="showTab('tab-uebersicht')">📜 Übersicht</button>
-    <button class="tab-btn" onclick="showTab('tab-abschluss')">🏁 Abschluss</button>
-    <button class="tab-btn" onclick="showTab('tab-daten')">💾 Daten</button>
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- PAGE 1: BUCHUNG -->
+<!-- ════════════════════════════════════════════ -->
+<div id="page-buchung" class="page active">
+  <div class="page-header">
+    <h2>📝 Buchung</h2>
+    <div class="sub">Einnahme oder Ausgabe erfassen</div>
   </div>
-
-  <!-- TAB 1: KASSENZÄHLUNG -->
-  <div id="tab-kasse" class="tab-panel active">
-    <div class="form-grid" style="margin-bottom:14px;">
-      <div class="form-group">
-        <label>Markt / Veranstaltung</label>
-        <input type="text" id="k-markt" placeholder="z.B. Burgfest Nürnberg" list="markt-list-k">
-        <datalist id="markt-list-k"></datalist>
-      </div>
-      <div class="form-group">
-        <label>Datum</label>
-        <input type="date" id="k-datum">
-      </div>
-    </div>
-
-    <div class="coin-section">
-      <h3>① Anfangskassenbestand</h3>
-      <div class="form-group">
-        <label>Betrag (€)</label>
-        <input type="number" id="k-anfang" placeholder="0,00" min="0" step="0.01" oninput="calcKasse()">
-      </div>
-    </div>
-
-    <div class="coin-section">
-      <h3>② Münzen zählen</h3>
-      <table class="coin-table">
-        <thead><tr><th>Nennwert</th><th>Stückzahl</th><th style="text-align:right">Summe</th></tr></thead>
-        <tbody>
-          <tr><td class="denom">2,00 €</td><td><input type="number" id="m-200" min="0" step="1" value="0" oninput="calcKasse()"></td><td class="subtotal" id="s-m200">0,00 €</td></tr>
-          <tr><td class="denom">1,00 €</td><td><input type="number" id="m-100" min="0" step="1" value="0" oninput="calcKasse()"></td><td class="subtotal" id="s-m100">0,00 €</td></tr>
-          <tr><td class="denom">0,50 €</td><td><input type="number" id="m-050" min="0" step="1" value="0" oninput="calcKasse()"></td><td class="subtotal" id="s-m050">0,00 €</td></tr>
-          <tr style="border-top:1px solid var(--parchment-dark);">
-            <td colspan="2" style="font-family:'Cinzel',serif;font-size:0.68rem;font-weight:600;letter-spacing:1px;color:var(--ink-light);text-transform:uppercase;padding:6px 8px;">Münzen gesamt</td>
-            <td class="subtotal" id="s-muenzen">0,00 €</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="coin-section">
-      <h3>③ Scheine zählen</h3>
-      <table class="coin-table">
-        <thead><tr><th>Nennwert</th><th>Stückzahl</th><th style="text-align:right">Summe</th></tr></thead>
-        <tbody>
-          <tr><td class="denom">5,00 €</td><td><input type="number" id="b-5" min="0" step="1" value="0" oninput="calcKasse()"></td><td class="subtotal" id="s-b5">0,00 €</td></tr>
-          <tr><td class="denom">10,00 €</td><td><input type="number" id="b-10" min="0" step="1" value="0" oninput="calcKasse()"></td><td class="subtotal" id="s-b10">0,00 €</td></tr>
-          <tr><td class="denom">20,00 €</td><td><input type="number" id="b-20" min="0" step="1" value="0" oninput="calcKasse()"></td><td class="subtotal" id="s-b20">0,00 €</td></tr>
-          <tr><td class="denom">50,00 €</td><td><input type="number" id="b-50" min="0" step="1" value="0" oninput="calcKasse()"></td><td class="subtotal" id="s-b50">0,00 €</td></tr>
-          <tr><td class="denom">100,00 €</td><td><input type="number" id="b-100" min="0" step="1" value="0" oninput="calcKasse()"></td><td class="subtotal" id="s-b100">0,00 €</td></tr>
-          <tr><td class="denom">200,00 €</td><td><input type="number" id="b-200" min="0" step="1" value="0" oninput="calcKasse()"></td><td class="subtotal" id="s-b200">0,00 €</td></tr>
-          <tr style="border-top:1px solid var(--parchment-dark);">
-            <td colspan="2" style="font-family:'Cinzel',serif;font-size:0.68rem;font-weight:600;letter-spacing:1px;color:var(--ink-light);text-transform:uppercase;padding:6px 8px;">Scheine gesamt</td>
-            <td class="subtotal" id="s-scheine">0,00 €</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="kasse-total-row">
-      <div class="kasse-total-box">
-        <span class="ktb-label">Ist-Bestand</span>
-        <span class="ktb-value" id="k-istbestand">0,00 €</span>
-        <div style="font-family:'Cinzel',serif;font-size:0.55rem;color:var(--ink-light);margin-top:3px;letter-spacing:1px;">GEZÄHLT</div>
-      </div>
-      <div class="kasse-total-box">
-        <span class="ktb-label">Soll-Bestand</span>
-        <span class="ktb-value" id="k-sollbestand">0,00 €</span>
-        <div style="font-family:'Cinzel',serif;font-size:0.55rem;color:var(--ink-light);margin-top:3px;letter-spacing:1px;">ANFANG + EIN − AUS</div>
-      </div>
-      <div class="kasse-total-box">
-        <span class="ktb-label">Differenz</span>
-        <span class="ktb-value" id="k-differenz">—</span>
-      </div>
-    </div>
-
-    <div class="form-group" style="margin-top:14px;">
-      <label>Notiz zur Zählung</label>
-      <input type="text" id="k-notiz" placeholder="z.B. Tagesabschluss, Zwischenzählung …">
-    </div>
-    <button class="submit-btn green-btn" onclick="saveKasse()">✦ Zählung speichern ✦</button>
-
-    <hr class="divider">
-    <h2>⚖ Gespeicherte Zählungen</h2>
-    <ul class="kb-list" id="kasse-list">
-      <li class="empty-msg">Noch keine Zählungen vorhanden.</li>
-    </ul>
-  </div>
-
-  <!-- TAB 2: BUCHUNG -->
-  <div id="tab-buchung" class="tab-panel">
-    <div class="type-row">
+  <div class="page-content">
+    <div class="type-toggle">
       <button class="type-btn income active" id="btn-income" onclick="setType('income')">⬆ Einnahme</button>
       <button class="type-btn expense" id="btn-expense" onclick="setType('expense')">⬇ Ausgabe</button>
     </div>
-    <div class="form-grid">
+
+    <div class="form-grid-2">
       <div class="form-group">
-        <label>Markt / Veranstaltung</label>
-        <input type="text" id="f-markt" placeholder="z.B. Burgfest Nürnberg" list="markt-list">
+        <label>Markt</label>
+        <input type="text" id="f-markt" placeholder="z.B. Burgfest" list="markt-list" autocomplete="off">
         <datalist id="markt-list"></datalist>
+        <span class="field-error" id="err-f-markt">Pflichtfeld</span>
       </div>
       <div class="form-group">
         <label>Datum</label>
         <input type="date" id="f-datum">
+        <span class="field-error" id="err-f-datum">Pflichtfeld</span>
       </div>
-      <div class="form-group">
-        <label>Bezeichnung</label>
-        <input type="text" id="f-bezeichnung" placeholder="z.B. Schwerter, Leder, Standgebühr …">
-      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Bezeichnung</label>
+      <input type="text" id="f-bezeichnung" placeholder="z.B. Schwerter, Standgebühr …">
+      <span class="field-error" id="err-f-bezeichnung">Pflichtfeld</span>
+    </div>
+
+    <div class="form-grid-2">
       <div class="form-group">
         <label>Kategorie</label>
         <select id="f-kategorie">
@@ -290,10 +378,6 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Betrag (€)</label>
-        <input type="number" id="f-betrag" placeholder="0,00" min="0" step="0.01">
-      </div>
-      <div class="form-group">
         <label>Zahlungsart</label>
         <select id="f-zahlung">
           <option>Bar</option>
@@ -302,233 +386,346 @@
           <option>Sonstiges</option>
         </select>
       </div>
-      <div class="form-group full">
-        <label>Notiz (optional)</label>
-        <input type="text" id="f-notiz" placeholder="Freie Anmerkung …">
-      </div>
     </div>
-    <button class="submit-btn" onclick="addEntry()">✦ Eintrag hinzufügen ✦</button>
-  </div>
 
-  <!-- TAB 3: ÜBERSICHT -->
-  <div id="tab-uebersicht" class="tab-panel">
-    <div class="summary-cards">
-      <div class="card anfang">
-        <span class="card-label">Anfangsbestand</span>
-        <span class="card-value" id="sum-anfang">0,00 €</span>
-      </div>
-      <div class="card income">
-        <span class="card-label">Einnahmen</span>
-        <span class="card-value" id="sum-income">0,00 €</span>
-      </div>
-      <div class="card expense">
-        <span class="card-label">Ausgaben</span>
-        <span class="card-value" id="sum-expense">0,00 €</span>
-      </div>
-      <div class="card">
-        <span class="card-label">Gewinn</span>
-        <span class="card-value" id="sum-total">0,00 €</span>
-      </div>
+    <div class="form-group">
+      <label>Betrag (€)</label>
+      <input type="number" id="f-betrag" placeholder="0,00" min="0" step="0.01" inputmode="decimal">
+      <span class="field-error" id="err-f-betrag">Gültigen Betrag eingeben</span>
     </div>
-    <div class="filter-row">
+
+    <div class="form-group">
+      <label>Notiz (optional)</label>
+      <input type="text" id="f-notiz" placeholder="Freie Anmerkung …">
+    </div>
+
+    <button class="btn-primary" onclick="addEntry()" style="margin-top:6px;">✦ Eintrag speichern</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- PAGE 2: KASSENZÄHLUNG -->
+<!-- ════════════════════════════════════════════ -->
+<div id="page-kasse" class="page">
+  <div class="page-header">
+    <h2>🪙 Kassenzählung</h2>
+    <div class="sub">Bargeld zählen &amp; Abgleich</div>
+  </div>
+  <div class="page-content">
+
+    <div class="form-grid-2">
       <div class="form-group">
         <label>Markt</label>
-        <select id="filter-markt" onchange="renderTable()"><option value="">— Alle —</option></select>
+        <input type="text" id="k-markt" placeholder="z.B. Burgfest" list="markt-list-k" autocomplete="off">
+        <datalist id="markt-list-k"></datalist>
       </div>
       <div class="form-group">
-        <label>Typ</label>
-        <select id="filter-type" onchange="renderTable()">
-          <option value="">— Alle —</option>
-          <option value="income">Einnahmen</option>
-          <option value="expense">Ausgaben</option>
-          <option value="kasse">Kassenzählungen</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Suche</label>
-        <input type="text" id="filter-search" placeholder="Bezeichnung …" oninput="renderTable()">
+        <label>Datum</label>
+        <input type="date" id="k-datum">
       </div>
     </div>
-    <table class="entries-table">
-      <thead>
-        <tr>
-          <th>Datum</th><th>Markt</th><th>Bezeichnung</th><th>Kategorie</th>
-          <th>Zahlung</th><th>Typ</th><th style="text-align:right">Betrag</th><th></th>
-        </tr>
-      </thead>
-      <tbody id="entries-body">
-        <tr><td colspan="8" class="empty-msg">Noch keine Einträge vorhanden.</td></tr>
-      </tbody>
-    </table>
-    <div class="export-row">
-      <button class="export-btn" onclick="exportCSV()">⬇ CSV (Excel)</button>
-      <button class="export-btn" onclick="printReport()">🖨 Drucken</button>
+
+    <!-- ANFANGSBESTAND -->
+    <div class="coin-section">
+      <div class="coin-section-title">① Anfangskassenbestand</div>
+      <div class="form-group" style="margin:0;">
+        <label>Betrag (€)</label>
+        <input type="number" id="k-anfang" placeholder="0,00" min="0" step="0.01" inputmode="decimal" oninput="calcKasse()">
+      </div>
+    </div>
+
+    <!-- MÜNZEN -->
+    <div class="coin-section">
+      <div class="coin-section-title">② Münzen zählen</div>
+      <div class="coin-row">
+        <span class="coin-denom">2,00 €</span>
+        <input type="number" id="m-200" min="0" step="1" value="0" inputmode="numeric" oninput="calcKasse()">
+        <span class="coin-subtotal" id="s-m200">0,00 €</span>
+      </div>
+      <div class="coin-row">
+        <span class="coin-denom">1,00 €</span>
+        <input type="number" id="m-100" min="0" step="1" value="0" inputmode="numeric" oninput="calcKasse()">
+        <span class="coin-subtotal" id="s-m100">0,00 €</span>
+      </div>
+      <div class="coin-row">
+        <span class="coin-denom">0,50 €</span>
+        <input type="number" id="m-050" min="0" step="1" value="0" inputmode="numeric" oninput="calcKasse()">
+        <span class="coin-subtotal" id="s-m050">0,00 €</span>
+      </div>
+      <div class="coin-total-row">
+        <span class="coin-total-label">Münzen gesamt</span>
+        <span class="coin-total-val" id="s-muenzen">0,00 €</span>
+      </div>
+    </div>
+
+    <!-- SCHEINE -->
+    <div class="coin-section">
+      <div class="coin-section-title">③ Scheine zählen</div>
+      <div class="coin-row">
+        <span class="coin-denom">5,00 €</span>
+        <input type="number" id="b-5" min="0" step="1" value="0" inputmode="numeric" oninput="calcKasse()">
+        <span class="coin-subtotal" id="s-b5">0,00 €</span>
+      </div>
+      <div class="coin-row">
+        <span class="coin-denom">10,00 €</span>
+        <input type="number" id="b-10" min="0" step="1" value="0" inputmode="numeric" oninput="calcKasse()">
+        <span class="coin-subtotal" id="s-b10">0,00 €</span>
+      </div>
+      <div class="coin-row">
+        <span class="coin-denom">20,00 €</span>
+        <input type="number" id="b-20" min="0" step="1" value="0" inputmode="numeric" oninput="calcKasse()">
+        <span class="coin-subtotal" id="s-b20">0,00 €</span>
+      </div>
+      <div class="coin-row">
+        <span class="coin-denom">50,00 €</span>
+        <input type="number" id="b-50" min="0" step="1" value="0" inputmode="numeric" oninput="calcKasse()">
+        <span class="coin-subtotal" id="s-b50">0,00 €</span>
+      </div>
+      <div class="coin-row">
+        <span class="coin-denom">100,00 €</span>
+        <input type="number" id="b-100" min="0" step="1" value="0" inputmode="numeric" oninput="calcKasse()">
+        <span class="coin-subtotal" id="s-b100">0,00 €</span>
+      </div>
+      <div class="coin-row">
+        <span class="coin-denom">200,00 €</span>
+        <input type="number" id="b-200" min="0" step="1" value="0" inputmode="numeric" oninput="calcKasse()">
+        <span class="coin-subtotal" id="s-b200">0,00 €</span>
+      </div>
+      <div class="coin-total-row">
+        <span class="coin-total-label">Scheine gesamt</span>
+        <span class="coin-total-val" id="s-scheine">0,00 €</span>
+      </div>
+    </div>
+
+    <!-- ERGEBNIS -->
+    <div class="result-grid">
+      <div class="result-box">
+        <span class="rb-label">Ist-Bestand</span>
+        <span class="rb-value" id="k-istbestand">0,00 €</span>
+        <div class="rb-sub">Gezählt</div>
+      </div>
+      <div class="result-box">
+        <span class="rb-label">Soll-Bestand</span>
+        <span class="rb-value" id="k-sollbestand">0,00 €</span>
+        <div class="rb-sub">Anfang + Bar</div>
+      </div>
+      <div class="result-box">
+        <span class="rb-label">Differenz</span>
+        <span class="rb-value" id="k-differenz">—</span>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-top:14px;">
+      <label>Notiz</label>
+      <input type="text" id="k-notiz" placeholder="z.B. Tagesabschluss …">
+    </div>
+
+    <button class="btn-primary green" onclick="saveKasse()" style="margin-top:6px;">✦ Zählung speichern</button>
+
+    <div class="section-title" style="margin-top:24px;">⚖ Gespeicherte Zählungen</div>
+    <div id="kasse-list"><div class="empty-state">Noch keine Zählungen vorhanden.</div></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- PAGE 3: ÜBERSICHT -->
+<!-- ════════════════════════════════════════════ -->
+<div id="page-uebersicht" class="page">
+  <div class="page-header">
+    <h2>📜 Übersicht</h2>
+    <div class="sub">Alle Buchungen &amp; Zählungen</div>
+  </div>
+  <div class="page-content">
+    <div class="summary-grid">
+      <div class="sum-card anfang">
+        <span class="sc-label">Anfangsbestand</span>
+        <span class="sc-value" id="sum-anfang" style="color:var(--ink-light);">0,00 €</span>
+      </div>
+      <div class="sum-card income">
+        <span class="sc-label">Einnahmen</span>
+        <span class="sc-value" id="sum-income">0,00 €</span>
+      </div>
+      <div class="sum-card expense">
+        <span class="sc-label">Ausgaben</span>
+        <span class="sc-value" id="sum-expense">0,00 €</span>
+      </div>
+      <div class="sum-card">
+        <span class="sc-label">Gewinn</span>
+        <span class="sc-value" id="sum-total">0,00 €</span>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <select id="filter-markt" onchange="renderList()">
+        <option value="">— Alle Märkte —</option>
+      </select>
+      <select id="filter-type" onchange="renderList()">
+        <option value="">— Alle —</option>
+        <option value="income">Einnahmen</option>
+        <option value="expense">Ausgaben</option>
+        <option value="kasse">Zählungen</option>
+      </select>
+    </div>
+    <div class="filter-bar">
+      <input type="text" id="filter-search" placeholder="🔍 Suchen …" oninput="renderList()" style="min-height:40px;">
+    </div>
+
+    <div id="entries-list"><div class="empty-state">Noch keine Einträge vorhanden.</div></div>
+
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="exportCSV()">⬇ CSV Export</button>
+      <button class="btn-secondary" onclick="window.print()">🖨 Drucken</button>
     </div>
   </div>
+</div>
 
-  <!-- TAB 4: DATEN -->
-  <div id="tab-daten" class="tab-panel">
+<!-- ════════════════════════════════════════════ -->
+<!-- PAGE 4: ABSCHLUSS -->
+<!-- ════════════════════════════════════════════ -->
+<div id="page-abschluss" class="page">
+  <div class="page-header">
+    <h2>🏁 Kassenabschluss</h2>
+    <div class="sub">Abrechnung pro Markt &amp; Jahr</div>
+  </div>
+  <div class="page-content">
     <div class="info-box">
-      <strong>💡 Datenspeicherung</strong>
-      Daten werden lokal im Browser gespeichert (localStorage). Erstelle regelmäßig ein JSON-Backup und lege es in iCloud Drive ab – so kannst du auf jedem Gerät weitermachen.
+      <strong>💡 Hinweis</strong>
+      Kartenumsätze fließen in den Gesamtgewinn, nicht in die Kassenabgabe – die sind bereits auf dem Konto.
     </div>
 
-    <h2>💾 Backup</h2>
-    <button class="submit-btn green-btn" onclick="exportJSON()" style="margin-top:0;">⬇ Backup speichern (JSON)</button>
-    <div style="font-size:0.8rem;color:var(--ink-light);margin-top:6px;font-style:italic;">Alle Buchungen und Kassenzählungen werden als JSON-Datei gespeichert.</div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>Markt</label>
+        <select id="ab-markt" onchange="calcAbschluss()"><option value="">— Wählen —</option></select>
+      </div>
+      <div class="form-group">
+        <label>Jahr</label>
+        <select id="ab-jahr" onchange="calcAbschluss()"><option value="">— Wählen —</option></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Kassenrest (€)</label>
+      <input type="number" id="ab-rest" value="400" min="0" step="0.01" inputmode="decimal" oninput="calcAbschluss()">
+    </div>
 
-    <hr class="divider">
-    <h2>📂 Backup laden</h2>
+    <div id="ab-empty" class="empty-state">Bitte Markt und Jahr auswählen.</div>
+
+    <div id="ab-result" style="display:none;">
+      <div id="ab-print-area">
+
+        <div class="section-title">📈 Einnahmen</div>
+        <div id="ab-einnahmen-list"></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:2px solid var(--wax-gold);margin-top:4px;">
+          <span style="font-family:'Cinzel',serif;font-size:0.8rem;font-weight:600;">Gesamt Einnahmen</span>
+          <span style="font-family:'Cinzel',serif;font-weight:700;color:var(--green);" id="ab-einnahmen-sum"></span>
+        </div>
+
+        <div class="section-title" style="margin-top:16px;">📉 Ausgaben</div>
+        <div id="ab-ausgaben-list"></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:2px solid var(--wax-gold);margin-top:4px;">
+          <span style="font-family:'Cinzel',serif;font-size:0.8rem;font-weight:600;">Gesamt Ausgaben</span>
+          <span style="font-family:'Cinzel',serif;font-weight:700;color:var(--red);" id="ab-ausgaben-sum"></span>
+        </div>
+
+        <div class="section-title" style="margin-top:16px;">⚖ Ergebnis</div>
+        <div class="coin-section" style="padding:0;overflow:hidden;">
+          <div class="ab-ergebnis-row"><span class="ab-label">Bar-Einnahmen</span><span class="ab-val" id="ab-r-barein"></span></div>
+          <div class="ab-ergebnis-row"><span class="ab-label">Karten-Einnahmen</span><span class="ab-val" id="ab-r-kartein"></span></div>
+          <div class="ab-ergebnis-row"><span class="ab-label">− Ausgaben gesamt</span><span class="ab-val" style="color:var(--red);" id="ab-r-aus"></span></div>
+          <div class="ab-ergebnis-row" style="border-bottom:2px solid var(--wax-gold);padding:10px 12px;">
+            <span style="font-family:'Cinzel',serif;font-size:0.88rem;font-weight:600;">Gesamtgewinn (inkl. Karte)</span>
+            <span style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;" id="ab-r-gewinn"></span>
+          </div>
+          <div class="ab-ergebnis-row" style="background:rgba(184,134,11,0.06);"><span class="ab-label">Bar-Einnahmen</span><span class="ab-val" id="ab-r-barein2"></span></div>
+          <div class="ab-ergebnis-row" style="background:rgba(184,134,11,0.06);"><span class="ab-label">− Bar-Ausgaben</span><span class="ab-val" style="color:var(--red);" id="ab-r-baraus"></span></div>
+          <div class="ab-ergebnis-row" style="background:rgba(184,134,11,0.06);"><span class="ab-label">− Kassenrest</span><span class="ab-val" style="color:var(--ink-light);" id="ab-r-rest"></span></div>
+        </div>
+
+        <div class="ab-abgabe-box">
+          <span class="ab-abgabe-label">Abgabe an Firma</span>
+          <span class="ab-abgabe-val" id="ab-r-abgabe"></span>
+        </div>
+
+        <div style="margin-top:30px;display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+          <div style="border-top:1px solid var(--ink);padding-top:6px;font-family:'Cinzel',serif;font-size:0.68rem;color:var(--ink-light);text-align:center;">Datum / Kassenwart</div>
+          <div style="border-top:1px solid var(--ink);padding-top:6px;font-family:'Cinzel',serif;font-size:0.68rem;color:var(--ink-light);text-align:center;">Datum / Geschäftsführung</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-secondary" onclick="printAbschluss()">🖨 Drucken</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- PAGE 5: DATEN -->
+<!-- ════════════════════════════════════════════ -->
+<div id="page-daten" class="page">
+  <div class="page-header">
+    <h2>💾 Daten</h2>
+    <div class="sub">Backup &amp; Einstellungen</div>
+  </div>
+  <div class="page-content">
+
+    <div class="backup-banner" id="backup-banner">
+      ⚠ Letztes Backup vor mehr als 7 Tagen – bitte jetzt sichern!
+    </div>
+
+    <div class="section-title">💾 Datensicherung</div>
+    <button class="btn-primary green" onclick="exportJSON()" style="margin-bottom:8px;">⬇ Backup speichern (JSON)</button>
+    <p style="font-size:0.82rem;color:var(--ink-light);font-style:italic;margin-bottom:16px;">Alle Buchungen und Zählungen als JSON-Datei – in iCloud Drive ablegen für geräteübergreifenden Zugriff.</p>
+
+    <div class="section-title">📂 Backup laden</div>
     <div class="form-group">
       <label>JSON-Datei auswählen</label>
       <input type="file" id="import-file" accept=".json" onchange="importJSON(event)" style="cursor:pointer;">
     </div>
-    <div style="font-size:0.8rem;color:var(--red);margin-top:6px;font-style:italic;">⚠ Bestehende Daten werden überschrieben.</div>
+    <p style="font-size:0.82rem;color:var(--red);font-style:italic;margin-bottom:16px;">⚠ Bestehende Daten werden überschrieben.</p>
 
-    <hr class="divider">
-    <h2>🗑 Daten löschen</h2>
-    <button class="submit-btn grey-btn" onclick="clearAll()" style="margin-top:0;">Alle Daten löschen</button>
+    <div class="section-title">🗑 Daten löschen</div>
+    <button class="btn-primary grey" onclick="clearAll()" style="margin-bottom:8px;">Alle Daten löschen</button>
 
-    <hr class="divider">
-    <h2>📱 App lokal nutzen</h2>
+    <div class="section-title" style="margin-top:24px;">📱 App auf Homescreen</div>
     <div class="info-box">
-      <strong>iPhone / iPad – so geht's:</strong>
-      1. HTML-Datei per AirDrop, E-Mail oder in iCloud Drive übertragen<br>
-      2. In Safari öffnen – funktioniert komplett offline<br>
-      3. Safari → Teilen → „Zum Home-Bildschirm" für eine App-Verknüpfung
+      <strong>iPhone / iPad:</strong>
+      1. In Safari öffnen<br>
+      2. Teilen-Symbol ⬆ antippen<br>
+      3. „Zum Home-Bildschirm" wählen<br>
+      4. Name bestätigen → fertig!
     </div>
   </div>
-
-  <!-- TAB 5: KASSENABSCHLUSS -->
-  <div id="tab-abschluss" class="tab-panel">
-
-    <div class="info-box">
-      <strong>🏁 Kassenabschluss</strong>
-      Wähle Markt und Jahr. Der Abschluss zeigt alle Einnahmen und Ausgaben, berechnet den Abgabebetrag an die Firma und kann gedruckt werden. Kartenumsätze fließen nur in die Statistik, nicht in die Kassenabgabe.
-    </div>
-
-    <div class="form-grid" style="margin-bottom:16px;">
-      <div class="form-group">
-        <label>Markt</label>
-        <select id="ab-markt" onchange="calcAbschluss()">
-          <option value="">— Markt wählen —</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Jahr</label>
-        <select id="ab-jahr" onchange="calcAbschluss()">
-          <option value="">— Jahr wählen —</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Kassenrest (€)</label>
-        <input type="number" id="ab-rest" value="400" min="0" step="0.01" oninput="calcAbschluss()">
-      </div>
-    </div>
-
-    <div id="ab-result" style="display:none;">
-
-      <!-- DRUCKBARER BEREICH -->
-      <div id="ab-print-area">
-
-        <div style="text-align:center;margin-bottom:20px;">
-          <div style="font-family:'Cinzel',serif;font-size:1.3rem;font-weight:700;letter-spacing:2px;" id="ab-titel">Kassenabschluss</div>
-          <div style="font-family:'Cinzel',serif;font-size:0.8rem;color:var(--ink-light);margin-top:4px;" id="ab-untertitel"></div>
-        </div>
-
-        <!-- EINNAHMEN -->
-        <div class="coin-section">
-          <h3>📈 Einnahmen</h3>
-          <table class="coin-table" style="width:100%;">
-            <thead><tr><th>Position</th><th>Zahlungsart</th><th style="text-align:right">Betrag</th></tr></thead>
-            <tbody id="ab-einnahmen-rows"></tbody>
-            <tfoot>
-              <tr style="border-top:2px solid var(--wax-gold);">
-                <td colspan="2" style="font-family:'Cinzel',serif;font-weight:600;font-size:0.85rem;padding:6px 8px;">Einnahmen gesamt</td>
-                <td style="text-align:right;font-family:'Cinzel',serif;font-weight:700;font-size:1rem;padding:6px 8px;color:var(--green);" id="ab-einnahmen-sum"></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-
-        <!-- AUSGABEN -->
-        <div class="coin-section">
-          <h3>📉 Ausgaben</h3>
-          <table class="coin-table" style="width:100%;">
-            <thead><tr><th>Position</th><th>Zahlungsart</th><th style="text-align:right">Betrag</th></tr></thead>
-            <tbody id="ab-ausgaben-rows"></tbody>
-            <tfoot>
-              <tr style="border-top:2px solid var(--wax-gold);">
-                <td colspan="2" style="font-family:'Cinzel',serif;font-weight:600;font-size:0.85rem;padding:6px 8px;">Ausgaben gesamt</td>
-                <td style="text-align:right;font-family:'Cinzel',serif;font-weight:700;font-size:1rem;padding:6px 8px;color:var(--red);" id="ab-ausgaben-sum"></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-
-        <!-- ERGEBNIS -->
-        <div class="coin-section" style="background:rgba(255,255,255,0.4);">
-          <h3>⚖ Ergebnis</h3>
-          <table class="coin-table" style="width:100%;">
-            <tbody>
-              <tr>
-                <td style="padding:6px 8px;font-family:'Cinzel',serif;font-size:0.85rem;">Bar-Einnahmen</td>
-                <td style="text-align:right;padding:6px 8px;font-family:'Cinzel',serif;" id="ab-r-barein"></td>
-              </tr>
-              <tr>
-                <td style="padding:6px 8px;font-family:'Cinzel',serif;font-size:0.85rem;">Karten-Einnahmen</td>
-                <td style="text-align:right;padding:6px 8px;font-family:'Cinzel',serif;" id="ab-r-kartein"></td>
-              </tr>
-              <tr>
-                <td style="padding:6px 8px;font-family:'Cinzel',serif;font-size:0.85rem;">Ausgaben gesamt</td>
-                <td style="text-align:right;padding:6px 8px;font-family:'Cinzel',serif;color:var(--red);" id="ab-r-aus"></td>
-              </tr>
-              <tr style="border-top:1px solid var(--parchment-dark);">
-                <td style="padding:6px 8px;font-family:'Cinzel',serif;font-size:0.9rem;font-weight:600;">Gesamtgewinn (inkl. Karte)</td>
-                <td style="text-align:right;padding:6px 8px;font-family:'Cinzel',serif;font-weight:700;font-size:1.1rem;" id="ab-r-gewinn"></td>
-              </tr>
-              <tr style="border-top:2px solid var(--wax-gold);background:rgba(184,134,11,0.08);">
-                <td style="padding:8px 8px;font-family:'Cinzel',serif;font-size:0.85rem;">Bar-Einnahmen</td>
-                <td style="text-align:right;padding:8px 8px;font-family:'Cinzel',serif;" id="ab-r-barein2"></td>
-              </tr>
-              <tr style="background:rgba(184,134,11,0.08);">
-                <td style="padding:6px 8px;font-family:'Cinzel',serif;font-size:0.85rem;">− Bar-Ausgaben</td>
-                <td style="text-align:right;padding:6px 8px;font-family:'Cinzel',serif;color:var(--red);" id="ab-r-baraus"></td>
-              </tr>
-              <tr style="background:rgba(184,134,11,0.08);">
-                <td style="padding:6px 8px;font-family:'Cinzel',serif;font-size:0.85rem;">− Kassenrest</td>
-                <td style="text-align:right;padding:6px 8px;font-family:'Cinzel',serif;color:var(--ink-light);" id="ab-r-rest"></td>
-              </tr>
-              <tr style="background:rgba(139,26,26,0.1);border-top:2px solid var(--wax-red);">
-                <td style="padding:10px 8px;font-family:'Cinzel',serif;font-size:1rem;font-weight:700;letter-spacing:1px;">ABGABE AN FIRMA</td>
-                <td style="text-align:right;padding:10px 8px;font-family:'Cinzel',serif;font-weight:700;font-size:1.3rem;color:var(--wax-red);" id="ab-r-abgabe"></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div style="margin-top:30px;display:grid;grid-template-columns:1fr 1fr;gap:30px;" class="print-only-show">
-          <div style="border-top:1px solid var(--ink);padding-top:6px;font-family:'Cinzel',serif;font-size:0.75rem;color:var(--ink-light);text-align:center;">Datum / Unterschrift Kassenwart</div>
-          <div style="border-top:1px solid var(--ink);padding-top:6px;font-family:'Cinzel',serif;font-size:0.75rem;color:var(--ink-light);text-align:center;">Datum / Unterschrift Geschäftsführung</div>
-        </div>
-
-      </div><!-- end print area -->
-
-      <div class="export-row" style="margin-top:20px;">
-        <button class="export-btn" onclick="printAbschluss()">🖨 Abschluss drucken</button>
-      </div>
-
-    </div><!-- end ab-result -->
-
-    <div id="ab-empty" style="text-align:center;color:var(--ink-light);font-style:italic;padding:30px;opacity:0.6;">
-      Bitte Markt und Jahr auswählen.
-    </div>
-
-  </div>
-
 </div>
 
+<!-- ════════════════════════════════════════════ -->
+<!-- BOTTOM NAVIGATION -->
+<!-- ════════════════════════════════════════════ -->
+<nav class="bottom-nav">
+  <button class="nav-btn" id="nav-kasse" onclick="showPage('kasse')">
+    <span class="nav-icon">🪙</span>
+    <span class="nav-label">Zählung</span>
+  </button>
+  <button class="nav-btn" id="nav-buchung" onclick="showPage('buchung')">
+    <span class="nav-icon">📝</span>
+    <span class="nav-label">Buchung</span>
+  </button>
+  <button class="nav-btn active" id="nav-uebersicht" onclick="showPage('uebersicht')">
+    <span class="nav-icon">📜</span>
+    <span class="nav-label">Übersicht</span>
+  </button>
+  <button class="nav-btn" id="nav-abschluss" onclick="showPage('abschluss')">
+    <span class="nav-icon">🏁</span>
+    <span class="nav-label">Abschluss</span>
+  </button>
+  <button class="nav-btn" id="nav-daten" onclick="showPage('daten')">
+    <span class="nav-icon">💾</span>
+    <span class="nav-label">Daten</span>
+  </button>
+</nav>
+
 <script>
+// ── STATE ──────────────────────────────────────────────────────────
 let entries   = JSON.parse(localStorage.getItem('markt-entries')   || '[]');
 let kassungen = JSON.parse(localStorage.getItem('markt-kassungen') || '[]');
 let currentType = 'income';
@@ -536,27 +733,135 @@ let currentType = 'income';
 document.getElementById('f-datum').valueAsDate = new Date();
 document.getElementById('k-datum').valueAsDate = new Date();
 
-// ── TABS ──
-function showTab(id) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  const idx = ['tab-kasse','tab-buchung','tab-uebersicht','tab-abschluss','tab-daten'].indexOf(id);
-  document.querySelectorAll('.tab-btn')[idx].classList.add('active');
-  if (id === 'tab-uebersicht') renderTable();
-  if (id === 'tab-kasse') renderKasseList();
-  if (id === 'tab-abschluss') initAbschluss();
+// ── NAVIGATION ─────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  window.scrollTo(0, 0);
+  if (name === 'uebersicht') renderList();
+  if (name === 'kasse')      renderKasseList();
+  if (name === 'abschluss')  initAbschluss();
+  if (name === 'daten')      checkBackupReminder();
 }
 
-// ── KASSENZÄHLUNG ──
-const COINS = [{id:'m-200', sid:'s-m200', val:2},{id:'m-100', sid:'s-m100', val:1},{id:'m-050', sid:'s-m050', val:0.5}];
-const BILLS = [{id:'b-5',val:5},{id:'b-10',val:10},{id:'b-20',val:20},{id:'b-50',val:50},{id:'b-100',val:100},{id:'b-200',val:200}];
-const BILL_SUMS = ['s-b5','s-b10','s-b20','s-b50','s-b100','s-b200'];
+// ── TOAST ──────────────────────────────────────────────────────────
+function toast(msg, duration = 2200) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), duration);
+}
+
+// ── FORMAT ─────────────────────────────────────────────────────────
+function fmt(n) {
+  return n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+// ── SAVE ───────────────────────────────────────────────────────────
+function save() {
+  localStorage.setItem('markt-entries',   JSON.stringify(entries));
+  localStorage.setItem('markt-kassungen', JSON.stringify(kassungen));
+}
+
+// ── DATALISTS ──────────────────────────────────────────────────────
+function updateDataLists() {
+  const märkte = [...new Set([...entries.map(e => e.markt), ...kassungen.map(k => k.markt)])].filter(Boolean).sort();
+  ['markt-list', 'markt-list-k'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = märkte.map(m => `<option value="${m}">`).join('');
+  });
+}
+
+// ── TYPE TOGGLE ────────────────────────────────────────────────────
+function setType(type) {
+  currentType = type;
+  document.getElementById('btn-income').classList.toggle('active', type === 'income');
+  document.getElementById('btn-expense').classList.toggle('active', type === 'expense');
+}
+
+// ── FIELD VALIDATION ───────────────────────────────────────────────
+function validate(fields) {
+  let ok = true;
+  fields.forEach(({ id, check }) => {
+    const el = document.getElementById(id);
+    const errEl = document.getElementById('err-' + id);
+    const bad = !check(el.value);
+    el.classList.toggle('error', bad);
+    if (errEl) errEl.classList.toggle('show', bad);
+    if (bad) ok = false;
+  });
+  return ok;
+}
+
+// ── BUCHUNG ────────────────────────────────────────────────────────
+function addEntry() {
+  const ok = validate([
+    { id: 'f-markt',       check: v => v.trim() !== '' },
+    { id: 'f-datum',       check: v => v !== '' },
+    { id: 'f-bezeichnung', check: v => v.trim() !== '' },
+    { id: 'f-betrag',      check: v => parseFloat(v) > 0 },
+  ]);
+  if (!ok) return;
+
+  entries.push({
+    id:          Date.now(),
+    type:        currentType,
+    markt:       document.getElementById('f-markt').value.trim(),
+    datum:       document.getElementById('f-datum').value,
+    bezeichnung: document.getElementById('f-bezeichnung').value.trim(),
+    kategorie:   document.getElementById('f-kategorie').value,
+    betrag:      parseFloat(document.getElementById('f-betrag').value),
+    zahlung:     document.getElementById('f-zahlung').value,
+    notiz:       document.getElementById('f-notiz').value.trim()
+  });
+
+  save(); updateDataLists(); calcKasse();
+
+  // Clear form (Markt und Datum bleiben für die nächste Buchung erhalten)
+  document.getElementById('f-bezeichnung').value = '';
+  document.getElementById('f-betrag').value       = '';
+  document.getElementById('f-notiz').value        = '';
+  ['f-markt','f-datum','f-bezeichnung','f-betrag'].forEach(id => {
+    document.getElementById(id).classList.remove('error');
+    const e = document.getElementById('err-' + id);
+    if (e) e.classList.remove('show');
+  });
+
+  toast('✓ Eintrag gespeichert');
+}
+
+function deleteEntry(id) {
+  const entry = entries.find(e => e.id === id);
+  if (entry && entry.kasseRef && entry.kasseRefId) {
+    // Auch die zugehörige Zählung in kassungen löschen
+    kassungen = kassungen.filter(k => k.id !== entry.kasseRefId);
+  }
+  entries = entries.filter(e => e.id !== id);
+  save(); renderList(); renderKasseList(); calcKasse();
+  toast('Eintrag gelöscht');
+}
+
+// ── KASSENZÄHLUNG ──────────────────────────────────────────────────
+const COINS = [
+  { id: 'm-200', sid: 's-m200', val: 2 },
+  { id: 'm-100', sid: 's-m100', val: 1 },
+  { id: 'm-050', sid: 's-m050', val: 0.5 }
+];
+const BILLS = [
+  { id: 'b-5',   sid: 's-b5',   val: 5   },
+  { id: 'b-10',  sid: 's-b10',  val: 10  },
+  { id: 'b-20',  sid: 's-b20',  val: 20  },
+  { id: 'b-50',  sid: 's-b50',  val: 50  },
+  { id: 'b-100', sid: 's-b100', val: 100 },
+  { id: 'b-200', sid: 's-b200', val: 200 }
+];
 
 function calcKasse() {
   let muenzen = 0;
   COINS.forEach(c => {
-    const n = Math.max(0, parseInt(document.getElementById(c.id).value)||0);
+    const n = Math.max(0, parseInt(document.getElementById(c.id).value) || 0);
     const sub = n * c.val;
     muenzen += sub;
     document.getElementById(c.sid).textContent = fmt(sub);
@@ -564,286 +869,353 @@ function calcKasse() {
   document.getElementById('s-muenzen').textContent = fmt(muenzen);
 
   let scheine = 0;
-  BILLS.forEach((b,i) => {
-    const n = Math.max(0, parseInt(document.getElementById(b.id).value)||0);
+  BILLS.forEach(b => {
+    const n = Math.max(0, parseInt(document.getElementById(b.id).value) || 0);
     const sub = n * b.val;
     scheine += sub;
-    document.getElementById(BILL_SUMS[i]).textContent = fmt(sub);
+    document.getElementById(b.sid).textContent = fmt(sub);
   });
   document.getElementById('s-scheine').textContent = fmt(scheine);
 
-  const anfang = parseFloat(document.getElementById('k-anfang').value)||0;
-  const ist = muenzen + scheine;
+  const anfang = parseFloat(document.getElementById('k-anfang').value) || 0;
+  const ist    = muenzen + scheine;
   document.getElementById('k-istbestand').textContent = fmt(ist);
 
-  const totalIncome  = entries.filter(e=>e.type==='income'  && e.zahlung==='Bar').reduce((s,e)=>s+e.betrag,0);
-  const totalExpense = entries.filter(e=>e.type==='expense' && e.zahlung==='Bar').reduce((s,e)=>s+e.betrag,0);
+  const totalIncome  = entries.filter(e => e.type === 'income'  && e.zahlung === 'Bar' && !e.kasseRef).reduce((s, e) => s + e.betrag, 0);
+  const totalExpense = entries.filter(e => e.type === 'expense' && e.zahlung === 'Bar' && !e.kasseRef).reduce((s, e) => s + e.betrag, 0);
   const soll = anfang + totalIncome - totalExpense;
   document.getElementById('k-sollbestand').textContent = fmt(soll);
 
-  const diff = ist - soll;
-  const el = document.getElementById('k-differenz');
-  el.textContent = (diff >= 0 ? '+' : '') + fmt(diff);
-  el.className = 'ktb-value ' + (diff > 0.005 ? 'diff-pos' : diff < -0.005 ? 'diff-neg' : 'diff-zero');
+  const diff  = ist - soll;
+  const diffEl = document.getElementById('k-differenz');
+  diffEl.textContent = (diff >= 0 ? '+' : '') + fmt(diff);
+  diffEl.className = 'rb-value ' + (diff > 0.005 ? 'diff-pos' : diff < -0.005 ? 'diff-neg' : 'diff-zero');
 }
 
 function saveKasse() {
   const markt = document.getElementById('k-markt').value.trim();
   const datum = document.getElementById('k-datum').value;
-  if (!markt || !datum) { alert('Bitte Markt und Datum angeben.'); return; }
+  if (!markt || !datum) { toast('⚠ Markt und Datum angeben'); return; }
 
-  const anfang = parseFloat(document.getElementById('k-anfang').value)||0;
-  const coins = {}; COINS.forEach(c => coins[c.id] = parseInt(document.getElementById(c.id).value)||0);
-  const bills = {}; BILLS.forEach(b => bills[b.id] = parseInt(document.getElementById(b.id).value)||0);
-  let muenzen=0; COINS.forEach(c=>muenzen+=coins[c.id]*c.val);
-  let scheine=0; BILLS.forEach(b=>scheine+=bills[b.id]*b.val);
-  const ist = muenzen + scheine;
-  const totalIncome  = entries.filter(e=>e.type==='income'  && e.zahlung==='Bar').reduce((s,e)=>s+e.betrag,0);
-  const totalExpense = entries.filter(e=>e.type==='expense' && e.zahlung==='Bar').reduce((s,e)=>s+e.betrag,0);
-  const soll = anfang + totalIncome - totalExpense;
+  const anfang = parseFloat(document.getElementById('k-anfang').value) || 0;
+  const coins  = {}; COINS.forEach(c => coins[c.id] = parseInt(document.getElementById(c.id).value) || 0);
+  const bills  = {}; BILLS.forEach(b => bills[b.id] = parseInt(document.getElementById(b.id).value) || 0);
+  let muenzen  = 0; COINS.forEach(c => muenzen += coins[c.id] * c.val);
+  let scheine  = 0; BILLS.forEach(b => scheine += bills[b.id] * b.val);
+  const ist    = muenzen + scheine;
 
+  const totalIncome  = entries.filter(e => e.type === 'income'  && e.zahlung === 'Bar' && !e.kasseRef).reduce((s, e) => s + e.betrag, 0);
+  const totalExpense = entries.filter(e => e.type === 'expense' && e.zahlung === 'Bar' && !e.kasseRef).reduce((s, e) => s + e.betrag, 0);
+  const soll   = anfang + totalIncome - totalExpense;
   const kasseNotiz = document.getElementById('k-notiz').value.trim();
-  kassungen.push({ id: Date.now(), markt, datum, anfang, coins, bills, muenzen, scheine, istBestand: ist, soll, diff: ist-soll, notiz: kasseNotiz });
 
-  // Automatisch Übersichtseintrag anlegen (alten ersetzen falls vorhanden)
+  const kasseId = Date.now();
+  kassungen.push({ id: kasseId, markt, datum, anfang, coins, bills, muenzen, scheine, istBestand: ist, soll, diff: ist - soll, notiz: kasseNotiz });
+
+  // Übersichtseintrag anlegen mit expliziter Verknüpfung zur Zählung
   entries = entries.filter(e => !(e.kasseRef && e.markt === markt && e.datum === datum));
   entries.push({
-    id: Date.now() + 1,
-    kasseRef: true,
-    type: 'kasse',
-    markt, datum,
-    bezeichnung: 'Kassenzählung',
-    kategorie: 'Kassenzählung',
-    betrag: ist,
-    soll, diff: ist - soll,
-    anfang,
-    coins, bills,
-    muenzen, scheine,
-    zahlung: 'Bar',
-    notiz: kasseNotiz
+    id: kasseId + 1, kasseRefId: kasseId, kasseRef: true, type: 'kasse',
+    markt, datum, bezeichnung: 'Kassenzählung', kategorie: 'Kassenzählung',
+    betrag: ist, soll, diff: ist - soll, anfang, coins, bills, muenzen, scheine,
+    zahlung: 'Bar', notiz: kasseNotiz
   });
 
-  save();
-  renderKasseList();
+  save(); renderKasseList(); updateDataLists();
 
-  // Felder zurücksetzen
+  // Reset form
   document.getElementById('k-anfang').value = '';
-  document.getElementById('k-notiz').value = '';
+  document.getElementById('k-notiz').value  = '';
   COINS.forEach(c => document.getElementById(c.id).value = 0);
   BILLS.forEach(b => document.getElementById(b.id).value = 0);
   calcKasse();
 
-  alert('✓ Zählung gespeichert!');
+  toast('✓ Zählung gespeichert');
 }
 
 function renderKasseList() {
   const el = document.getElementById('kasse-list');
-  if (kassungen.length === 0) { el.innerHTML = '<li class="empty-msg">Noch keine Zählungen vorhanden.</li>'; return; }
+  if (kassungen.length === 0) { el.innerHTML = '<div class="empty-state">Noch keine Zählungen vorhanden.</div>'; return; }
+
+  const coinDefs = [{ id:'m-200',val:2,label:'2,00 €'},{ id:'m-100',val:1,label:'1,00 €'},{ id:'m-050',val:0.5,label:'0,50 €'}];
+  const billDefs = [{ id:'b-5',val:5,label:'5,00 €'},{ id:'b-10',val:10,label:'10,00 €'},{ id:'b-20',val:20,label:'20,00 €'},{ id:'b-50',val:50,label:'50,00 €'},{ id:'b-100',val:100,label:'100,00 €'},{ id:'b-200',val:200,label:'200,00 €'}];
+
   el.innerHTML = [...kassungen].reverse().map(k => {
     const cls = k.diff > 0.005 ? 'diff-pos' : k.diff < -0.005 ? 'diff-neg' : 'diff-zero';
-    return `<li class="kb-item">
-      <span class="kb-profit ${cls}">${k.diff>=0?'+':''}${fmt(k.diff)}</span>
-      <div class="kb-title">${k.markt}</div>
-      <div class="kb-meta">${k.datum.split('-').reverse().join('.')} · Ist: ${fmt(k.istBestand)} · Soll: ${fmt(k.soll)}${k.notiz?' · '+k.notiz:''}</div>
-      <div style="margin-top:5px;font-size:0.78rem;color:var(--ink-light);">
-        Anfang: ${fmt(k.anfang)} | Münzen: ${fmt(k.muenzen)} | Scheine: ${fmt(k.scheine)}
-        <button class="del-btn" onclick="deleteKasse(${k.id})" style="margin-left:8px;">✕</button>
+    const coins = k.coins || {};
+    const bills = k.bills || {};
+    const coinRows = coinDefs.filter(c => (coins[c.id]||0) > 0).map(c =>
+      `<tr><td>${c.label}</td><td style="text-align:right">${coins[c.id]} Stk.</td><td style="text-align:right;color:var(--green-light);">${fmt(coins[c.id]*c.val)}</td></tr>`
+    ).join('');
+    const billRows = billDefs.filter(b => (bills[b.id]||0) > 0).map(b =>
+      `<tr><td>${b.label}</td><td style="text-align:right">${bills[b.id]} Stk.</td><td style="text-align:right;color:var(--green-light);">${fmt(bills[b.id]*b.val)}</td></tr>`
+    ).join('');
+
+    return `<div class="kasse-card">
+      <div class="kc-header">
+        <div>
+          <div class="kc-title">${k.markt}</div>
+          <div class="kc-meta">${k.datum.split('-').reverse().join('.')}${k.notiz ? ' · ' + k.notiz : ''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="kc-diff ${cls}">${k.diff >= 0 ? '+' : ''}${fmt(k.diff)}</span>
+          <button class="del-btn" onclick="deleteKasse(${k.id})">✕</button>
+        </div>
       </div>
-    </li>`;
+      <div class="kc-detail">
+        Anfang: ${fmt(k.anfang)} · Ist: ${fmt(k.istBestand)} · Soll: ${fmt(k.soll)}
+      </div>
+      <button class="toggle-stueck" onclick="toggleStueck(this)">▸ Stückelung zeigen</button>
+      <div class="kc-stueck">
+        <table>
+          <tr><td colspan="3" style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:1px;color:var(--ink-light);text-transform:uppercase;padding:4px 6px 2px;border-bottom:1px solid var(--parchment-dark);">🪙 Münzen</td></tr>
+          ${coinRows || '<tr><td colspan="3" style="padding:3px 6px;color:var(--ink-light);font-style:italic;">Keine Münzen</td></tr>'}
+          <tr><td colspan="3" style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:1px;color:var(--ink-light);text-transform:uppercase;padding:6px 6px 2px;border-bottom:1px solid var(--parchment-dark);">💵 Scheine</td></tr>
+          ${billRows || '<tr><td colspan="3" style="padding:3px 6px;color:var(--ink-light);font-style:italic;">Keine Scheine</td></tr>'}
+          <tr style="border-top:1px solid var(--parchment-dark);">
+            <td colspan="2" style="padding:4px 6px;font-family:'Cinzel',serif;font-weight:600;font-size:0.8rem;">Münzen gesamt</td>
+            <td style="text-align:right;padding:4px 6px;font-family:'Cinzel',serif;font-weight:600;">${fmt(k.muenzen)}</td>
+          </tr>
+          <tr>
+            <td colspan="2" style="padding:4px 6px;font-family:'Cinzel',serif;font-weight:600;font-size:0.8rem;">Scheine gesamt</td>
+            <td style="text-align:right;padding:4px 6px;font-family:'Cinzel',serif;font-weight:600;">${fmt(k.scheine)}</td>
+          </tr>
+        </table>
+      </div>
+    </div>`;
   }).join('');
-  updateDataLists();
+}
+
+function toggleStueck(btn) {
+  const box = btn.nextElementSibling;
+  const open = box.classList.toggle('open');
+  btn.textContent = open ? '▾ Stückelung verbergen' : '▸ Stückelung zeigen';
 }
 
 function deleteKasse(id) {
-  if (!confirm('Zählung löschen?')) return;
-  kassungen = kassungen.filter(k=>k.id!==id);
-  save(); renderKasseList();
+  kassungen = kassungen.filter(k => k.id !== id);
+  entries   = entries.filter(e => !(e.kasseRef && e.kasseRefId === id));
+  save(); renderKasseList(); renderList();
+  toast('Zählung gelöscht');
 }
 
-// ── BUCHUNGEN ──
-function setType(type) {
-  currentType = type;
-  document.getElementById('btn-income').classList.toggle('active', type==='income');
-  document.getElementById('btn-expense').classList.toggle('active', type==='expense');
-}
+// ── ÜBERSICHT ──────────────────────────────────────────────────────
+function renderList() {
+  // Update markt filter
+  const marktSel = document.getElementById('filter-markt');
+  const curMarkt = marktSel.value;
+  const märkte   = [...new Set(entries.map(e => e.markt))].filter(Boolean).sort();
+  marktSel.innerHTML = '<option value="">— Alle Märkte —</option>' + märkte.map(m =>
+    `<option value="${m}"${m === curMarkt ? ' selected' : ''}>${m}</option>`
+  ).join('');
 
-function addEntry() {
-  const markt       = document.getElementById('f-markt').value.trim();
-  const datum       = document.getElementById('f-datum').value;
-  const bezeichnung = document.getElementById('f-bezeichnung').value.trim();
-  const kategorie   = document.getElementById('f-kategorie').value;
-  const betrag      = parseFloat(document.getElementById('f-betrag').value);
-  const zahlung     = document.getElementById('f-zahlung').value;
-  const notiz       = document.getElementById('f-notiz').value.trim();
-  if (!markt || !datum || !bezeichnung || isNaN(betrag) || betrag <= 0) { alert('Bitte Markt, Datum, Bezeichnung und Betrag ausfüllen.'); return; }
-  entries.push({ id: Date.now(), type: currentType, markt, datum, bezeichnung, kategorie, betrag, zahlung, notiz });
-  save();
-  document.getElementById('f-bezeichnung').value = '';
-  document.getElementById('f-betrag').value = '';
-  document.getElementById('f-notiz').value = '';
-  calcKasse();
-  updateDataLists();
-  alert('✓ Eintrag gespeichert!');
-}
-
-function deleteEntry(id) {
-  entries = entries.filter(e=>e.id!==id);
-  save(); renderTable(); calcKasse();
-}
-
-// ── RENDER ──
-function fmt(n) {
-  return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
-}
-
-function updateDataLists() {
-  const märkte = [...new Set([...entries.map(e=>e.markt), ...kassungen.map(k=>k.markt)])].filter(Boolean).sort();
-  ['markt-list','markt-list-k'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = märkte.map(m=>`<option value="${m}">`).join('');
-  });
-}
-
-function renderTable() {
-  const marktSelect = document.getElementById('filter-markt');
-  const cur = marktSelect.value;
-  const märkte = [...new Set(entries.map(e=>e.markt))].sort();
-  marktSelect.innerHTML = '<option value="">— Alle —</option>' + märkte.map(m=>`<option value="${m}"${m===cur?' selected':''}>${m}</option>`).join('');
-
-  const totalAnfang  = kassungen.length > 0 ? kassungen[kassungen.length-1].anfang : 0;
-  const totalIncome  = entries.filter(e=>e.type==='income').reduce((s,e)=>s+e.betrag,0);
-  const totalExpense = entries.filter(e=>e.type==='expense').reduce((s,e)=>s+e.betrag,0);
+  // Totals (exclude kasse entries from income/expense sums)
+  const realEntries = entries.filter(e => !e.kasseRef);
+  const lastKasse   = kassungen.length > 0 ? kassungen[kassungen.length - 1] : null;
+  const totalAnfang  = lastKasse ? lastKasse.anfang : 0;
+  const totalIncome  = realEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.betrag, 0);
+  const totalExpense = realEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.betrag, 0);
   const profit = totalIncome - totalExpense;
 
   document.getElementById('sum-anfang').textContent  = fmt(totalAnfang);
   document.getElementById('sum-income').textContent  = fmt(totalIncome);
   document.getElementById('sum-expense').textContent = fmt(totalExpense);
   const tel = document.getElementById('sum-total');
-  tel.textContent = fmt(profit);
-  tel.style.color = profit >= 0 ? 'var(--green)' : 'var(--red)';
+  tel.textContent  = fmt(profit);
+  tel.style.color  = profit >= 0 ? 'var(--green)' : 'var(--red)';
 
-  const markt  = marktSelect.value;
+  // Filter
   const typeFilter = document.getElementById('filter-type').value;
-  const search = document.getElementById('filter-search').value.toLowerCase();
+  const search     = document.getElementById('filter-search').value.toLowerCase();
+  const markt      = marktSel.value;
+
   const filtered = entries.filter(e => {
-    if (markt  && e.markt !== markt) return false;
-    if (typeFilter && typeFilter !== 'kasse' && e.type !== typeFilter && e.type === 'kasse') return false;
-    if (typeFilter && typeFilter !== '' && e.type !== typeFilter) return false;
+    if (markt && e.markt !== markt) return false;
+    if (typeFilter && e.type !== typeFilter) return false;
     if (search && !e.bezeichnung.toLowerCase().includes(search) && !e.kategorie.toLowerCase().includes(search)) return false;
     return true;
   });
 
-  const tbody = document.getElementById('entries-body');
-  if (filtered.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">Keine Einträge gefunden.</td></tr>'; return; }
-  tbody.innerHTML = [...filtered].sort((a,b)=>b.datum.localeCompare(a.datum)).map(e => {
+  const listEl = document.getElementById('entries-list');
+  if (filtered.length === 0) { listEl.innerHTML = '<div class="empty-state">Keine Einträge gefunden.</div>'; return; }
+
+  listEl.innerHTML = [...filtered].sort((a, b) => b.datum.localeCompare(a.datum)).map(e => {
     if (e.type === 'kasse') {
       const diffCls = e.diff > 0.005 ? 'amount-income' : e.diff < -0.005 ? 'amount-expense' : '';
       const diffTxt = (e.diff >= 0 ? '+' : '') + fmt(e.diff);
-      const coinDefs = [{id:'m-200',val:2,label:'2,00 €'},{id:'m-100',val:1,label:'1,00 €'},{id:'m-050',val:0.5,label:'0,50 €'}];
-      const billDefs = [{id:'b-5',val:5,label:'5,00 €'},{id:'b-10',val:10,label:'10,00 €'},{id:'b-20',val:20,label:'20,00 €'},{id:'b-50',val:50,label:'50,00 €'},{id:'b-100',val:100,label:'100,00 €'},{id:'b-200',val:200,label:'200,00 €'}];
-      const coins = e.coins || {};
-      const bills = e.bills || {};
-      const coinRows = coinDefs.filter(c=>(coins[c.id]||0)>0).map(c =>
-        `<tr><td style="padding:2px 6px;color:var(--ink-light);">${c.label}</td><td style="padding:2px 6px;text-align:right;">${coins[c.id]||0} Stk.</td><td style="padding:2px 6px;text-align:right;color:var(--green);">${fmt((coins[c.id]||0)*c.val)}</td></tr>`
-      ).join('');
-      const billRows = billDefs.filter(b=>(bills[b.id]||0)>0).map(b =>
-        `<tr><td style="padding:2px 6px;color:var(--ink-light);">${b.label}</td><td style="padding:2px 6px;text-align:right;">${bills[b.id]||0} Stk.</td><td style="padding:2px 6px;text-align:right;color:var(--green);">${fmt((bills[b.id]||0)*b.val)}</td></tr>`
-      ).join('');
-      const stuekelungHtml = `
-        <table style="margin-top:6px;width:100%;font-size:0.78rem;border-collapse:collapse;">
-          <tr><td colspan="3" style="padding:3px 6px;font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:1px;color:var(--ink-light);text-transform:uppercase;border-bottom:1px solid var(--parchment-dark);">🪙 Münzen</td></tr>
-          ${coinRows || '<tr><td colspan="3" style="padding:2px 6px;color:var(--ink-light);font-style:italic;">Keine Münzen</td></tr>'}
-          <tr><td colspan="3" style="padding:3px 6px;font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:1px;color:var(--ink-light);text-transform:uppercase;border-bottom:1px solid var(--parchment-dark);border-top:1px solid var(--parchment-dark);">💵 Scheine</td></tr>
-          ${billRows || '<tr><td colspan="3" style="padding:2px 6px;color:var(--ink-light);font-style:italic;">Keine Scheine</td></tr>'}
-          <tr style="border-top:1px solid var(--parchment-dark);">
-            <td colspan="2" style="padding:3px 6px;font-family:'Cinzel',serif;font-size:0.7rem;font-weight:600;">Anfangsbestand</td>
-            <td style="padding:3px 6px;text-align:right;font-family:'Cinzel',serif;font-weight:600;">${fmt(e.anfang)}</td>
-          </tr>
-          <tr>
-            <td colspan="2" style="padding:3px 6px;font-family:'Cinzel',serif;font-size:0.7rem;font-weight:600;">Soll-Bestand</td>
-            <td style="padding:3px 6px;text-align:right;font-family:'Cinzel',serif;font-weight:600;">${fmt(e.soll)}</td>
-          </tr>
-          <tr>
-            <td colspan="2" style="padding:3px 6px;font-family:'Cinzel',serif;font-size:0.7rem;font-weight:600;">Differenz</td>
-            <td style="padding:3px 6px;text-align:right;font-family:'Cinzel',serif;font-weight:600;" class="${diffCls}">${diffTxt}</td>
-          </tr>
-        </table>`;
-      return `<tr style="background:rgba(184,134,11,0.08);">
-        <td style="vertical-align:top;">${e.datum.split('-').reverse().join('.')}</td>
-        <td style="vertical-align:top;">${e.markt}</td>
-        <td>🪙 Kassenzählung${e.notiz?`<br><small style="color:var(--ink-light);font-style:italic;">${e.notiz}</small>`:''}
-          ${stuekelungHtml}
-        </td>
-        <td style="vertical-align:top;">Kassenzählung</td>
-        <td style="vertical-align:top;">Bar</td>
-        <td style="vertical-align:top;"><span class="badge" style="background:rgba(184,134,11,0.15);color:var(--wax-gold);border:1px solid var(--wax-gold);">Zählung</span></td>
-        <td style="text-align:right;vertical-align:top;font-family:'Cinzel',serif;font-weight:600;">${fmt(e.betrag)}</td>
-        <td style="vertical-align:top;"><button class="del-btn" onclick="deleteEntry(${e.id})">✕</button></td>
-      </tr>`;
+      return `<div class="entry-card" style="background:rgba(184,134,11,0.08);border-color:rgba(184,134,11,0.3);">
+        <div>
+          <div class="ec-main">🪙 Kassenzählung</div>
+          <div class="ec-meta">${e.datum.split('-').reverse().join('.')} · ${e.markt}</div>
+          <div class="ec-meta" style="margin-top:3px;">Anfang: ${fmt(e.anfang)} · Soll: ${fmt(e.soll)} · Diff: <span class="${diffCls}">${diffTxt}</span></div>
+          <span class="ec-badge kasse">Zählung</span>
+        </div>
+        <div class="ec-actions">
+          <div>
+            <div class="ec-amount kasse">${fmt(e.betrag)}</div>
+            <button class="del-btn" onclick="deleteEntry(${e.id})" style="margin-top:4px;">✕</button>
+          </div>
+        </div>
+      </div>`;
     }
-    return `<tr>
-      <td>${e.datum.split('-').reverse().join('.')}</td>
-      <td>${e.markt}</td>
-      <td>${e.bezeichnung}${e.notiz?`<br><small style="color:var(--ink-light);font-style:italic;">${e.notiz}</small>`:''}</td>
-      <td>${e.kategorie}</td>
-      <td>${e.zahlung}</td>
-      <td><span class="badge ${e.type}">${e.type==='income'?'Einnahme':'Ausgabe'}</span></td>
-      <td style="text-align:right" class="amount-${e.type}">${fmt(e.betrag)}</td>
-      <td><button class="del-btn" onclick="deleteEntry(${e.id})">✕</button></td>
-    </tr>`;
+    return `<div class="entry-card">
+      <div>
+        <div class="ec-main">${e.bezeichnung}</div>
+        <div class="ec-meta">${e.datum.split('-').reverse().join('.')} · ${e.markt} · ${e.zahlung}</div>
+        <div class="ec-meta">${e.kategorie}${e.notiz ? ' · ' + e.notiz : ''}</div>
+        <span class="ec-badge ${e.type}">${e.type === 'income' ? 'Einnahme' : 'Ausgabe'}</span>
+      </div>
+      <div class="ec-actions">
+        <div>
+          <div class="ec-amount ${e.type}">${fmt(e.betrag)}</div>
+          <button class="del-btn" onclick="deleteEntry(${e.id})" style="margin-top:4px;">✕</button>
+        </div>
+      </div>
+    </div>`;
   }).join('');
 }
 
-// ── PERSISTENZ ──
-function save() {
-  localStorage.setItem('markt-entries',   JSON.stringify(entries));
-  localStorage.setItem('markt-kassungen', JSON.stringify(kassungen));
+// ── ABSCHLUSS ──────────────────────────────────────────────────────
+function initAbschluss() {
+  const marktSel = document.getElementById('ab-markt');
+  const jahrSel  = document.getElementById('ab-jahr');
+  const curMarkt = marktSel.value;
+  const curJahr  = jahrSel.value;
+  const realEntries = entries.filter(e => !e.kasseRef);
+  const märkte = [...new Set(realEntries.map(e => e.markt))].filter(Boolean).sort();
+  const jahre  = [...new Set(realEntries.map(e => e.datum.slice(0, 4)))].filter(Boolean).sort().reverse();
+  marktSel.innerHTML = '<option value="">— Wählen —</option>' + märkte.map(m => `<option value="${m}"${m===curMarkt?' selected':''}>${m}</option>`).join('');
+  jahrSel.innerHTML  = '<option value="">— Wählen —</option>'  + jahre.map(j => `<option value="${j}"${j===curJahr?' selected':''}>${j}</option>`).join('');
+  calcAbschluss();
 }
 
+function calcAbschluss() {
+  const markt = document.getElementById('ab-markt').value;
+  const jahr  = document.getElementById('ab-jahr').value;
+  const rest  = parseFloat(document.getElementById('ab-rest').value) || 0;
+
+  if (!markt || !jahr) {
+    document.getElementById('ab-result').style.display = 'none';
+    document.getElementById('ab-empty').style.display  = 'block';
+    return;
+  }
+
+  const buchungen = entries.filter(e => !e.kasseRef && e.markt === markt && e.datum.startsWith(jahr));
+  const einnahmen = buchungen.filter(e => e.type === 'income');
+  const ausgaben  = buchungen.filter(e => e.type === 'expense');
+
+  const barEin    = einnahmen.filter(e => e.zahlung === 'Bar').reduce((s, e) => s + e.betrag, 0);
+  const karteEin  = einnahmen.filter(e => e.zahlung !== 'Bar').reduce((s, e) => s + e.betrag, 0);
+  const barAus    = ausgaben.filter(e => e.zahlung === 'Bar').reduce((s, e) => s + e.betrag, 0);
+  const gesamtEin = barEin + karteEin;
+  const gesamtAus = ausgaben.reduce((s, e) => s + e.betrag, 0);
+  const gewinn    = gesamtEin - gesamtAus;
+  const abgabe    = barEin - barAus - rest;
+
+  // Einnahmen Liste
+  document.getElementById('ab-einnahmen-list').innerHTML = einnahmen.length === 0
+    ? '<div class="empty-state" style="padding:12px;">Keine Einnahmen</div>'
+    : einnahmen.map(e => `<div class="ab-ergebnis-row">
+        <span class="ab-label">${e.bezeichnung}<br><small>${e.datum.split('-').reverse().join('.')} · ${e.zahlung}</small></span>
+        <span class="ab-val" style="color:var(--green);">${fmt(e.betrag)}</span>
+      </div>`).join('');
+  document.getElementById('ab-einnahmen-sum').textContent = fmt(gesamtEin);
+
+  // Ausgaben Liste
+  document.getElementById('ab-ausgaben-list').innerHTML = ausgaben.length === 0
+    ? '<div class="empty-state" style="padding:12px;">Keine Ausgaben</div>'
+    : ausgaben.map(e => `<div class="ab-ergebnis-row">
+        <span class="ab-label">${e.bezeichnung}<br><small>${e.datum.split('-').reverse().join('.')} · ${e.zahlung}</small></span>
+        <span class="ab-val" style="color:var(--red);">${fmt(e.betrag)}</span>
+      </div>`).join('');
+  document.getElementById('ab-ausgaben-sum').textContent = fmt(gesamtAus);
+
+  // Ergebnis
+  document.getElementById('ab-r-barein').textContent  = fmt(barEin);
+  document.getElementById('ab-r-kartein').textContent = fmt(karteEin);
+  document.getElementById('ab-r-aus').textContent     = fmt(gesamtAus);
+  const gewinnEl = document.getElementById('ab-r-gewinn');
+  gewinnEl.textContent = fmt(gewinn);
+  gewinnEl.style.color = gewinn >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('ab-r-barein2').textContent = fmt(barEin);
+  document.getElementById('ab-r-baraus').textContent  = fmt(barAus);
+  document.getElementById('ab-r-rest').textContent    = fmt(rest);
+  document.getElementById('ab-r-abgabe').textContent  = fmt(Math.max(0, abgabe));
+
+  document.getElementById('ab-result').style.display = 'block';
+  document.getElementById('ab-empty').style.display  = 'none';
+}
+
+function printAbschluss() {
+  const markt = document.getElementById('ab-markt').value;
+  const jahr  = document.getElementById('ab-jahr').value;
+  const area  = document.getElementById('ab-print-area').innerHTML;
+  const win   = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">
+    <title>Kassenabschluss ${markt} ${jahr}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+    <style>
+      body{font-family:'IM Fell English',Georgia,serif;color:#1e1208;padding:30px;max-width:800px;margin:0 auto;font-size:0.95rem;}
+      .section-title{font-family:'Cinzel',serif;font-size:0.72rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#4a2e10;margin:20px 0 10px;padding-bottom:5px;border-bottom:1px solid #e0c97a;}
+      .ab-ergebnis-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0e8d0;}
+      .ab-label{color:#4a2e10;} .ab-val{font-family:'Cinzel',serif;font-weight:600;}
+      .ab-abgabe-box{background:#fef0f0;border:2px solid #8b1a1a;border-radius:4px;padding:16px;margin-top:16px;text-align:center;}
+      .ab-abgabe-label{font-family:'Cinzel',serif;font-size:0.72rem;letter-spacing:2px;text-transform:uppercase;color:#4a2e10;display:block;margin-bottom:4px;}
+      .ab-abgabe-val{font-family:'Cinzel',serif;font-size:2rem;font-weight:700;color:#8b1a1a;}
+      small{font-size:0.75rem;color:#4a2e10;}
+      @media print{body{padding:15px;}}
+    </style>
+  </head><body>${area}</body></html>`);
+  win.document.close();
+  setTimeout(() => win.print(), 600);
+}
+
+// ── EXPORT / IMPORT ────────────────────────────────────────────────
 function exportCSV() {
-  if (entries.length === 0) { alert('Keine Einträge vorhanden.'); return; }
-  const coinDefs = [{id:'m-200',val:2,label:'2,00 EUR'},{id:'m-100',val:1,label:'1,00 EUR'},{id:'m-050',val:0.5,label:'0,50 EUR'}];
-  const billDefs = [{id:'b-5',val:5,label:'5,00 EUR'},{id:'b-10',val:10,label:'10,00 EUR'},{id:'b-20',val:20,label:'20,00 EUR'},{id:'b-50',val:50,label:'50,00 EUR'},{id:'b-100',val:100,label:'100,00 EUR'},{id:'b-200',val:200,label:'200,00 EUR'}];
+  if (entries.filter(e => !e.kasseRef).length === 0) { toast('⚠ Keine Buchungen vorhanden'); return; }
+  const coinDefs = [{id:'m-200',label:'2,00 EUR'},{id:'m-100',label:'1,00 EUR'},{id:'m-050',label:'0,50 EUR'}];
+  const billDefs = [{id:'b-5',label:'5 EUR'},{id:'b-10',label:'10 EUR'},{id:'b-20',label:'20 EUR'},{id:'b-50',label:'50 EUR'},{id:'b-100',label:'100 EUR'},{id:'b-200',label:'200 EUR'}];
   const hdr = ['Datum','Markt','Bezeichnung','Kategorie','Typ','Betrag (EUR)','Zahlungsart','Notiz',
-    'Muenzen 2,00 EUR','Muenzen 1,00 EUR','Muenzen 0,50 EUR',
-    'Scheine 5 EUR','Scheine 10 EUR','Scheine 20 EUR','Scheine 50 EUR','Scheine 100 EUR','Scheine 200 EUR',
+    ...coinDefs.map(c => 'Münzen ' + c.label), ...billDefs.map(b => 'Scheine ' + b.label),
     'Anfangsbestand','Soll-Bestand','Differenz'];
   const rows = entries.map(e => {
-    const typ = e.type==='income'?'Einnahme': e.type==='expense'?'Ausgabe':'Kassenzählung';
-    const coins = e.coins || {};
-    const bills = e.bills || {};
+    const typ = e.type === 'income' ? 'Einnahme' : e.type === 'expense' ? 'Ausgabe' : 'Kassenzählung';
+    const coins = e.coins || {}; const bills = e.bills || {};
     return [
       e.datum.split('-').reverse().join('.'), e.markt, e.bezeichnung, e.kategorie, typ,
-      e.betrag.toFixed(2).replace('.',','), e.zahlung||'', e.notiz||'',
-      ...coinDefs.map(c => (coins[c.id]||0)),
-      ...billDefs.map(b => (bills[b.id]||0)),
-      e.anfang != null ? e.anfang.toFixed(2).replace('.',',') : '',
-      e.soll   != null ? e.soll.toFixed(2).replace('.',',')   : '',
-      e.diff   != null ? e.diff.toFixed(2).replace('.',',')   : ''
+      e.betrag.toFixed(2).replace('.', ','), e.zahlung || '', e.notiz || '',
+      ...coinDefs.map(c => coins[c.id] || 0),
+      ...billDefs.map(b => bills[b.id] || 0),
+      e.anfang != null ? e.anfang.toFixed(2).replace('.', ',') : '',
+      e.soll   != null ? e.soll.toFixed(2).replace('.', ',')   : '',
+      e.diff   != null ? e.diff.toFixed(2).replace('.', ',')   : ''
     ];
   });
-  const csv = [hdr,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
-  dl('\uFEFF'+csv,'Marktabrechnung.csv','text/csv;charset=utf-8;');
+  const csv = [hdr, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  dl('\uFEFF' + csv, 'Marktabrechnung.csv', 'text/csv;charset=utf-8;');
 }
 
 function exportJSON() {
-  const data = {version:2, exportedAt:new Date().toISOString(), entries, kassungen};
-  dl(JSON.stringify(data,null,2), `Marktabrechnung_${new Date().toISOString().slice(0,10)}.json`, 'application/json');
+  const data = { version: 3, exportedAt: new Date().toISOString(), entries, kassungen };
+  dl(JSON.stringify(data, null, 2), `Marktabrechnung_${new Date().toISOString().slice(0, 10)}.json`, 'application/json');
+  localStorage.setItem('markt-last-backup', new Date().toISOString());
+  document.getElementById('backup-banner').classList.remove('show');
+  toast('✓ Backup gespeichert');
 }
 
 function importJSON(event) {
   const file = event.target.files[0];
   if (!file) return;
-  if (!confirm('Bestehende Daten werden überschrieben. Fortfahren?')) { event.target.value=''; return; }
+  if (!confirm('Achtung: Bestehende Daten werden überschrieben. Fortfahren?')) { event.target.value = ''; return; }
   const reader = new FileReader();
   reader.onload = e => {
     try {
       const data = JSON.parse(e.target.result);
       entries   = data.entries   || [];
       kassungen = data.kassungen || [];
-      save(); renderTable(); renderKasseList(); calcKasse(); updateDataLists();
-      alert(`✓ Import erfolgreich! ${entries.length} Buchungen, ${kassungen.length} Zählungen.`);
-    } catch { alert('Fehler beim Import. Bitte gültige Backup-Datei wählen.'); }
+      save(); renderList(); renderKasseList(); calcKasse(); updateDataLists();
+      toast(`✓ ${entries.length} Buchungen, ${kassungen.length} Zählungen geladen`);
+    } catch { toast('⚠ Fehler beim Import'); }
   };
   reader.readAsText(file);
   event.target.value = '';
@@ -851,136 +1223,31 @@ function importJSON(event) {
 
 function clearAll() {
   if (!confirm('ALLE Daten unwiderruflich löschen?')) return;
-  entries=[]; kassungen=[]; save(); renderTable(); renderKasseList(); calcKasse();
-  alert('Alle Daten wurden gelöscht.');
+  entries = []; kassungen = [];
+  save(); renderList(); renderKasseList(); calcKasse();
+  toast('Alle Daten gelöscht');
 }
 
 function dl(content, filename, mime) {
-  const blob = new Blob([content],{type:mime});
+  const blob = new Blob([content], { type: mime });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  a.href=url; a.download=filename; a.click();
+  a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
 
-function printReport() { window.print(); }
-
-// ── KASSENABSCHLUSS ──
-function initAbschluss() {
-  const marktSel = document.getElementById('ab-markt');
-  const jahrSel  = document.getElementById('ab-jahr');
-  const curMarkt = marktSel.value;
-  const curJahr  = jahrSel.value;
-
-  const märkte = [...new Set(entries.filter(e=>e.type!=='kasse').map(e=>e.markt))].filter(Boolean).sort();
-  const jahre  = [...new Set(entries.filter(e=>e.type!=='kasse').map(e=>e.datum.slice(0,4)))].filter(Boolean).sort().reverse();
-
-  marktSel.innerHTML = '<option value="">— Markt wählen —</option>' + märkte.map(m=>`<option value="${m}"${m===curMarkt?' selected':''}>${m}</option>`).join('');
-  jahrSel.innerHTML  = '<option value="">— Jahr wählen —</option>'  + jahre.map(j=>`<option value="${j}"${j===curJahr?' selected':''}>${j}</option>`).join('');
-
-  calcAbschluss();
+// ── BACKUP REMINDER ────────────────────────────────────────────────
+function checkBackupReminder() {
+  const last = localStorage.getItem('markt-last-backup');
+  if (!last) return;
+  const days = (Date.now() - new Date(last).getTime()) / (1000 * 60 * 60 * 24);
+  document.getElementById('backup-banner').classList.toggle('show', days > 7);
 }
 
-function calcAbschluss() {
-  const markt = document.getElementById('ab-markt').value;
-  const jahr  = document.getElementById('ab-jahr').value;
-  const rest  = parseFloat(document.getElementById('ab-rest').value)||0;
-
-  const resultEl = document.getElementById('ab-result');
-  const emptyEl  = document.getElementById('ab-empty');
-
-  if (!markt || !jahr) {
-    resultEl.style.display = 'none';
-    emptyEl.style.display  = 'block';
-    return;
-  }
-
-  // Filter: nur Buchungen für diesen Markt+Jahr, keine kasse-Einträge
-  const buchungen = entries.filter(e =>
-    e.type !== 'kasse' &&
-    e.markt === markt &&
-    e.datum.startsWith(jahr)
-  );
-
-  const einnahmen = buchungen.filter(e => e.type === 'income');
-  const ausgaben  = buchungen.filter(e => e.type === 'expense');
-
-  const barEin   = einnahmen.filter(e=>e.zahlung==='Bar').reduce((s,e)=>s+e.betrag,0);
-  const karteEin = einnahmen.filter(e=>e.zahlung!=='Bar').reduce((s,e)=>s+e.betrag,0);
-  const barAus   = ausgaben.filter(e=>e.zahlung==='Bar').reduce((s,e)=>s+e.betrag,0);
-  const karteAus = ausgaben.filter(e=>e.zahlung!=='Bar').reduce((s,e)=>s+e.betrag,0);
-  const gesamtEin = barEin + karteEin;
-  const gesamtAus = barAus + karteAus;
-  const gewinn    = gesamtEin - gesamtAus;
-  const abgabe    = barEin - barAus - rest;
-
-  // Titel
-  document.getElementById('ab-titel').textContent = `Kassenabschluss – ${markt}`;
-  document.getElementById('ab-untertitel').textContent = `Jahr ${jahr} · Erstellt am ${new Date().toLocaleDateString('de-DE')}`;
-
-  // Einnahmen-Tabelle
-  const einRows = einnahmen.map(e => `
-    <tr>
-      <td style="padding:5px 8px;">${e.bezeichnung}${e.notiz?` <small style="color:var(--ink-light);font-style:italic;">(${e.notiz})</small>`:''}<br>
-        <small style="color:var(--ink-light);">${e.datum.split('-').reverse().join('.')} · ${e.kategorie}</small>
-      </td>
-      <td style="padding:5px 8px;">${e.zahlung}</td>
-      <td style="text-align:right;padding:5px 8px;color:var(--green);font-family:'Cinzel',serif;">${fmt(e.betrag)}</td>
-    </tr>`).join('');
-  document.getElementById('ab-einnahmen-rows').innerHTML = einRows || '<tr><td colspan="3" style="padding:8px;font-style:italic;color:var(--ink-light);">Keine Einnahmen</td></tr>';
-  document.getElementById('ab-einnahmen-sum').textContent = fmt(gesamtEin);
-
-  // Ausgaben-Tabelle
-  const ausRows = ausgaben.map(e => `
-    <tr>
-      <td style="padding:5px 8px;">${e.bezeichnung}${e.notiz?` <small style="color:var(--ink-light);font-style:italic;">(${e.notiz})</small>`:''}<br>
-        <small style="color:var(--ink-light);">${e.datum.split('-').reverse().join('.')} · ${e.kategorie}</small>
-      </td>
-      <td style="padding:5px 8px;">${e.zahlung}</td>
-      <td style="text-align:right;padding:5px 8px;color:var(--red);font-family:'Cinzel',serif;">${fmt(e.betrag)}</td>
-    </tr>`).join('');
-  document.getElementById('ab-ausgaben-rows').innerHTML = ausRows || '<tr><td colspan="3" style="padding:8px;font-style:italic;color:var(--ink-light);">Keine Ausgaben</td></tr>';
-  document.getElementById('ab-ausgaben-sum').textContent = fmt(gesamtAus);
-
-  // Ergebnis
-  document.getElementById('ab-r-barein').textContent   = fmt(barEin);
-  document.getElementById('ab-r-kartein').textContent  = fmt(karteEin);
-  document.getElementById('ab-r-aus').textContent      = '− ' + fmt(gesamtAus);
-  const gewinnEl = document.getElementById('ab-r-gewinn');
-  gewinnEl.textContent  = fmt(gewinn);
-  gewinnEl.style.color  = gewinn >= 0 ? 'var(--green)' : 'var(--red)';
-  document.getElementById('ab-r-barein2').textContent  = fmt(barEin);
-  document.getElementById('ab-r-baraus').textContent   = fmt(barAus);
-  document.getElementById('ab-r-rest').textContent     = fmt(rest);
-  const abgabeEl = document.getElementById('ab-r-abgabe');
-  abgabeEl.textContent = fmt(Math.max(0, abgabe));
-
-  resultEl.style.display = 'block';
-  emptyEl.style.display  = 'none';
-}
-
-function printAbschluss() {
-  const area = document.getElementById('ab-print-area').innerHTML;
-  const win  = window.open('', '_blank');
-  win.document.write(`<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">
-    <title>Kassenabschluss</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
-    <style>
-      body{font-family:'IM Fell English',Georgia,serif;color:#2a1a0e;padding:30px;max-width:800px;margin:0 auto;}
-      h3{font-family:'Cinzel',serif;font-size:0.78rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#5c3d1e;margin:16px 0 10px;border-bottom:1px solid #e8d5a3;padding-bottom:4px;}
-      table{width:100%;border-collapse:collapse;font-size:0.9rem;margin-bottom:10px;}
-      th{font-family:'Cinzel',serif;font-size:0.65rem;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:#5c3d1e;padding:6px 8px;text-align:left;border-bottom:1px solid #e8d5a3;}
-      td{padding:5px 8px;border-bottom:1px solid #f0e8d0;}
-      .section{background:#faf4e4;border:1px solid #e8d5a3;border-radius:3px;padding:12px 14px;margin:10px 0;}
-      @media print{body{padding:15px;}}
-    </style>
-  </head><body>${area}</body></html>`);
-  win.document.close();
-  setTimeout(()=>win.print(), 600);
-}
-
-// ── INIT ──
-renderTable(); renderKasseList(); calcKasse(); updateDataLists();
+// ── INIT ───────────────────────────────────────────────────────────
+showPage('kasse');
+updateDataLists();
+calcKasse();
 </script>
 </body>
 </html>
