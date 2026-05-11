@@ -1100,11 +1100,27 @@ function calcAbschluss() {
     return;
   }
 
+  // Manuelle Buchungen für diesen Markt+Jahr
   const buchungen = entries.filter(e => !e.kasseRef && e.markt === markt && e.datum.startsWith(jahr));
   const einnahmen = buchungen.filter(e => e.type === 'income');
   const ausgaben  = buchungen.filter(e => e.type === 'expense');
 
-  const barEin    = einnahmen.filter(e => e.zahlung === 'Bar').reduce((s, e) => s + e.betrag, 0);
+  // Kassenzählungen für diesen Markt+Jahr
+  const marktZaehlungen = kassungen.filter(k => k.markt === markt && k.datum.startsWith(jahr));
+
+  // Bar-Einnahmen: aus Zählungen berechnet (Ist - Anfang) pro Tag, summiert
+  // Falls keine Zählung vorhanden, auf manuelle Bar-Buchungen zurückfallen
+  let barEinAusZaehlung = 0;
+  let zaehlungsDetails = [];
+  if (marktZaehlungen.length > 0) {
+    marktZaehlungen.forEach(k => {
+      const tagesBar = k.istBestand - k.anfang;
+      barEinAusZaehlung += tagesBar;
+      zaehlungsDetails.push({ datum: k.datum, istBestand: k.istBestand, anfang: k.anfang, tagesBar, notiz: k.notiz });
+    });
+  }
+  const barEinManuell = einnahmen.filter(e => e.zahlung === 'Bar').reduce((s, e) => s + e.betrag, 0);
+  const barEin    = marktZaehlungen.length > 0 ? barEinAusZaehlung : barEinManuell;
   const karteEin  = einnahmen.filter(e => e.zahlung !== 'Bar').reduce((s, e) => s + e.betrag, 0);
   const barAus    = ausgaben.filter(e => e.zahlung === 'Bar').reduce((s, e) => s + e.betrag, 0);
   const gesamtEin = barEin + karteEin;
@@ -1112,13 +1128,33 @@ function calcAbschluss() {
   const gewinn    = gesamtEin - gesamtAus;
   const abgabe    = barEin - barAus - rest;
 
-  // Einnahmen Liste
-  document.getElementById('ab-einnahmen-list').innerHTML = einnahmen.length === 0
-    ? '<div class="empty-state" style="padding:12px;">Keine Einnahmen</div>'
-    : einnahmen.map(e => `<div class="ab-ergebnis-row">
-        <span class="ab-label">${e.bezeichnung}<br><small>${e.datum.split('-').reverse().join('.')} · ${e.zahlung}</small></span>
+  // Einnahmen Liste: Zählungen + Karte getrennt aufführen
+  let einnahmenHtml = '';
+  if (marktZaehlungen.length > 0) {
+    zaehlungsDetails.forEach(z => {
+      einnahmenHtml += `<div class="ab-ergebnis-row">
+        <span class="ab-label">🪙 Bar-Einnahmen (Kassenzählung)<br>
+          <small>${z.datum.split('-').reverse().join('.')} · Ist: ${fmt(z.istBestand)} − Anfang: ${fmt(z.anfang)}${z.notiz?' · '+z.notiz:''}</small>
+        </span>
+        <span class="ab-val" style="color:var(--green);">${fmt(z.tagesBar)}</span>
+      </div>`;
+    });
+  } else if (barEinManuell > 0) {
+    einnahmen.filter(e => e.zahlung === 'Bar').forEach(e => {
+      einnahmenHtml += `<div class="ab-ergebnis-row">
+        <span class="ab-label">${e.bezeichnung}<br><small>${e.datum.split('-').reverse().join('.')} · Bar</small></span>
         <span class="ab-val" style="color:var(--green);">${fmt(e.betrag)}</span>
-      </div>`).join('');
+      </div>`;
+    });
+  }
+  einnahmen.filter(e => e.zahlung !== 'Bar').forEach(e => {
+    einnahmenHtml += `<div class="ab-ergebnis-row">
+      <span class="ab-label">${e.bezeichnung}<br><small>${e.datum.split('-').reverse().join('.')} · ${e.zahlung}</small></span>
+      <span class="ab-val" style="color:var(--green);">${fmt(e.betrag)}</span>
+    </div>`;
+  });
+  document.getElementById('ab-einnahmen-list').innerHTML = einnahmenHtml ||
+    '<div class="empty-state" style="padding:12px;">Keine Einnahmen</div>';
   document.getElementById('ab-einnahmen-sum').textContent = fmt(gesamtEin);
 
   // Ausgaben Liste
