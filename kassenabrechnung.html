@@ -234,6 +234,97 @@
     border-color: var(--wax-gold);
     color: var(--ink);
   }
+  .type-btn.einnahme.active {
+    background: rgba(30,77,26,0.12);
+    border-color: var(--green-light);
+    color: var(--green);
+  }
+  .type-btn.ausgabe.active {
+    background: rgba(122,28,28,0.1);
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  /* Buchungs-Karten */
+  .buchung-card {
+    background: rgba(255,255,255,0.35);
+    border: 1px solid var(--parchment-dark);
+    border-radius: 4px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+  .bc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .bc-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ink);
+    flex: 1;
+    min-width: 0;
+  }
+  .bc-amount {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .bc-amount.einnahme { color: var(--green); }
+  .bc-amount.ausgabe  { color: var(--red); }
+  .bc-meta {
+    font-size: 0.78rem;
+    color: var(--ink-light);
+    margin-top: 2px;
+  }
+  .bc-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+    align-items: center;
+  }
+  .bc-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .bc-badge.einnahme {
+    background: rgba(30,77,26,0.12);
+    color: var(--green);
+    border: 1px solid rgba(30,77,26,0.25);
+  }
+  .bc-badge.ausgabe {
+    background: rgba(122,28,28,0.1);
+    color: var(--red);
+    border: 1px solid rgba(122,28,28,0.2);
+  }
+  .bc-badge.bar {
+    background: rgba(184,134,11,0.12);
+    color: var(--wax-gold);
+    border: 1px solid rgba(184,134,11,0.3);
+  }
+  .bc-badge.karte {
+    background: rgba(60,60,100,0.1);
+    color: var(--ink-light);
+    border: 1px solid var(--parchment-dark);
+  }
+  .bc-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    margin-top: 6px;
+    justify-content: flex-end;
+  }
 
   /* Coin Section */
   .coin-section {
@@ -559,17 +650,84 @@
   </div>
 </div>
 
-<!-- Seite: Buchung (Platzhalter) -->
+<!-- Seite: Buchung -->
 <div id="page-buchung" class="page">
   <div class="page-header">
     <h2>📝 Buchung</h2>
     <div class="sub">Einnahme oder Ausgabe erfassen</div>
   </div>
   <div class="page-content">
-    <div class="placeholder">
-      <span class="ph-icon">📝</span>
-      <div class="ph-text">Buchungen<br>(folgt in Schritt 3)</div>
+
+    <!-- Edit-Banner für Buchung -->
+    <div id="b-edit-banner" class="edit-banner">
+      <span class="eb-text">✏️ Bearbeiten: <span id="b-eb-info"></span></span>
+      <button id="btn-cancel-edit-buchung">Abbrechen</button>
     </div>
+
+    <!-- Typ-Auswahl: Einnahme / Ausgabe -->
+    <div class="type-toggle">
+      <button class="type-btn einnahme active" id="btn-type-einnahme" data-type="einnahme">⬆ Einnahme</button>
+      <button class="type-btn ausgabe" id="btn-type-ausgabe" data-type="ausgabe">⬇ Ausgabe</button>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label for="b-markt">Markt</label>
+        <input type="text" id="b-markt" placeholder="z.B. Burgfest" autocomplete="off" list="markt-list">
+        <datalist id="markt-list"></datalist>
+      </div>
+      <div class="form-group">
+        <label for="b-datum">Datum</label>
+        <input type="date" id="b-datum">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="b-bezeichnung">Bezeichnung</label>
+      <input type="text" id="b-bezeichnung" placeholder="z.B. Lederwaren, Standgebühr …">
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label for="b-kategorie">Kategorie</label>
+        <select id="b-kategorie">
+          <option>Warenverkauf</option>
+          <option>Dienstleistung</option>
+          <option>Standgebühr</option>
+          <option>Einkauf / Material</option>
+          <option>Transport</option>
+          <option>Unterkunft</option>
+          <option>Verpflegung</option>
+          <option>Werkzeug / Ausstattung</option>
+          <option>Sonstiges</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="b-zahlung">Zahlungsart</label>
+        <select id="b-zahlung">
+          <option>Bar</option>
+          <option>Karte</option>
+          <option>Überweisung</option>
+          <option>Sonstiges</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="b-betrag">Betrag (€)</label>
+      <input type="number" id="b-betrag" placeholder="0,00" min="0" step="0.01" inputmode="decimal">
+    </div>
+
+    <div class="form-group">
+      <label for="b-notiz">Notiz (optional)</label>
+      <input type="text" id="b-notiz" placeholder="Freie Anmerkung …">
+    </div>
+
+    <button class="btn-primary" id="btn-save-buchung">✦ Buchung speichern</button>
+
+    <div class="section-title" style="margin-top:24px;">📋 Gespeicherte Buchungen</div>
+    <div id="buchung-list"><div class="empty-state">Noch keine Buchungen vorhanden.</div></div>
+
   </div>
 </div>
 
@@ -655,11 +813,15 @@
     { id: 'b-200', sid: 's-b200', val: 200 }
   ];
   var LS_KASSUNGEN = 'markt-kassungen';
+  var LS_BUCHUNGEN = 'markt-buchungen';
 
   // ── State ──────────────────────────────────────────
   var kassungen = [];
-  var currentZaehlTyp = 'abschluss'; // 'abschluss' oder 'zwischen'
-  var editingId = null;              // ID der zu bearbeitenden Zählung, sonst null
+  var buchungen = [];
+  var currentZaehlTyp = 'abschluss';  // 'abschluss' oder 'zwischen'
+  var currentBuchTyp  = 'einnahme';   // 'einnahme' oder 'ausgabe'
+  var editingId = null;               // ID der zu bearbeitenden Zählung
+  var editingBuchId = null;           // ID der zu bearbeitenden Buchung
 
   // ── Hilfsfunktionen ────────────────────────────────
   function el(id) { return document.getElementById(id); }
@@ -700,6 +862,7 @@
   function storageSave() {
     try {
       localStorage.setItem(LS_KASSUNGEN, JSON.stringify(kassungen));
+      localStorage.setItem(LS_BUCHUNGEN, JSON.stringify(buchungen));
     } catch (e) {
       toast('⚠ Speichern fehlgeschlagen');
     }
@@ -711,7 +874,13 @@
     } catch (e) {
       kassungen = [];
     }
+    try {
+      buchungen = JSON.parse(localStorage.getItem(LS_BUCHUNGEN) || '[]');
+    } catch (e) {
+      buchungen = [];
+    }
     if (!Array.isArray(kassungen)) kassungen = [];
+    if (!Array.isArray(buchungen)) buchungen = [];
     // Migration: alte Zählungen ohne typ-Feld → 'abschluss'
     for (var i = 0; i < kassungen.length; i++) {
       if (!kassungen[i].typ) kassungen[i].typ = 'abschluss';
@@ -733,7 +902,11 @@
     var btn = document.querySelector('.nav-btn[data-page="' + name + '"]');
     if (btn) btn.classList.add('active');
 
-    if (name === 'kasse') renderKasseList();
+    if (name === 'kasse')   renderKasseList();
+    if (name === 'buchung') {
+      updateMarktDatalist();
+      renderBuchungList();
+    }
   }
 
   // ── Zählungs-Typ Toggle ────────────────────────────
@@ -1001,6 +1174,185 @@
     toast('Zählung gelöscht');
   }
 
+  // ─────────────────────────────────────────────────────
+  // BUCHUNGEN
+  // ─────────────────────────────────────────────────────
+
+  // ── Märkte-Vorschlagsliste aktualisieren ───────────
+  function updateMarktDatalist() {
+    var maerkte = {};
+    for (var i = 0; i < kassungen.length; i++) {
+      if (kassungen[i].markt) maerkte[kassungen[i].markt] = true;
+    }
+    for (var j = 0; j < buchungen.length; j++) {
+      if (buchungen[j].markt) maerkte[buchungen[j].markt] = true;
+    }
+    var list = Object.keys(maerkte).sort();
+    var html = '';
+    for (var k = 0; k < list.length; k++) {
+      html += '<option value="' + esc(list[k]) + '">';
+    }
+    var dl = el('markt-list');
+    if (dl) dl.innerHTML = html;
+  }
+
+  // ── Buchungs-Typ Toggle ────────────────────────────
+  function setBuchTyp(typ) {
+    currentBuchTyp = typ;
+    el('btn-type-einnahme').classList.toggle('active', typ === 'einnahme');
+    el('btn-type-ausgabe').classList.toggle('active', typ === 'ausgabe');
+  }
+
+  // ── Buchung speichern (oder updaten) ───────────────
+  function saveBuchung() {
+    var markt       = el('b-markt').value.trim();
+    var datum       = el('b-datum').value;
+    var bezeichnung = el('b-bezeichnung').value.trim();
+    var betrag      = parseFloat(el('b-betrag').value);
+
+    if (!markt || !datum) {
+      toast('⚠ Bitte Markt und Datum angeben');
+      return;
+    }
+    if (!bezeichnung) {
+      toast('⚠ Bitte eine Bezeichnung eingeben');
+      return;
+    }
+    if (isNaN(betrag) || betrag <= 0) {
+      toast('⚠ Bitte einen gültigen Betrag eingeben');
+      return;
+    }
+
+    var data = {
+      id:          editingBuchId != null ? editingBuchId : Date.now(),
+      typ:         currentBuchTyp,
+      markt:       markt,
+      datum:       datum,
+      bezeichnung: bezeichnung,
+      kategorie:   el('b-kategorie').value,
+      zahlung:     el('b-zahlung').value,
+      betrag:      betrag,
+      notiz:       el('b-notiz').value.trim()
+    };
+
+    if (editingBuchId != null) {
+      for (var i = 0; i < buchungen.length; i++) {
+        if (buchungen[i].id === editingBuchId) {
+          buchungen[i] = data;
+          break;
+        }
+      }
+      toast('✓ Buchung aktualisiert');
+    } else {
+      buchungen.push(data);
+      toast('✓ Buchung gespeichert');
+    }
+
+    storageSave();
+    resetBuchungForm();
+    updateMarktDatalist();
+    renderBuchungList();
+  }
+
+  // ── Formular zurücksetzen ──────────────────────────
+  function resetBuchungForm() {
+    editingBuchId = null;
+    el('b-edit-banner').classList.remove('show');
+    // Markt + Datum bleiben für mehrere Buchungen erhalten
+    el('b-bezeichnung').value = '';
+    el('b-betrag').value = '';
+    el('b-notiz').value = '';
+    setBuchTyp('einnahme');
+  }
+
+  // ── Buchung bearbeiten ─────────────────────────────
+  function editBuchung(id) {
+    var b = null;
+    for (var i = 0; i < buchungen.length; i++) {
+      if (buchungen[i].id === id) { b = buchungen[i]; break; }
+    }
+    if (!b) return;
+
+    editingBuchId = id;
+    setBuchTyp(b.typ || 'einnahme');
+    el('b-markt').value       = b.markt;
+    el('b-datum').value       = b.datum;
+    el('b-bezeichnung').value = b.bezeichnung;
+    el('b-kategorie').value   = b.kategorie;
+    el('b-zahlung').value     = b.zahlung;
+    el('b-betrag').value      = b.betrag;
+    el('b-notiz').value       = b.notiz || '';
+
+    var typLabel = b.typ === 'ausgabe' ? 'Ausgabe' : 'Einnahme';
+    el('b-eb-info').textContent = typLabel + ' · ' + b.bezeichnung;
+    el('b-edit-banner').classList.add('show');
+
+    window.scrollTo(0, 0);
+    toast('Bearbeitungsmodus');
+  }
+
+  function cancelEditBuchung() {
+    resetBuchungForm();
+    toast('Bearbeitung abgebrochen');
+  }
+
+  // ── Liste rendern ──────────────────────────────────
+  function renderBuchungList() {
+    var container = el('buchung-list');
+    if (buchungen.length === 0) {
+      container.innerHTML = '<div class="empty-state">Noch keine Buchungen vorhanden.</div>';
+      return;
+    }
+
+    // Sortierung: neueste zuerst
+    var sorted = buchungen.slice().sort(function(a, b) {
+      if (a.datum !== b.datum) return b.datum.localeCompare(a.datum);
+      return b.id - a.id;
+    });
+
+    var html = '';
+    for (var i = 0; i < sorted.length; i++) {
+      var b = sorted[i];
+      var typ = b.typ || 'einnahme';
+      var sign = typ === 'ausgabe' ? '−' : '+';
+      var zahlungCls = b.zahlung === 'Bar' ? 'bar' : 'karte';
+
+      html += '<div class="buchung-card">';
+      html += '<div class="bc-header">';
+      html += '<div class="bc-title">' + esc(b.bezeichnung) + '</div>';
+      html += '<div class="bc-amount ' + typ + '">' + sign + ' ' + fmt(b.betrag) + '</div>';
+      html += '</div>';
+      html += '<div class="bc-meta">' + fmtDate(b.datum) + ' · ' + esc(b.markt) + ' · ' + esc(b.kategorie) + '</div>';
+      if (b.notiz) {
+        html += '<div class="bc-meta">' + esc(b.notiz) + '</div>';
+      }
+      html += '<div class="bc-badges">';
+      html += '<span class="bc-badge ' + typ + '">' + (typ === 'einnahme' ? 'Einnahme' : 'Ausgabe') + '</span>';
+      html += '<span class="bc-badge ' + zahlungCls + '">' + esc(b.zahlung) + '</span>';
+      html += '<div style="flex:1;"></div>';
+      html += '<button class="icon-btn edit" data-edit-buch-id="' + b.id + '" title="Bearbeiten">✏️</button>';
+      html += '<button class="icon-btn del" data-del-buch-id="' + b.id + '" title="Löschen">✕</button>';
+      html += '</div>';
+      html += '</div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  // ── Buchung löschen ────────────────────────────────
+  function deleteBuchung(id) {
+    if (!confirm('Buchung wirklich löschen?')) return;
+    if (editingBuchId === id) resetBuchungForm();
+    var filtered = [];
+    for (var i = 0; i < buchungen.length; i++) {
+      if (buchungen[i].id !== id) filtered.push(buchungen[i]);
+    }
+    buchungen = filtered;
+    storageSave();
+    renderBuchungList();
+    toast('Buchung gelöscht');
+  }
+
   // ── Init ───────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function() {
     storageLoad();
@@ -1035,6 +1387,13 @@
     // Edit abbrechen
     el('btn-cancel-edit').addEventListener('click', cancelEdit);
 
+    // ── Buchung ──
+    el('b-datum').valueAsDate = new Date();
+    el('btn-type-einnahme').addEventListener('click', function() { setBuchTyp('einnahme'); });
+    el('btn-type-ausgabe').addEventListener('click', function() { setBuchTyp('ausgabe'); });
+    el('btn-save-buchung').addEventListener('click', saveBuchung);
+    el('btn-cancel-edit-buchung').addEventListener('click', cancelEditBuchung);
+
     // Delegierte Click-Handler für dynamische Buttons
     document.addEventListener('click', function(e) {
       var t = e.target;
@@ -1051,11 +1410,24 @@
         editKasse(parseInt(editId));
         return;
       }
+
+      var delBuchId = t.getAttribute('data-del-buch-id');
+      if (delBuchId) {
+        deleteBuchung(parseInt(delBuchId));
+        return;
+      }
+
+      var editBuchId = t.getAttribute('data-edit-buch-id');
+      if (editBuchId) {
+        editBuchung(parseInt(editBuchId));
+        return;
+      }
     });
 
     // Initial
     calcKasse();
     renderKasseList();
+    updateMarktDatalist();
   });
 </script>
 
