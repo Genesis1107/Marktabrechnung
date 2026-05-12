@@ -1593,11 +1593,27 @@
   // ── Summenkarten berechnen ────────────────────────
   function calcOverviewSums(filteredBuchungen, filteredKassungen) {
     var einnahmen = 0, ausgaben = 0;
+
+    // Buchungen (Einnahmen / Ausgaben)
     for (var i = 0; i < filteredBuchungen.length; i++) {
       var b = filteredBuchungen[i];
-      if (b.typ === 'einnahme') einnahmen += b.betrag;
-      else if (b.typ === 'ausgabe') ausgaben += b.betrag;
+      if (b.typ === 'einnahme')      einnahmen += b.betrag;
+      else if (b.typ === 'ausgabe')  ausgaben  += b.betrag;
     }
+
+    // Tagesabschluss-Differenz wirkt sich auf Einnahmen/Ausgaben aus:
+    //   Differenz = Ist − Anfang
+    //   > 0 → Bareinnahme (Mehrgeld in Kasse)
+    //   < 0 → Barausgabe (Fehlbetrag / Auszahlung)
+    // Zwischenzählungen werden NICHT berücksichtigt (nur informatorisch).
+    for (var j = 0; j < filteredKassungen.length; j++) {
+      var k = filteredKassungen[j];
+      if (k.typ !== 'abschluss') continue;
+      var d = k.istBestand - k.anfang;
+      if (d > 0.005)       einnahmen += d;
+      else if (d < -0.005) ausgaben  += -d;
+    }
+
     var gewinn = einnahmen - ausgaben;
 
     el('sum-einnahmen').textContent = fmt(einnahmen);
@@ -1763,6 +1779,21 @@
     if (k.notiz) h += ' · ' + esc(k.notiz);
     h += '</div>';
     h += '<div class="ov-meta">Anfang: ' + fmt(k.anfang) + ' · Differenz: <span class="' + diffCls + '">' + diffTxt + '</span></div>';
+
+    // Beim Tagesabschluss: Differenz als Bar-Einnahme bzw. Bar-Ausgabe ausweisen
+    if (typ === 'abschluss') {
+      var d = k.istBestand - k.anfang;
+      if (d > 0.005) {
+        h += '<div class="ov-meta" style="margin-top:4px;">';
+        h += '→ Bar-Einnahme: <span class="diff-pos" style="font-weight:600;">+' + fmt(d) + '</span>';
+        h += '</div>';
+      } else if (d < -0.005) {
+        h += '<div class="ov-meta" style="margin-top:4px;">';
+        h += '→ Bar-Ausgabe: <span class="diff-neg" style="font-weight:600;">' + fmt(d) + '</span>';
+        h += '</div>';
+      }
+    }
+
     h += '<div class="ov-badges">';
     h += badge;
     h += '<div style="flex:1;"></div>';
