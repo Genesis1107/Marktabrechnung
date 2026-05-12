@@ -672,6 +672,150 @@
     font-size: 0.95rem;
   }
 
+  /* Abschluss */
+  .info-box {
+    background: rgba(184,134,11,0.1);
+    border: 1px solid var(--wax-gold);
+    border-radius: 4px;
+    padding: 12px 14px;
+    font-size: 0.85rem;
+    color: var(--ink-light);
+    margin-bottom: 14px;
+    line-height: 1.6;
+  }
+  .info-box strong {
+    font-family: 'Cinzel', serif;
+    font-size: 0.72rem;
+    display: block;
+    margin-bottom: 4px;
+    color: var(--ink);
+  }
+
+  .ab-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(184,134,11,0.15);
+    font-size: 0.9rem;
+    gap: 10px;
+  }
+  .ab-row:last-child { border-bottom: none; }
+  .ab-label { color: var(--ink-light); flex: 1; min-width: 0; }
+  .ab-label small {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--ink-light);
+    opacity: 0.75;
+    margin-top: 2px;
+  }
+  .ab-val {
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .ab-row-total {
+    background: rgba(184,134,11,0.08);
+    border-top: 2px solid var(--wax-gold);
+    border-bottom: 2px solid var(--wax-gold);
+    padding: 12px 14px;
+  }
+  .ab-row-total > span {
+    font-family: 'Cinzel', serif;
+    font-size: 0.92rem;
+    font-weight: 700;
+  }
+  .ab-row-total > span:last-child {
+    font-size: 1rem;
+  }
+  .ab-section-row {
+    background: rgba(184,134,11,0.05);
+    padding: 8px 14px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    border-bottom: 1px solid var(--parchment-dark);
+  }
+
+  .ab-calc-box {
+    background: rgba(255,255,255,0.3);
+    border: 1px solid var(--parchment-dark);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .ab-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 4px;
+    border-top: 2px solid var(--wax-gold);
+    margin-top: 4px;
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+  .ab-summary-val {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .ab-abgabe-box {
+    background: rgba(139,26,26,0.08);
+    border: 2px solid var(--wax-red);
+    border-radius: 4px;
+    padding: 16px;
+    margin-top: 14px;
+    text-align: center;
+  }
+  .ab-abgabe-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.72rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    display: block;
+    margin-bottom: 6px;
+  }
+  .ab-abgabe-val {
+    font-family: 'Cinzel', serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--wax-red);
+  }
+
+  /* Tagesabschluss-Liste im Abschluss */
+  .ab-tag-card {
+    background: rgba(255,255,255,0.3);
+    border: 1px solid var(--parchment-dark);
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-bottom: 6px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 12px;
+    font-size: 0.85rem;
+  }
+  .ab-tag-datum {
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .ab-tag-bar {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    color: var(--green);
+    text-align: right;
+  }
+  .ab-tag-meta {
+    font-size: 0.78rem;
+    color: var(--ink-light);
+    grid-column: 1 / -1;
+  }
+
   @media (min-width: 640px) {
     body { padding: 20px 20px calc(var(--nav-h) + var(--safe-bottom) + 20px); }
     .page-content {
@@ -952,17 +1096,116 @@
   </div>
 </div>
 
-<!-- Seite: Abschluss (Platzhalter) -->
+<!-- Seite: Kassenabschluss -->
 <div id="page-abschluss" class="page">
   <div class="page-header">
     <h2>🏁 Kassenabschluss</h2>
     <div class="sub">Abrechnung pro Markt &amp; Jahr</div>
   </div>
   <div class="page-content">
-    <div class="placeholder">
-      <span class="ph-icon">🏁</span>
-      <div class="ph-text">Kassenabschluss<br>(folgt in Schritt 5)</div>
+
+    <div class="info-box">
+      <strong>💡 Hinweis</strong>
+      Kartenumsätze fließen in den Gesamtumsatz, nicht in die Kassenabgabe – die sind bereits auf dem Konto. Zwischenzählungen werden ignoriert, nur Tagesabschlüsse zählen.
     </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label for="ab-markt">Markt</label>
+        <select id="ab-markt"><option value="">— Wählen —</option></select>
+      </div>
+      <div class="form-group">
+        <label for="ab-jahr">Jahr</label>
+        <select id="ab-jahr"><option value="">— Wählen —</option></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="ab-rest">Kassenrest (€)</label>
+      <input type="number" id="ab-rest" value="400" min="0" step="0.01" inputmode="decimal">
+    </div>
+
+    <div id="ab-empty" class="empty-state">Bitte Markt und Jahr auswählen.</div>
+
+    <div id="ab-result" style="display:none;">
+
+      <!-- Tagesabschlüsse Liste -->
+      <div class="section-title">📅 Tagesabschlüsse</div>
+      <div id="ab-tage-list"></div>
+
+      <!-- Einnahmen -->
+      <div class="section-title" style="margin-top:16px;">📈 Einnahmen</div>
+      <div id="ab-einnahmen-list"></div>
+      <div class="ab-summary-row">
+        <span>Gesamt Einnahmen</span>
+        <span class="ab-summary-val" id="ab-einnahmen-sum" style="color:var(--green);"></span>
+      </div>
+
+      <!-- Ausgaben -->
+      <div class="section-title" style="margin-top:16px;">📉 Ausgaben</div>
+      <div id="ab-ausgaben-list"></div>
+      <div class="ab-summary-row">
+        <span>Gesamt Ausgaben</span>
+        <span class="ab-summary-val" id="ab-ausgaben-sum" style="color:var(--red);"></span>
+      </div>
+
+      <!-- Kassenabschluss -->
+      <div class="section-title" style="margin-top:16px;">🏁 Kassenabschluss</div>
+      <div class="ab-calc-box">
+        <div class="ab-row">
+          <span class="ab-label">
+            Soll-Kassenbestand<br>
+            <small>Bar-Einnahmen + Anfangsbestand − Bar-Ausgaben</small>
+          </span>
+          <span class="ab-val" style="color:var(--green);" id="ab-r-sollkasse"></span>
+        </div>
+        <div class="ab-row">
+          <span class="ab-label">− Kassenrest (verbleibt als Wechselgeld)</span>
+          <span class="ab-val" id="ab-r-rest"></span>
+        </div>
+      </div>
+      <div class="ab-abgabe-box">
+        <span class="ab-abgabe-label">Abgabe an Firma</span>
+        <span class="ab-abgabe-val" id="ab-r-abgabe"></span>
+      </div>
+
+      <!-- Mittelherkunft & Verwendung -->
+      <div class="section-title" style="margin-top:20px;">📊 Mittelherkunft &amp; Verwendung</div>
+      <div class="ab-calc-box">
+        <div class="ab-section-row">Herkunft</div>
+        <div class="ab-row">
+          <span class="ab-label">Bar-Einnahmen gesamt</span>
+          <span class="ab-val" style="color:var(--green);" id="ab-r-barein"></span>
+        </div>
+        <div class="ab-row">
+          <span class="ab-label">Karten-Einnahmen</span>
+          <span class="ab-val" style="color:var(--green);" id="ab-r-kartein"></span>
+        </div>
+        <div class="ab-row ab-row-total">
+          <span>Gesamtumsatz</span>
+          <span id="ab-r-gesamtumsatz"></span>
+        </div>
+
+        <div class="ab-section-row">Verwendung</div>
+        <div class="ab-row">
+          <span class="ab-label">Karten → bereits auf Konto</span>
+          <span class="ab-val" id="ab-r-kartein2"></span>
+        </div>
+        <div class="ab-row">
+          <span class="ab-label">Ausgaben → bereits bezahlt</span>
+          <span class="ab-val" style="color:var(--red);" id="ab-r-aus"></span>
+        </div>
+        <div class="ab-row ab-row-total">
+          <span>Abgabe an Firma</span>
+          <span style="color:var(--wax-red);" id="ab-r-abgabe2"></span>
+        </div>
+        <div class="ab-row" style="background:rgba(184,134,11,0.06);border-top:1px dashed var(--parchment-dark);">
+          <span class="ab-label" style="font-style:italic;">+ Kassenrest (Wechselgeld, kein Umsatz)</span>
+          <span class="ab-val" id="ab-r-rest2"></span>
+        </div>
+      </div>
+
+    </div>
+
   </div>
 </div>
 
@@ -1116,6 +1359,9 @@
     }
     if (name === 'uebersicht') {
       renderOverview();
+    }
+    if (name === 'abschluss') {
+      initAbschluss();
     }
   }
 
@@ -1806,6 +2052,201 @@
     return h;
   }
 
+  // ─────────────────────────────────────────────────────
+  // KASSENABSCHLUSS
+  // ─────────────────────────────────────────────────────
+
+  // ── Markt- und Jahr-Dropdowns füllen ──────────────
+  function initAbschluss() {
+    var marktSel = el('ab-markt');
+    var jahrSel  = el('ab-jahr');
+    var curMarkt = marktSel.value;
+    var curJahr  = jahrSel.value;
+
+    // Märkte aus Buchungen + Tagesabschlüssen sammeln
+    var maerkte = {};
+    var jahre   = {};
+    for (var i = 0; i < buchungen.length; i++) {
+      if (buchungen[i].markt) maerkte[buchungen[i].markt] = true;
+      if (buchungen[i].datum) jahre[buchungen[i].datum.slice(0, 4)] = true;
+    }
+    for (var j = 0; j < kassungen.length; j++) {
+      if (kassungen[j].markt) maerkte[kassungen[j].markt] = true;
+      if (kassungen[j].datum) jahre[kassungen[j].datum.slice(0, 4)] = true;
+    }
+
+    var mList = Object.keys(maerkte).sort();
+    var jList = Object.keys(jahre).sort().reverse();
+
+    var mHtml = '<option value="">— Wählen —</option>';
+    for (var m = 0; m < mList.length; m++) {
+      var sel = mList[m] === curMarkt ? ' selected' : '';
+      mHtml += '<option value="' + esc(mList[m]) + '"' + sel + '>' + esc(mList[m]) + '</option>';
+    }
+    marktSel.innerHTML = mHtml;
+
+    var jHtml = '<option value="">— Wählen —</option>';
+    for (var y = 0; y < jList.length; y++) {
+      var jSel = jList[y] === curJahr ? ' selected' : '';
+      jHtml += '<option value="' + esc(jList[y]) + '"' + jSel + '>' + esc(jList[y]) + '</option>';
+    }
+    jahrSel.innerHTML = jHtml;
+
+    calcAbschluss();
+  }
+
+  // ── Kassenabschluss berechnen und rendern ─────────
+  function calcAbschluss() {
+    var markt = el('ab-markt').value;
+    var jahr  = el('ab-jahr').value;
+    var rest  = parseFloat(el('ab-rest').value) || 0;
+
+    if (!markt || !jahr) {
+      el('ab-result').style.display = 'none';
+      el('ab-empty').style.display  = 'block';
+      return;
+    }
+
+    // Buchungen für diesen Markt und dieses Jahr filtern
+    var fBuch = [];
+    for (var i = 0; i < buchungen.length; i++) {
+      var b = buchungen[i];
+      if (b.markt === markt && b.datum.indexOf(jahr) === 0) fBuch.push(b);
+    }
+
+    // Nur Tagesabschlüsse für diesen Markt + Jahr
+    var fTage = [];
+    for (var j = 0; j < kassungen.length; j++) {
+      var k = kassungen[j];
+      if (k.typ === 'abschluss' && k.markt === markt && k.datum.indexOf(jahr) === 0) {
+        fTage.push(k);
+      }
+    }
+    // Tagesabschlüsse nach Datum sortieren
+    fTage.sort(function(a, b) { return a.datum.localeCompare(b.datum); });
+
+    // Aufruf wenn keine Daten vorhanden
+    if (fBuch.length === 0 && fTage.length === 0) {
+      el('ab-result').style.display = 'none';
+      el('ab-empty').style.display  = 'block';
+      el('ab-empty').textContent = 'Keine Daten für ' + markt + ' im Jahr ' + jahr + ' vorhanden.';
+      return;
+    }
+
+    // Bar-Einnahmen: Summe (Ist − Anfang) aller Tagesabschlüsse
+    var barEinnahmen = 0;
+    for (var t = 0; t < fTage.length; t++) {
+      barEinnahmen += fTage[t].istBestand - fTage[t].anfang;
+    }
+
+    // Karten-Einnahmen: Buchungen vom Typ einnahme + zahlung != Bar
+    var karteEinnahmen = 0;
+    for (var c = 0; c < fBuch.length; c++) {
+      if (fBuch[c].typ === 'einnahme' && fBuch[c].zahlung !== 'Bar') {
+        karteEinnahmen += fBuch[c].betrag;
+      }
+    }
+
+    // Bar-Ausgaben: Buchungen vom Typ ausgabe + zahlung == Bar
+    var barAusgaben = 0;
+    for (var d = 0; d < fBuch.length; d++) {
+      if (fBuch[d].typ === 'ausgabe' && fBuch[d].zahlung === 'Bar') {
+        barAusgaben += fBuch[d].betrag;
+      }
+    }
+
+    // Gesamtausgaben (alle Ausgaben, egal welche Zahlungsart)
+    var gesamtAusgaben = 0;
+    for (var e = 0; e < fBuch.length; e++) {
+      if (fBuch[e].typ === 'ausgabe') gesamtAusgaben += fBuch[e].betrag;
+    }
+
+    // Anfangsbestand: vom ersten Tagesabschluss
+    var anfangsbestand = fTage.length > 0 ? fTage[0].anfang : 0;
+
+    // Berechnungen
+    var sollKasse    = barEinnahmen + anfangsbestand - barAusgaben;
+    var abgabe       = sollKasse - rest;
+    var gesamtumsatz = barEinnahmen + karteEinnahmen;
+
+    // ── Tagesabschlüsse-Liste ──
+    var tageHtml = '';
+    if (fTage.length === 0) {
+      tageHtml = '<div class="empty-state" style="padding:12px;">Keine Tagesabschlüsse vorhanden</div>';
+    } else {
+      for (var ti = 0; ti < fTage.length; ti++) {
+        var tk = fTage[ti];
+        var tagesBar = tk.istBestand - tk.anfang;
+        tageHtml += '<div class="ab-tag-card">';
+        tageHtml += '<div class="ab-tag-datum">' + fmtDate(tk.datum) + '</div>';
+        tageHtml += '<div class="ab-tag-bar">' + fmt(tagesBar) + '</div>';
+        tageHtml += '<div class="ab-tag-meta">';
+        tageHtml += 'Ist: ' + fmt(tk.istBestand) + ' − Anfang: ' + fmt(tk.anfang) + ' = Bar-Einnahme';
+        if (tk.notiz) tageHtml += ' · ' + esc(tk.notiz);
+        tageHtml += '</div>';
+        tageHtml += '</div>';
+      }
+    }
+    el('ab-tage-list').innerHTML = tageHtml;
+
+    // ── Einnahmen-Liste ──
+    // Bar-Einnahmen aus Zählungen (zusammengefasst)
+    var einHtml = '';
+    if (fTage.length > 0) {
+      einHtml += '<div class="ab-row">';
+      einHtml += '<span class="ab-label">🪙 Bar-Einnahmen aus ' + fTage.length + ' Tagesabschluss' + (fTage.length === 1 ? '' : 'en') + '</span>';
+      einHtml += '<span class="ab-val" style="color:var(--green);">' + fmt(barEinnahmen) + '</span>';
+      einHtml += '</div>';
+    }
+    // Karten-Einnahmen aus Buchungen
+    for (var fe = 0; fe < fBuch.length; fe++) {
+      var fb = fBuch[fe];
+      if (fb.typ === 'einnahme' && fb.zahlung !== 'Bar') {
+        einHtml += '<div class="ab-row">';
+        einHtml += '<span class="ab-label">' + esc(fb.bezeichnung);
+        einHtml += '<br><small>' + fmtDate(fb.datum) + ' · ' + esc(fb.zahlung) + '</small></span>';
+        einHtml += '<span class="ab-val" style="color:var(--green);">' + fmt(fb.betrag) + '</span>';
+        einHtml += '</div>';
+      }
+    }
+    if (!einHtml) einHtml = '<div class="empty-state" style="padding:12px;">Keine Einnahmen</div>';
+    el('ab-einnahmen-list').innerHTML = einHtml;
+    el('ab-einnahmen-sum').textContent = fmt(gesamtumsatz);
+
+    // ── Ausgaben-Liste ──
+    var ausHtml = '';
+    for (var fa = 0; fa < fBuch.length; fa++) {
+      var fb2 = fBuch[fa];
+      if (fb2.typ === 'ausgabe') {
+        ausHtml += '<div class="ab-row">';
+        ausHtml += '<span class="ab-label">' + esc(fb2.bezeichnung);
+        ausHtml += '<br><small>' + fmtDate(fb2.datum) + ' · ' + esc(fb2.zahlung) + '</small></span>';
+        ausHtml += '<span class="ab-val" style="color:var(--red);">' + fmt(fb2.betrag) + '</span>';
+        ausHtml += '</div>';
+      }
+    }
+    if (!ausHtml) ausHtml = '<div class="empty-state" style="padding:12px;">Keine Ausgaben</div>';
+    el('ab-ausgaben-list').innerHTML = ausHtml;
+    el('ab-ausgaben-sum').textContent = fmt(gesamtAusgaben);
+
+    // ── Kassenabschluss ──
+    el('ab-r-sollkasse').textContent  = fmt(sollKasse);
+    el('ab-r-rest').textContent       = fmt(rest);
+    el('ab-r-abgabe').textContent     = fmt(Math.max(0, abgabe));
+
+    // ── Mittelherkunft & Verwendung ──
+    el('ab-r-barein').textContent       = fmt(barEinnahmen);
+    el('ab-r-kartein').textContent      = fmt(karteEinnahmen);
+    el('ab-r-gesamtumsatz').textContent = fmt(gesamtumsatz);
+    el('ab-r-kartein2').textContent     = fmt(karteEinnahmen);
+    el('ab-r-aus').textContent          = fmt(gesamtAusgaben);
+    el('ab-r-abgabe2').textContent      = fmt(Math.max(0, abgabe));
+    el('ab-r-rest2').textContent        = fmt(rest);
+
+    el('ab-result').style.display = 'block';
+    el('ab-empty').style.display  = 'none';
+  }
+
   // ── Init ───────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function() {
     storageLoad();
@@ -1851,6 +2292,11 @@
     el('filter-markt').addEventListener('change', renderOverview);
     el('filter-typ').addEventListener('change', renderOverview);
     el('filter-suche').addEventListener('input', renderOverview);
+
+    // ── Kassenabschluss ──
+    el('ab-markt').addEventListener('change', calcAbschluss);
+    el('ab-jahr').addEventListener('change', calcAbschluss);
+    el('ab-rest').addEventListener('input', calcAbschluss);
 
     // Delegierte Click-Handler für dynamische Buttons
     document.addEventListener('click', function(e) {
