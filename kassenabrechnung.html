@@ -42,24 +42,27 @@
   #toast {
     position: fixed;
     bottom: calc(var(--nav-h) + var(--safe-bottom) + 16px);
-    left: 50%;
-    transform: translateX(-50%) translateY(20px);
+    left: 16px;
+    right: 16px;
+    transform: translateY(20px);
     background: rgba(30,18,8,0.95);
     color: var(--parchment);
     font-family: 'Cinzel', serif;
     font-size: 0.85rem;
-    padding: 10px 22px;
-    border-radius: 20px;
-    letter-spacing: 1px;
+    padding: 12px 18px;
+    border-radius: 8px;
+    letter-spacing: 0.5px;
+    line-height: 1.4;
+    text-align: center;
     z-index: 999;
     opacity: 0;
     transition: opacity 0.3s, transform 0.3s;
     pointer-events: none;
-    white-space: nowrap;
     box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-    max-width: 90vw;
+    max-width: 480px;
+    margin: 0 auto;
   }
-  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.show { opacity: 1; transform: translateY(0); }
 
   /* Bottom Navigation */
   .bottom-nav {
@@ -168,6 +171,7 @@
   /* Forms */
   .form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
   .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-grid-2 > * { min-width: 0; }
 
   label {
     font-family: 'Cinzel', serif; font-size: 0.7rem; font-weight: 600;
@@ -184,6 +188,14 @@
     font-size: 1rem; color: var(--ink);
     outline: none; width: 100%; min-height: 44px;
     -webkit-text-size-adjust: 100%;
+    max-width: 100%;
+  }
+  /* iOS Safari rendert date-inputs intern größer – kompakter machen */
+  input[type="date"] {
+    padding: 11px 8px;
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
   }
   input:focus, select:focus {
     background: rgba(255,255,255,0.85);
