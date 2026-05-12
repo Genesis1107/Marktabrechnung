@@ -11,757 +11,273 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
 <style>
-:root {
-  --parchment: #f5e9c9; --parchment-dark: #e0c97a;
-  --ink: #1e1208;       --ink-light: #4a2e10;
-  --wax-red: #8b1a1a;   --wax-gold: #b8860b;
-  --gold: #c9922a;      --green: #1e4d1a;
-  --green-light: #2d5a27; --red: #7a1c1c;
-  --nav-h: 64px;
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-top:    env(safe-area-inset-top, 0px);
-}
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html, body { height: 100%; }
-body { background: #1a0f05; font-family: 'IM Fell English', Georgia, serif; color: var(--ink); padding-bottom: calc(var(--nav-h) + var(--safe-bottom)); min-height: 100vh; }
+  :root {
+    --parchment: #f5e9c9;
+    --parchment-dark: #e0c97a;
+    --ink: #1e1208;
+    --ink-light: #4a2e10;
+    --wax-gold: #b8860b;
+    --gold: #c9922a;
+    --nav-h: 64px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+  }
 
-/* TOAST */
-#toast { position: fixed; bottom: calc(var(--nav-h) + var(--safe-bottom) + 16px); left: 50%; transform: translateX(-50%) translateY(20px); background: rgba(30,18,8,.93); color: var(--parchment); font-family: 'Cinzel', serif; font-size: .85rem; padding: 10px 22px; border-radius: 20px; letter-spacing: 1px; z-index: 999; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; white-space: nowrap; box-shadow: 0 4px 20px rgba(0,0,0,.5); }
-#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
 
-/* CONFIRM DIALOG */
-#confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 900; align-items: center; justify-content: center; padding: 20px; }
-#confirm-overlay.show { display: flex; }
-.confirm-box { background: var(--parchment); border-radius: 6px; padding: 24px 20px 20px; max-width: 320px; width: 100%; box-shadow: 0 8px 40px rgba(0,0,0,.6); }
-.confirm-box p { font-family: 'Cinzel', serif; font-size: .85rem; color: var(--ink); line-height: 1.5; margin-bottom: 20px; text-align: center; }
-.confirm-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.confirm-btns button { padding: 12px; border: none; border-radius: 3px; font-family: 'Cinzel', serif; font-size: .78rem; font-weight: 600; cursor: pointer; min-height: 44px; }
-#confirm-cancel { background: rgba(255,255,255,.5); border: 1px solid var(--parchment-dark) !important; color: var(--ink-light); }
-#confirm-ok { background: linear-gradient(135deg,#8b1a1a,#6b1414); color: var(--parchment); }
+  body {
+    background: #1a0f05;
+    font-family: 'IM Fell English', Georgia, serif;
+    color: var(--ink);
+    padding-bottom: calc(var(--nav-h) + var(--safe-bottom));
+    min-height: 100vh;
+  }
 
-/* BOTTOM NAV */
-.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: calc(var(--nav-h) + var(--safe-bottom)); padding-bottom: var(--safe-bottom); background: #1e1208; border-top: 2px solid var(--wax-gold); display: flex; z-index: 100; box-shadow: 0 -4px 20px rgba(0,0,0,.5); }
-.nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: none; border: none; cursor: pointer; color: rgba(245,233,201,.55); transition: color .2s; padding: 6px 2px; min-height: 44px; }
-.nav-btn .nav-icon  { font-size: 1.4rem; line-height: 1; }
-.nav-btn .nav-label { font-family: 'Cinzel', serif; font-size: .58rem; letter-spacing: 1px; text-transform: uppercase; color: rgba(245,233,201,.6); }
-.nav-btn.active { color: var(--gold); }
-.nav-btn.active .nav-label { color: var(--gold); font-weight: 600; }
+  /* Bottom Navigation */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(var(--nav-h) + var(--safe-bottom));
+    padding-bottom: var(--safe-bottom);
+    background: #1e1208;
+    border-top: 2px solid var(--wax-gold);
+    display: flex;
+    z-index: 100;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+  }
 
-/* PAGES */
-.page { display: none; min-height: calc(100vh - var(--nav-h)); }
-.page.active { display: block; }
-.page-header { background: linear-gradient(to bottom,#2a1505,#1a0f05); border-bottom: 2px solid var(--wax-gold); padding: calc(16px + var(--safe-top)) 20px 14px; text-align: center; position: sticky; top: 0; z-index: 50; }
-.page-header h2 { font-family: 'Cinzel', serif; font-size: 1rem; font-weight: 700; color: var(--parchment); letter-spacing: 3px; text-transform: uppercase; border: none; margin: 0; padding: 0; }
-.page-header .sub { font-size: .75rem; color: rgba(245,233,201,.55); margin-top: 2px; font-style: italic; }
-.page-content { background: var(--parchment); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.07'/%3E%3C/svg%3E"); min-height: calc(100vh - var(--nav-h) - 60px); padding: 16px 16px 32px; max-width: 640px; margin: 0 auto; }
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(245, 233, 201, 0.65);
+    transition: color 0.2s;
+    padding: 6px 2px;
+    min-height: 44px;
+  }
 
-/* TYPOGRAPHY */
-.section-title { font-family: 'Cinzel', serif; font-size: .72rem; font-weight: 600; letter-spacing: 2px; color: var(--ink-light); text-transform: uppercase; margin: 20px 0 10px; padding-bottom: 5px; border-bottom: 1px solid var(--parchment-dark); display: flex; align-items: center; gap: 6px; }
+  .nav-btn .nav-icon {
+    font-size: 1.4rem;
+    line-height: 1;
+  }
 
-/* FORMS */
-.form-group  { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
-.form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-label { font-family: 'Cinzel', serif; font-size: .7rem; font-weight: 600; letter-spacing: 1.5px; color: var(--ink-light); text-transform: uppercase; }
-input, select { background: rgba(255,255,255,.55); border: 1px solid var(--parchment-dark); border-bottom: 2px solid var(--wax-gold); border-radius: 3px; padding: 11px 12px; font-family: 'IM Fell English', Georgia, serif; font-size: 1rem; color: var(--ink); outline: none; transition: background .2s, border-color .2s, box-shadow .2s; width: 100%; min-height: 44px; -webkit-text-size-adjust: 100%; }
-input:focus, select:focus { background: rgba(255,255,255,.85); border-bottom-color: var(--wax-red); box-shadow: 0 2px 10px rgba(139,26,26,.15); }
-input.error { border-bottom-color: var(--red); background: rgba(122,28,28,.06); }
-.field-error { font-size: .75rem; color: var(--red); font-style: italic; margin-top: 2px; display: none; }
-.field-error.show { display: block; }
+  .nav-btn .nav-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.6rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(245, 233, 201, 0.75);
+  }
 
-/* TYPE TOGGLE */
-.type-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-.type-btn { padding: 13px 10px; border: 2px solid var(--parchment-dark); border-radius: 3px; background: rgba(255,255,255,.3); font-family: 'Cinzel', serif; font-size: .82rem; font-weight: 600; letter-spacing: 1px; cursor: pointer; transition: background .2s, border-color .2s, color .2s; color: var(--ink-light); min-height: 44px; }
-.type-btn.income.active  { background: rgba(30,77,26,.12);  border-color: var(--green-light); color: var(--green); }
-.type-btn.expense.active { background: rgba(122,28,28,.1);  border-color: var(--red);         color: var(--red); }
+  .nav-btn.active {
+    color: var(--gold);
+  }
 
-/* BUTTONS */
-.btn-primary { width: 100%; padding: 14px; border: none; border-radius: 3px; font-family: 'Cinzel', serif; font-size: .9rem; font-weight: 600; letter-spacing: 2px; cursor: pointer; transition: opacity .2s, transform .1s; text-transform: uppercase; min-height: 48px; background: linear-gradient(135deg,#8b1a1a 0%,#6b1414 100%); color: var(--parchment); box-shadow: 0 3px 14px rgba(139,26,26,.3), inset 0 1px 0 rgba(255,255,255,.12); }
-.btn-primary:active { transform: scale(.98); opacity: .9; }
-.btn-primary.green { background: linear-gradient(135deg,#2d5a27 0%,#1e3d1b 100%); box-shadow: 0 3px 14px rgba(45,90,39,.3); }
-.btn-primary.grey  { background: linear-gradient(135deg,#555 0%,#333 100%); box-shadow: none; }
-.btn-secondary { flex: 1; min-width: 100px; padding: 11px 8px; min-height: 44px; border: 2px solid var(--wax-gold); border-radius: 3px; background: rgba(184,134,11,.1); font-family: 'Cinzel', serif; font-size: .72rem; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink); cursor: pointer; transition: background .2s; }
-.btn-secondary:active { background: rgba(184,134,11,.25); }
-.btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .nav-btn.active .nav-label {
+    color: var(--gold);
+    font-weight: 600;
+  }
 
-/* SUMMARY CARDS */
-.summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-.sum-card { background: rgba(255,255,255,.4); border: 1px solid var(--parchment-dark); border-radius: 4px; padding: 12px 14px; text-align: center; box-shadow: inset 0 1px 0 rgba(255,255,255,.6); }
-.sum-card .sc-label { font-family: 'Cinzel', serif; font-size: .62rem; letter-spacing: 2px; color: var(--ink-light); text-transform: uppercase; display: block; margin-bottom: 4px; }
-.sum-card .sc-value { font-family: 'Cinzel', serif; font-size: 1.2rem; font-weight: 700; }
-.sum-card.income .sc-value  { color: var(--green); }
-.sum-card.expense .sc-value { color: var(--red); }
+  /* Pages */
+  .page {
+    display: none;
+    min-height: calc(100vh - var(--nav-h));
+  }
 
-/* COIN SECTION */
-.coin-section { background: rgba(255,255,255,.28); border: 1px solid var(--parchment-dark); border-radius: 4px; padding: 14px; margin: 10px 0; }
-.coin-section-title { font-family: 'Cinzel', serif; font-size: .7rem; font-weight: 600; letter-spacing: 2px; color: var(--ink-light); text-transform: uppercase; margin-bottom: 12px; }
-.coin-row { display: grid; grid-template-columns: 82px 1fr 90px; align-items: center; gap: 10px; margin-bottom: 8px; }
-.coin-denom    { font-family: 'Cinzel', serif; font-weight: 600; font-size: .95rem; color: var(--ink); }
-.coin-row input { text-align: right; font-size: 1rem; padding: 10px 12px; }
-.coin-subtotal { font-family: 'Cinzel', serif; font-weight: 600; font-size: .9rem; color: var(--green-light); text-align: right; }
-.coin-total-row { display: grid; grid-template-columns: 82px 1fr 90px; align-items: center; gap: 10px; border-top: 1px solid var(--parchment-dark); padding-top: 8px; margin-top: 4px; }
-.coin-total-label { font-family: 'Cinzel', serif; font-size: .68rem; font-weight: 600; letter-spacing: 1px; color: var(--ink-light); text-transform: uppercase; grid-column: 1/3; }
-.coin-total-val   { font-family: 'Cinzel', serif; font-weight: 700; font-size: 1rem; color: var(--green); text-align: right; }
+  .page.active {
+    display: block;
+  }
 
-/* RESULT BOXES */
-.result-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 16px; }
-.result-box { background: rgba(255,255,255,.4); border: 1px solid var(--parchment-dark); border-radius: 4px; padding: 10px; text-align: center; }
-.result-box .rb-label { font-family: 'Cinzel', serif; font-size: .58rem; letter-spacing: 1.5px; color: var(--ink-light); text-transform: uppercase; display: block; margin-bottom: 4px; }
-.result-box .rb-value { font-family: 'Cinzel', serif; font-size: 1.05rem; font-weight: 700; }
-.result-box .rb-sub   { font-size: .62rem; color: var(--ink-light); margin-top: 2px; }
-.diff-pos { color: var(--green); } .diff-neg { color: var(--red); } .diff-zero { color: var(--ink); }
+  .page-header {
+    background: linear-gradient(to bottom, #2a1505, #1a0f05);
+    border-bottom: 2px solid var(--wax-gold);
+    padding: calc(16px + var(--safe-top)) 20px 14px;
+    text-align: center;
+  }
 
-/* ENTRY CARDS */
-.entry-card { background: rgba(255,255,255,.38); border: 1px solid var(--parchment-dark); border-radius: 4px; padding: 12px 14px; margin-bottom: 8px; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
-.entry-card .ec-main    { font-size: .95rem; font-weight: 600; color: var(--ink); }
-.entry-card .ec-meta    { font-size: .78rem; color: var(--ink-light); margin-top: 2px; }
-.entry-card .ec-amount  { font-family: 'Cinzel', serif; font-size: 1.1rem; font-weight: 700; text-align: right; align-self: start; }
-.entry-card .ec-amount.income  { color: var(--green); }
-.entry-card .ec-amount.expense { color: var(--red); }
-.entry-card .ec-amount.kasse   { color: var(--wax-gold); }
-.ec-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-family: 'Cinzel', serif; font-size: .6rem; font-weight: 600; letter-spacing: 1px; margin-top: 4px; }
-.ec-badge.income  { background: rgba(30,77,26,.12);   color: var(--green);    border: 1px solid rgba(30,77,26,.25); }
-.ec-badge.expense { background: rgba(122,28,28,.1);   color: var(--red);      border: 1px solid rgba(122,28,28,.2); }
-.ec-badge.kasse   { background: rgba(184,134,11,.12); color: var(--wax-gold); border: 1px solid rgba(184,134,11,.3); }
-.entry-card .ec-actions { grid-column: 2; grid-row: 1/4; display: flex; align-items: flex-start; padding-top: 2px; }
-.del-btn { background: none; border: none; color: var(--ink-light); cursor: pointer; font-size: 1rem; opacity: .4; padding: 6px; transition: opacity .2s; min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; }
-.del-btn:active { opacity: 1; color: var(--red); }
+  .page-header h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--parchment);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
 
-/* KASSE CARDS */
-.kasse-card { background: rgba(255,255,255,.35); border: 1px solid var(--parchment-dark); border-radius: 4px; padding: 14px; margin-bottom: 10px; }
-.kasse-card .kc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-.kasse-card .kc-title  { font-family: 'Cinzel', serif; font-size: .9rem; font-weight: 600; color: var(--ink); }
-.kasse-card .kc-diff   { font-family: 'Cinzel', serif; font-size: 1rem; font-weight: 700; }
-.kasse-card .kc-meta   { font-size: .78rem; color: var(--ink-light); margin-bottom: 8px; }
-.kasse-card .kc-stueck { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--parchment-dark); display: none; }
-.kasse-card .kc-stueck.open { display: block; }
-.kasse-card .kc-stueck table { width: 100%; font-size: .78rem; border-collapse: collapse; }
-.kasse-card .kc-stueck td   { padding: 3px 6px; }
-.toggle-stueck { background: none; border: 1px solid var(--parchment-dark); border-radius: 10px; font-family: 'Cinzel', serif; font-size: .6rem; letter-spacing: 1px; color: var(--ink-light); cursor: pointer; padding: 3px 10px; margin-top: 6px; min-height: 28px; }
+  .page-header .sub {
+    font-size: 0.78rem;
+    color: rgba(245, 233, 201, 0.65);
+    margin-top: 2px;
+    font-style: italic;
+  }
 
-/* FILTER */
-.filter-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-.filter-bar select, .filter-bar input { flex: 1; min-width: 100px; padding: 9px 10px; font-size: .88rem; min-height: 40px; }
+  .page-content {
+    background: var(--parchment);
+    min-height: calc(100vh - var(--nav-h) - 60px);
+    padding: 24px 16px 32px;
+    max-width: 640px;
+    margin: 0 auto;
+  }
 
-/* INFO BOX */
-.info-box { background: rgba(184,134,11,.1); border: 1px solid var(--wax-gold); border-radius: 4px; padding: 12px 14px; font-size: .88rem; color: var(--ink-light); margin-bottom: 14px; line-height: 1.6; }
-.info-box strong { font-family: 'Cinzel', serif; font-size: .72rem; display: block; margin-bottom: 4px; }
+  .placeholder {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--ink-light);
+    font-style: italic;
+  }
 
-/* ABSCHLUSS */
-.ab-ergebnis-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 12px; border-bottom: 1px solid rgba(139,101,43,.2); font-size: .9rem; }
-.ab-label { color: var(--ink-light); } .ab-val { font-family: 'Cinzel', serif; font-weight: 600; }
-.ab-abgabe-box { background: rgba(139,26,26,.08); border: 2px solid var(--wax-red); border-radius: 4px; padding: 14px; margin-top: 14px; text-align: center; }
-.ab-abgabe-label { font-family: 'Cinzel', serif; font-size: .72rem; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-light); display: block; margin-bottom: 4px; }
-.ab-abgabe-val   { font-family: 'Cinzel', serif; font-size: 1.8rem; font-weight: 700; color: var(--wax-red); }
+  .placeholder .ph-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    display: block;
+  }
 
-/* BACKUP */
-.backup-banner { background: rgba(139,26,26,.1); border: 1px solid var(--wax-red); border-radius: 4px; padding: 10px 14px; margin-bottom: 14px; font-size: .85rem; color: var(--red); display: none; }
-.backup-banner.show { display: block; }
-.empty-state { text-align: center; padding: 32px 16px; color: var(--ink-light); opacity: .6; font-style: italic; }
+  .placeholder .ph-text {
+    font-family: 'Cinzel', serif;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+  }
 
-/* DESKTOP */
-@media (min-width: 640px) {
-  body { padding: 20px 20px calc(var(--nav-h) + var(--safe-bottom) + 20px); }
-  .page-content { border-radius: 4px; box-shadow: 0 0 0 6px #5c3d1e, 0 0 0 10px #3a2210, 0 16px 40px rgba(0,0,0,.7); padding: 24px 32px 40px; }
-  .summary-grid { grid-template-columns: repeat(4,1fr); }
-}
-@media print {
-  .bottom-nav, .btn-row, .del-btn, .toggle-stueck, .filter-bar, .page-header { display: none !important; }
-  body { padding-bottom: 0; background: white; }
-  .page { display: block !important; }
-  .page-content { padding: 0; box-shadow: none; }
-}
+  @media (min-width: 640px) {
+    body { padding: 20px 20px calc(var(--nav-h) + var(--safe-bottom) + 20px); }
+    .page-content {
+      border-radius: 4px;
+      box-shadow: 0 0 0 6px #5c3d1e, 0 0 0 10px #3a2210, 0 16px 40px rgba(0,0,0,0.7);
+      padding: 24px 32px 40px;
+    }
+  }
 </style>
 </head>
 <body>
 
-<div id="toast" role="status" aria-live="polite"></div>
-
-<div id="confirm-overlay" role="dialog" aria-modal="true">
-  <div class="confirm-box">
-    <p id="confirm-msg"></p>
-    <div class="confirm-btns">
-      <button id="confirm-cancel">Abbrechen</button>
-      <button id="confirm-ok">Bestätigen</button>
-    </div>
+<!-- Seite: Kassenzählung -->
+<div id="page-kasse" class="page active">
+  <div class="page-header">
+    <h2>🪙 Kassenzählung</h2>
+    <div class="sub">Bargeld zählen &amp; Abgleich</div>
   </div>
-</div>
-
-<!-- PAGE: KASSENZAEHLUNG -->
-<div id="page-kasse" class="page">
-  <div class="page-header"><h2>Kassenzählung</h2><div class="sub">Bargeld zählen &amp; Abgleich</div></div>
   <div class="page-content">
-    <div class="form-grid-2">
-      <div class="form-group"><label for="k-markt">Markt</label><input type="text" id="k-markt" placeholder="z.B. Burgfest" list="markt-list-k" autocomplete="off"><datalist id="markt-list-k"></datalist></div>
-      <div class="form-group"><label for="k-datum">Datum</label><input type="date" id="k-datum"></div>
+    <div class="placeholder">
+      <span class="ph-icon">🪙</span>
+      <div class="ph-text">Kassenzählung<br>(folgt in Schritt 2)</div>
     </div>
-    <div class="coin-section">
-      <div class="coin-section-title">1. Anfangskassenbestand</div>
-      <div class="form-group" style="margin:0;"><label for="k-anfang">Betrag (€)</label><input type="number" id="k-anfang" placeholder="0,00" min="0" step="0.01" inputmode="decimal"></div>
-    </div>
-    <div class="coin-section">
-      <div class="coin-section-title">2. Münzen zählen</div>
-      <div class="coin-row"><span class="coin-denom">2,00 €</span><input type="number" id="m-200" min="0" step="1" value="0" inputmode="numeric"><span class="coin-subtotal" id="s-m200">0,00 €</span></div>
-      <div class="coin-row"><span class="coin-denom">1,00 €</span><input type="number" id="m-100" min="0" step="1" value="0" inputmode="numeric"><span class="coin-subtotal" id="s-m100">0,00 €</span></div>
-      <div class="coin-row"><span class="coin-denom">0,50 €</span><input type="number" id="m-050" min="0" step="1" value="0" inputmode="numeric"><span class="coin-subtotal" id="s-m050">0,00 €</span></div>
-      <div class="coin-total-row"><span class="coin-total-label">Münzen gesamt</span><span class="coin-total-val" id="s-muenzen">0,00 €</span></div>
-    </div>
-    <div class="coin-section">
-      <div class="coin-section-title">3. Scheine zählen</div>
-      <div class="coin-row"><span class="coin-denom">5,00 €</span><input type="number" id="b-5" min="0" step="1" value="0" inputmode="numeric"><span class="coin-subtotal" id="s-b5">0,00 €</span></div>
-      <div class="coin-row"><span class="coin-denom">10,00 €</span><input type="number" id="b-10" min="0" step="1" value="0" inputmode="numeric"><span class="coin-subtotal" id="s-b10">0,00 €</span></div>
-      <div class="coin-row"><span class="coin-denom">20,00 €</span><input type="number" id="b-20" min="0" step="1" value="0" inputmode="numeric"><span class="coin-subtotal" id="s-b20">0,00 €</span></div>
-      <div class="coin-row"><span class="coin-denom">50,00 €</span><input type="number" id="b-50" min="0" step="1" value="0" inputmode="numeric"><span class="coin-subtotal" id="s-b50">0,00 €</span></div>
-      <div class="coin-row"><span class="coin-denom">100,00 €</span><input type="number" id="b-100" min="0" step="1" value="0" inputmode="numeric"><span class="coin-subtotal" id="s-b100">0,00 €</span></div>
-      <div class="coin-row"><span class="coin-denom">200,00 €</span><input type="number" id="b-200" min="0" step="1" value="0" inputmode="numeric"><span class="coin-subtotal" id="s-b200">0,00 €</span></div>
-      <div class="coin-total-row"><span class="coin-total-label">Scheine gesamt</span><span class="coin-total-val" id="s-scheine">0,00 €</span></div>
-    </div>
-    <div class="result-grid">
-      <div class="result-box"><span class="rb-label">Ist-Bestand</span><span class="rb-value" id="k-istbestand">0,00 €</span><div class="rb-sub">Gezaehlt</div></div>
-      <div class="result-box"><span class="rb-label">Soll-Bestand</span><span class="rb-value" id="k-sollbestand">0,00 €</span><div class="rb-sub">Anfang + Bar</div></div>
-      <div class="result-box"><span class="rb-label">Differenz</span><span class="rb-value" id="k-differenz">--</span></div>
-    </div>
-    <div class="form-group" style="margin-top:14px;"><label for="k-notiz">Notiz</label><input type="text" id="k-notiz" placeholder="z.B. Tagesabschluss …"></div>
-    <button class="btn-primary green" id="btn-save-kasse" style="margin-top:6px;">Zählung speichern</button>
-    <div class="section-title" style="margin-top:24px;">Gespeicherte Zählungen</div>
-    <div id="kasse-list"><div class="empty-state">Noch keine Zählungen vorhanden.</div></div>
   </div>
 </div>
 
-<!-- PAGE: BUCHUNG -->
+<!-- Seite: Buchung -->
 <div id="page-buchung" class="page">
-  <div class="page-header"><h2>Buchung</h2><div class="sub">Einnahme oder Ausgabe erfassen</div></div>
+  <div class="page-header">
+    <h2>📝 Buchung</h2>
+    <div class="sub">Einnahme oder Ausgabe erfassen</div>
+  </div>
   <div class="page-content">
-    <div class="type-toggle">
-      <button class="type-btn income active" id="btn-income" data-type="income">Einnahme</button>
-      <button class="type-btn expense" id="btn-expense" data-type="expense">Ausgabe</button>
+    <div class="placeholder">
+      <span class="ph-icon">📝</span>
+      <div class="ph-text">Buchungen<br>(folgt in Schritt 3)</div>
     </div>
-    <div class="form-grid-2">
-      <div class="form-group"><label for="f-markt">Markt</label><input type="text" id="f-markt" placeholder="z.B. Burgfest" list="markt-list" autocomplete="off"><datalist id="markt-list"></datalist><span class="field-error" id="err-f-markt">Pflichtfeld</span></div>
-      <div class="form-group"><label for="f-datum">Datum</label><input type="date" id="f-datum"><span class="field-error" id="err-f-datum">Pflichtfeld</span></div>
-    </div>
-    <div class="form-group"><label for="f-bezeichnung">Bezeichnung</label><input type="text" id="f-bezeichnung" placeholder="z.B. Schwerter, Standgebühr ..."><span class="field-error" id="err-f-bezeichnung">Pflichtfeld</span></div>
-    <div class="form-grid-2">
-      <div class="form-group"><label for="f-kategorie">Kategorie</label><select id="f-kategorie"><option>Warenverkauf</option><option>Dienstleistung</option><option>Standgebühr</option><option>Einkauf / Material</option><option>Transport</option><option>Unterkunft</option><option>Verpflegung</option><option>Werkzeug / Ausstattung</option><option>Sonstiges</option></select></div>
-      <div class="form-group"><label for="f-zahlung">Zahlungsart</label><select id="f-zahlung"><option>Bar</option><option>Karte</option><option>Überweisung</option><option>Sonstiges</option></select></div>
-    </div>
-    <div class="form-group"><label for="f-betrag">Betrag (€)</label><input type="number" id="f-betrag" placeholder="0,00" min="0" step="0.01" inputmode="decimal"><span class="field-error" id="err-f-betrag">Gültigen Betrag eingeben</span></div>
-    <div class="form-group"><label for="f-notiz">Notiz (optional)</label><input type="text" id="f-notiz" placeholder="Freie Anmerkung …"></div>
-    <button class="btn-primary" id="btn-add-entry" style="margin-top:6px;">Eintrag speichern</button>
   </div>
 </div>
 
-<!-- PAGE: UEBERSICHT -->
+<!-- Seite: Übersicht -->
 <div id="page-uebersicht" class="page">
-  <div class="page-header"><h2>Übersicht</h2><div class="sub">Alle Buchungen &amp; Zählungen</div></div>
+  <div class="page-header">
+    <h2>📜 Übersicht</h2>
+    <div class="sub">Alle Buchungen &amp; Zählungen</div>
+  </div>
   <div class="page-content">
-    <div class="summary-grid">
-      <div class="sum-card"><span class="sc-label">Anfangsbestand</span><span class="sc-value" id="sum-anfang" style="color:var(--ink-light);">0,00 €</span></div>
-      <div class="sum-card income"><span class="sc-label">Einnahmen</span><span class="sc-value" id="sum-income">0,00 €</span></div>
-      <div class="sum-card expense"><span class="sc-label">Ausgaben</span><span class="sc-value" id="sum-expense">0,00 €</span></div>
-      <div class="sum-card"><span class="sc-label">Gewinn</span><span class="sc-value" id="sum-total">0,00 €</span></div>
-    </div>
-    <div class="filter-bar">
-      <select id="filter-markt"><option value="">Alle Märkte</option></select>
-      <select id="filter-type"><option value="">Alle</option><option value="income">Einnahmen</option><option value="expense">Ausgaben</option><option value="kasse">Zählungen</option></select>
-    </div>
-    <div class="filter-bar"><input type="text" id="filter-search" placeholder="Suchen ..." style="min-height:40px;"></div>
-    <div id="entries-list"><div class="empty-state">Noch keine Einträge vorhanden.</div></div>
-    <div class="btn-row">
-      <button class="btn-secondary" id="btn-export-csv">CSV Export</button>
-      <button class="btn-secondary" id="btn-print">Drucken</button>
+    <div class="placeholder">
+      <span class="ph-icon">📜</span>
+      <div class="ph-text">Übersicht<br>(folgt in Schritt 4)</div>
     </div>
   </div>
 </div>
 
-<!-- PAGE: KASSENABSCHLUSS -->
+<!-- Seite: Abschluss -->
 <div id="page-abschluss" class="page">
-  <div class="page-header"><h2>Kassenabschluss</h2><div class="sub">Abrechnung pro Markt &amp; Jahr</div></div>
+  <div class="page-header">
+    <h2>🏁 Kassenabschluss</h2>
+    <div class="sub">Abrechnung pro Markt &amp; Jahr</div>
+  </div>
   <div class="page-content">
-    <div class="info-box"><strong>Hinweis</strong>Kartenumsätze fließen in den Gesamtumsatz, nicht in die Kassenabgabe.</div>
-    <div class="form-grid-2">
-      <div class="form-group"><label for="ab-markt">Markt</label><select id="ab-markt"><option value="">Wählen</option></select></div>
-      <div class="form-group"><label for="ab-jahr">Jahr</label><select id="ab-jahr"><option value="">Wählen</option></select></div>
-    </div>
-    <div class="form-group"><label for="ab-rest">Kassenrest (€)</label><input type="number" id="ab-rest" value="400" min="0" step="0.01" inputmode="decimal"></div>
-    <div id="ab-empty" class="empty-state">Bitte Markt und Jahr auswählen.</div>
-    <div id="ab-result" style="display:none;">
-      <div id="ab-print-area">
-        <div class="section-title">Einnahmen</div>
-        <div id="ab-einnahmen-list"></div>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:2px solid var(--wax-gold);margin-top:4px;">
-          <span style="font-family:'Cinzel',serif;font-size:.8rem;font-weight:600;">Gesamt Einnahmen</span>
-          <span style="font-family:'Cinzel',serif;font-weight:700;color:var(--green);" id="ab-einnahmen-sum"></span>
-        </div>
-        <div class="section-title" style="margin-top:16px;">Ausgaben</div>
-        <div id="ab-ausgaben-list"></div>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:2px solid var(--wax-gold);margin-top:4px;">
-          <span style="font-family:'Cinzel',serif;font-size:.8rem;font-weight:600;">Gesamt Ausgaben</span>
-          <span style="font-family:'Cinzel',serif;font-weight:700;color:var(--red);" id="ab-ausgaben-sum"></span>
-        </div>
-        <div class="section-title" style="margin-top:16px;">Kassenabschluss</div>
-        <div class="coin-section" style="padding:0;overflow:hidden;">
-          <div class="ab-ergebnis-row"><span class="ab-label">Soll-Kassenbestand<br><small>Bareinnahmen + Anfangsbestand - Bar-Ausgaben</small></span><span class="ab-val" style="color:var(--green);" id="ab-r-sollkasse"></span></div>
-          <div class="ab-ergebnis-row"><span class="ab-label">- Kassenrest (verbleibt als Wechselgeld)</span><span class="ab-val" style="color:var(--ink-light);" id="ab-r-rest"></span></div>
-        </div>
-        <div class="ab-abgabe-box"><span class="ab-abgabe-label">Abgabe an Firma</span><span class="ab-abgabe-val" id="ab-r-abgabe"></span></div>
-        <div class="section-title" style="margin-top:20px;">Mittelherkunft &amp; Verwendung</div>
-        <div class="coin-section" style="padding:0;overflow:hidden;">
-          <div class="ab-ergebnis-row" style="background:rgba(45,90,39,.05);"><span style="font-family:'Cinzel',serif;font-size:.68rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--ink-light);">Herkunft</span><span></span></div>
-          <div class="ab-ergebnis-row"><span class="ab-label">Bar-Einnahmen gesamt</span><span class="ab-val" style="color:var(--green);" id="ab-r-barein"></span></div>
-          <div class="ab-ergebnis-row"><span class="ab-label">Karten-Einnahmen</span><span class="ab-val" style="color:var(--green);" id="ab-r-kartein"></span></div>
-          <div class="ab-ergebnis-row" style="border-bottom:2px solid var(--wax-gold);padding:10px 12px;"><span style="font-family:'Cinzel',serif;font-size:.85rem;font-weight:600;">Gesamtumsatz</span><span style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;" id="ab-r-gesamtumsatz"></span></div>
-          <div class="ab-ergebnis-row" style="background:rgba(122,28,28,.04);"><span style="font-family:'Cinzel',serif;font-size:.68rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--ink-light);">Verwendung</span><span></span></div>
-          <div class="ab-ergebnis-row"><span class="ab-label">Karten bereits auf Konto</span><span class="ab-val" style="color:var(--ink-light);" id="ab-r-kartein2"></span></div>
-          <div class="ab-ergebnis-row"><span class="ab-label">Ausgaben bereits bezahlt</span><span class="ab-val" style="color:var(--red);" id="ab-r-aus"></span></div>
-          <div class="ab-ergebnis-row" style="border-top:2px solid var(--wax-gold);padding:10px 12px;"><span style="font-family:'Cinzel',serif;font-size:.85rem;font-weight:600;">Abgabe an Firma</span><span style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--wax-red);" id="ab-r-abgabe2"></span></div>
-          <div class="ab-ergebnis-row" style="background:rgba(184,134,11,.06);border-top:1px dashed var(--parchment-dark);"><span class="ab-label" style="font-style:italic;">+ Kassenrest (Wechselgeld, kein Umsatz)</span><span class="ab-val" style="color:var(--ink-light);" id="ab-r-rest2"></span></div>
-        </div>
-        <div style="margin-top:30px;display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-          <div style="border-top:1px solid var(--ink);padding-top:6px;font-family:'Cinzel',serif;font-size:.68rem;color:var(--ink-light);text-align:center;">Datum / Kassenwart</div>
-          <div style="border-top:1px solid var(--ink);padding-top:6px;font-family:'Cinzel',serif;font-size:.68rem;color:var(--ink-light);text-align:center;">Datum / Geschaeftsfuehrung</div>
-        </div>
-      </div>
-      <div class="btn-row"><button class="btn-secondary" id="btn-print-abschluss">Drucken</button></div>
+    <div class="placeholder">
+      <span class="ph-icon">🏁</span>
+      <div class="ph-text">Kassenabschluss<br>(folgt in Schritt 5)</div>
     </div>
   </div>
 </div>
 
-<!-- PAGE: DATEN -->
+<!-- Seite: Daten -->
 <div id="page-daten" class="page">
-  <div class="page-header"><h2>Daten</h2><div class="sub">Backup &amp; Einstellungen</div></div>
+  <div class="page-header">
+    <h2>💾 Daten</h2>
+    <div class="sub">Backup &amp; Einstellungen</div>
+  </div>
   <div class="page-content">
-    <div class="backup-banner" id="backup-banner">Letztes Backup vor mehr als 7 Tagen – bitte jetzt sichern!</div>
-    <div class="section-title">Datensicherung</div>
-    <button class="btn-primary green" id="btn-export-json" style="margin-bottom:8px;">Backup speichern (JSON)</button>
-    <p style="font-size:.82rem;color:var(--ink-light);font-style:italic;margin-bottom:16px;">Alle Buchungen und Zaehlungen als JSON-Datei – in iCloud Drive ablegen.</p>
-    <div class="section-title">Backup laden</div>
-    <div class="form-group"><label for="import-file">JSON-Datei auswählen</label><input type="file" id="import-file" accept=".json" style="cursor:pointer;"></div>
-    <p style="font-size:.82rem;color:var(--red);font-style:italic;margin-bottom:16px;">Bestehende Daten werden überschrieben.</p>
-    <div class="section-title">Daten löschen</div>
-    <button class="btn-primary grey" id="btn-clear-all" style="margin-bottom:8px;">Alle Daten löschen</button>
-    <div class="section-title" style="margin-top:24px;">App auf Homescreen</div>
-    <div class="info-box"><strong>iPhone / iPad:</strong>1. In Safari öffnen<br>2. Teilen-Symbol antippen<br>3. Zum Home-Bildschirm wählen<br>4. Name bestätigen - fertig!</div>
+    <div class="placeholder">
+      <span class="ph-icon">💾</span>
+      <div class="ph-text">Backup &amp; Daten<br>(folgt in Schritt 6)</div>
+    </div>
   </div>
 </div>
 
-<!-- BOTTOM NAV -->
-<nav class="bottom-nav" role="navigation" aria-label="Hauptnavigation">
-  <button class="nav-btn" id="nav-kasse"      data-page="kasse"><span class="nav-icon">🪙</span><span class="nav-label">Zählung</span></button>
-  <button class="nav-btn" id="nav-buchung"    data-page="buchung"><span class="nav-icon">📝</span><span class="nav-label">Buchung</span></button>
-  <button class="nav-btn" id="nav-uebersicht" data-page="uebersicht"><span class="nav-icon">📜</span><span class="nav-label">Übersicht</span></button>
-  <button class="nav-btn" id="nav-abschluss"  data-page="abschluss"><span class="nav-icon">🏁</span><span class="nav-label">Abschluss</span></button>
-  <button class="nav-btn" id="nav-daten"      data-page="daten"><span class="nav-icon">💾</span><span class="nav-label">Daten</span></button>
+<!-- Bottom Navigation -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-page="kasse">
+    <span class="nav-icon">🪙</span>
+    <span class="nav-label">Zählung</span>
+  </button>
+  <button class="nav-btn" data-page="buchung">
+    <span class="nav-icon">📝</span>
+    <span class="nav-label">Buchung</span>
+  </button>
+  <button class="nav-btn" data-page="uebersicht">
+    <span class="nav-icon">📜</span>
+    <span class="nav-label">Übersicht</span>
+  </button>
+  <button class="nav-btn" data-page="abschluss">
+    <span class="nav-icon">🏁</span>
+    <span class="nav-label">Abschluss</span>
+  </button>
+  <button class="nav-btn" data-page="daten">
+    <span class="nav-icon">💾</span>
+    <span class="nav-label">Daten</span>
+  </button>
 </nav>
 
 <script>
-'use strict';
-
-const COIN_DEFS = [
-  {id:'m-200',sid:'s-m200',val:2,  label:'2,00 €'},
-  {id:'m-100',sid:'s-m100',val:1,  label:'1,00 €'},
-  {id:'m-050',sid:'s-m050',val:.5, label:'0,50 €'},
-];
-const BILL_DEFS = [
-  {id:'b-5',  sid:'s-b5',  val:5,  label:'5,00 €'},
-  {id:'b-10', sid:'s-b10', val:10, label:'10,00 €'},
-  {id:'b-20', sid:'s-b20', val:20, label:'20,00 €'},
-  {id:'b-50', sid:'s-b50', val:50, label:'50,00 €'},
-  {id:'b-100',sid:'s-b100',val:100,label:'100,00 €'},
-  {id:'b-200',sid:'s-b200',val:200,label:'200,00 €'},
-];
-const LS_ENTRIES   = 'markt-entries';
-const LS_KASSUNGEN = 'markt-kassungen';
-const LS_BACKUP    = 'markt-last-backup';
-
-let entries     = [];
-let kassungen   = [];
-let currentType = 'income';
-
-function storageSave() {
-  try {
-    localStorage.setItem(LS_ENTRIES,   JSON.stringify(entries));
-    localStorage.setItem(LS_KASSUNGEN, JSON.stringify(kassungen));
-  } catch(e) { toast('⚠ Speichern fehlgeschlagen – Gerätespeicher voll?'); }
-}
-
-function storageLoad() {
-  try {
-    entries   = JSON.parse(localStorage.getItem(LS_ENTRIES)   || '[]');
-    kassungen = JSON.parse(localStorage.getItem(LS_KASSUNGEN) || '[]');
-  } catch(e) { entries=[]; kassungen=[]; }
-  if (!Array.isArray(entries))   entries   = [];
-  if (!Array.isArray(kassungen)) kassungen = [];
-}
-
-function fmt(n) {
-  return Number(n).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' EUR';
-}
-
-function fmtDate(iso) {
-  return iso ? iso.split('-').reverse().join('.') : '';
-}
-
-function esc(str) {
-  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
-const el = id => document.getElementById(id);
-
-let toastTimer = null;
-function toast(msg, dur=2400) {
-  const t = el('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), dur);
-}
-
-function showConfirm(msg) {
-  return new Promise(resolve => {
-    el('confirm-msg').textContent = msg;
-    el('confirm-overlay').classList.add('show');
-    function cleanup(r) {
-      el('confirm-overlay').classList.remove('show');
-      el('confirm-ok').removeEventListener('click', onOk);
-      el('confirm-cancel').removeEventListener('click', onCancel);
-      resolve(r);
+  function showPage(name) {
+    var pages = document.querySelectorAll('.page');
+    for (var i = 0; i < pages.length; i++) {
+      pages[i].classList.remove('active');
     }
-    const onOk     = () => cleanup(true);
-    const onCancel = () => cleanup(false);
-    el('confirm-ok').addEventListener('click', onOk);
-    el('confirm-cancel').addEventListener('click', onCancel);
-  });
-}
-
-function showPage(name) {
-  try {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  const pageEl = el('page-'+name);
-  const navEl  = el('nav-'+name);
-  if (pageEl) pageEl.classList.add('active');
-  if (navEl)  navEl.classList.add('active');
-  try{window.scrollTo(0,0);}catch(e){}
-  if (name==='uebersicht') renderList();
-  if (name==='kasse')      renderKasseList();
-  if (name==='abschluss')  initAbschluss();
-  if (name==='daten')      checkBackupReminder();
-  } catch(e) { console.error('showPage error:', e); }
-}
-
-function updateDataLists() {
-  const maerkte = [...new Set([...entries.map(e=>e.markt),...kassungen.map(k=>k.markt)])].filter(Boolean).sort();
-  const opts = maerkte.map(m => '<option value="'+esc(m)+'">').join('');
-  ['markt-list','markt-list-k'].forEach(id => { const n=el(id); if(n) n.innerHTML=opts; });
-}
-
-function setType(type) {
-  currentType = type;
-  el('btn-income').classList.toggle('active', type==='income');
-  el('btn-expense').classList.toggle('active', type==='expense');
-}
-
-function validateFields(fields) {
-  let valid = true;
-  fields.forEach(({id,check}) => {
-    const inp=el(id), err=el('err-'+id), bad=!check(inp.value);
-    inp.classList.toggle('error', bad);
-    if(err) err.classList.toggle('show', bad);
-    if(bad) valid=false;
-  });
-  return valid;
-}
-
-function addEntry() {
-  const ok = validateFields([
-    {id:'f-markt',       check:v=>v.trim()!==''},
-    {id:'f-datum',       check:v=>v!==''},
-    {id:'f-bezeichnung', check:v=>v.trim()!==''},
-    {id:'f-betrag',      check:v=>parseFloat(v)>0},
-  ]);
-  if (!ok) return;
-  entries.push({
-    id:Date.now(), type:currentType,
-    markt:el('f-markt').value.trim(),
-    datum:el('f-datum').value,
-    bezeichnung:el('f-bezeichnung').value.trim(),
-    kategorie:el('f-kategorie').value,
-    betrag:parseFloat(el('f-betrag').value),
-    zahlung:el('f-zahlung').value,
-    notiz:el('f-notiz').value.trim(),
-  });
-  storageSave(); updateDataLists(); calcKasse();
-  ['f-bezeichnung','f-betrag','f-notiz'].forEach(id=>el(id).value='');
-  ['f-markt','f-datum','f-bezeichnung','f-betrag'].forEach(id=>{
-    el(id).classList.remove('error');
-    const e=el('err-'+id); if(e) e.classList.remove('show');
-  });
-  toast('✓ Eintrag gespeichert');
-}
-
-async function deleteEntry(id) {
-  if (!await showConfirm('Eintrag wirklich löschen?')) return;
-  const entry = entries.find(e=>e.id===id);
-  if (entry && entry.kasseRef && entry.kasseRefId) {
-    kassungen = kassungen.filter(k=>k.id!==entry.kasseRefId);
+    var btns = document.querySelectorAll('.nav-btn');
+    for (var j = 0; j < btns.length; j++) {
+      btns[j].classList.remove('active');
+    }
+    var page = document.getElementById('page-' + name);
+    if (page) page.classList.add('active');
+    var btn = document.querySelector('.nav-btn[data-page="' + name + '"]');
+    if (btn) btn.classList.add('active');
   }
-  entries = entries.filter(e=>e.id!==id);
-  storageSave(); renderList(); renderKasseList(); calcKasse();
-  toast('Eintrag gelöscht');
-}
 
-function calcKasse() {
-  let muenzen=0;
-  COIN_DEFS.forEach(c => {
-    const n=Math.max(0,parseInt(el(c.id).value)||0), sub=n*c.val;
-    muenzen+=sub; el(c.sid).textContent=fmt(sub);
-  });
-  el('s-muenzen').textContent=fmt(muenzen);
-  let scheine=0;
-  BILL_DEFS.forEach(b => {
-    const n=Math.max(0,parseInt(el(b.id).value)||0), sub=n*b.val;
-    scheine+=sub; el(b.sid).textContent=fmt(sub);
-  });
-  el('s-scheine').textContent=fmt(scheine);
-  const anfang    = parseFloat(el('k-anfang').value)||0;
-  const ist       = muenzen+scheine;
-  const barIncome = entries.filter(e=>e.type==='income' &&e.zahlung==='Bar'&&!e.kasseRef).reduce((s,e)=>s+e.betrag,0);
-  const barExpense= entries.filter(e=>e.type==='expense'&&e.zahlung==='Bar'&&!e.kasseRef).reduce((s,e)=>s+e.betrag,0);
-  const soll      = anfang+barIncome-barExpense;
-  el('k-istbestand').textContent  = fmt(ist);
-  el('k-sollbestand').textContent = fmt(soll);
-  const diff=ist-soll, diffEl=el('k-differenz');
-  diffEl.textContent = (diff>=0?'+':'')+fmt(diff);
-  diffEl.className   = 'rb-value '+(diff>0.005?'diff-pos':diff<-0.005?'diff-neg':'diff-zero');
-}
-
-function saveKasse() {
-  const markt=el('k-markt').value.trim(), datum=el('k-datum').value;
-  if (!markt||!datum) { toast('⚠ Markt und Datum angeben'); return; }
-  const anfang=parseFloat(el('k-anfang').value)||0;
-  const coins={}, bills={};
-  COIN_DEFS.forEach(c=>coins[c.id]=parseInt(el(c.id).value)||0);
-  BILL_DEFS.forEach(b=>bills[b.id]=parseInt(el(b.id).value)||0);
-  const muenzen=COIN_DEFS.reduce((s,c)=>s+coins[c.id]*c.val,0);
-  const scheine=BILL_DEFS.reduce((s,b)=>s+bills[b.id]*b.val,0);
-  const ist=muenzen+scheine;
-  const barIncome =entries.filter(e=>e.type==='income' &&e.zahlung==='Bar'&&!e.kasseRef).reduce((s,e)=>s+e.betrag,0);
-  const barExpense=entries.filter(e=>e.type==='expense'&&e.zahlung==='Bar'&&!e.kasseRef).reduce((s,e)=>s+e.betrag,0);
-  const soll=anfang+barIncome-barExpense;
-  const notiz=el('k-notiz').value.trim();
-  const kasseId=Date.now();
-  kassungen.push({id:kasseId,markt,datum,anfang,coins,bills,muenzen,scheine,istBestand:ist,soll,diff:ist-soll,notiz});
-  entries=entries.filter(e=>!(e.kasseRef&&e.markt===markt&&e.datum===datum));
-  entries.push({id:kasseId+1,kasseRefId:kasseId,kasseRef:true,type:'kasse',markt,datum,bezeichnung:'Kassenzählung',kategorie:'Kassenzählung',betrag:ist,soll,diff:ist-soll,anfang,coins,bills,muenzen,scheine,zahlung:'Bar',notiz});
-  storageSave(); renderKasseList(); updateDataLists();
-  el('k-anfang').value=''; el('k-notiz').value='';
-  COIN_DEFS.forEach(c=>el(c.id).value=0);
-  BILL_DEFS.forEach(b=>el(b.id).value=0);
-  calcKasse();
-  toast('✓ Zählung gespeichert');
-}
-
-function renderKasseList() {
-  const container=el('kasse-list');
-  if (!kassungen.length) { container.innerHTML='<div class="empty-state">Noch keine Zählungen vorhanden.</div>'; return; }
-  container.innerHTML=[...kassungen].reverse().map(k=>{
-    const dc=k.diff>0.005?'diff-pos':k.diff<-0.005?'diff-neg':'diff-zero';
-    const coins=k.coins||{}, bills=k.bills||{};
-    const cr=COIN_DEFS.filter(c=>(coins[c.id]||0)>0).map(c=>'<tr><td>'+esc(c.label)+'</td><td style="text-align:right">'+coins[c.id]+' Stk.</td><td style="text-align:right;color:var(--green-light);">'+fmt(coins[c.id]*c.val)+'</td></tr>').join('');
-    const br=BILL_DEFS.filter(b=>(bills[b.id]||0)>0).map(b=>'<tr><td>'+esc(b.label)+'</td><td style="text-align:right">'+bills[b.id]+' Stk.</td><td style="text-align:right;color:var(--green-light);">'+fmt(bills[b.id]*b.val)+'</td></tr>').join('');
-    return '<div class="kasse-card"><div class="kc-header"><div><div class="kc-title">'+esc(k.markt)+'</div><div class="kc-meta">'+fmtDate(k.datum)+(k.notiz?' - '+esc(k.notiz):'')+'</div></div><div style="display:flex;align-items:center;gap:6px;"><span class="kc-diff '+dc+'">'+(k.diff>=0?'+':'')+fmt(k.diff)+'</span><button class="del-btn" data-kasse-id="'+k.id+'">x</button></div></div><div class="kc-meta">Anfang: '+fmt(k.anfang)+' - Ist: '+fmt(k.istBestand)+' - Soll: '+fmt(k.soll)+'</div><button class="toggle-stueck">Stückelung zeigen</button><div class="kc-stueck"><table><tr><td colspan="3" style="font-family:Cinzel,serif;font-size:.65rem;letter-spacing:1px;color:var(--ink-light);text-transform:uppercase;padding:4px 6px 2px;border-bottom:1px solid var(--parchment-dark);">Münzen</td></tr>'+(cr||'<tr><td colspan="3" style="padding:3px 6px;color:var(--ink-light);font-style:italic;">Keine Münzen</td></tr>')+'<tr><td colspan="3" style="font-family:Cinzel,serif;font-size:.65rem;letter-spacing:1px;color:var(--ink-light);text-transform:uppercase;padding:6px 6px 2px;border-bottom:1px solid var(--parchment-dark);">Scheine</td></tr>'+(br||'<tr><td colspan="3" style="padding:3px 6px;color:var(--ink-light);font-style:italic;">Keine Scheine</td></tr>')+'<tr style="border-top:1px solid var(--parchment-dark);"><td colspan="2" style="padding:4px 6px;font-family:Cinzel,serif;font-weight:600;font-size:.8rem;">Münzen gesamt</td><td style="text-align:right;padding:4px 6px;font-family:Cinzel,serif;font-weight:600;">'+fmt(k.muenzen)+'</td></tr><tr><td colspan="2" style="padding:4px 6px;font-family:Cinzel,serif;font-weight:600;font-size:.8rem;">Scheine gesamt</td><td style="text-align:right;padding:4px 6px;font-family:Cinzel,serif;font-weight:600;">'+fmt(k.scheine)+'</td></tr></table></div></div>';
-  }).join('');
-}
-
-async function deleteKasse(id) {
-  if (!await showConfirm('Zählung wirklich löschen?')) return;
-  kassungen=kassungen.filter(k=>k.id!==id);
-  entries=entries.filter(e=>!(e.kasseRef&&e.kasseRefId===id));
-  storageSave(); renderKasseList(); renderList();
-  toast('Zählung gelöscht');
-}
-
-function renderList() {
-  const marktSel=el('filter-markt'), curM=marktSel.value;
-  const maerkte=[...new Set(entries.map(e=>e.markt))].filter(Boolean).sort();
-  marktSel.innerHTML='<option value="">Alle Märkte</option>'+maerkte.map(m=>'<option value="'+esc(m)+'"'+(m===curM?' selected':'')+'>'+esc(m)+'</option>').join('');
-  const real=entries.filter(e=>!e.kasseRef);
-  const lk=kassungen.length?kassungen[kassungen.length-1]:null;
-  const tA=lk?lk.anfang:0, tI=real.filter(e=>e.type==='income').reduce((s,e)=>s+e.betrag,0), tE=real.filter(e=>e.type==='expense').reduce((s,e)=>s+e.betrag,0), pr=tI-tE;
-  el('sum-anfang').textContent=fmt(tA); el('sum-income').textContent=fmt(tI); el('sum-expense').textContent=fmt(tE);
-  const pe=el('sum-total'); pe.textContent=fmt(pr); pe.style.color=pr>=0?'var(--green)':'var(--red)';
-  const tf=el('filter-type').value, sr=el('filter-search').value.toLowerCase(), mf=marktSel.value;
-  const filtered=entries.filter(e=>{
-    if(mf&&e.markt!==mf) return false;
-    if(tf&&e.type!==tf)  return false;
-    if(sr&&!e.bezeichnung.toLowerCase().includes(sr)&&!e.kategorie.toLowerCase().includes(sr)) return false;
-    return true;
-  });
-  const le=el('entries-list');
-  if(!filtered.length){le.innerHTML='<div class="empty-state">Keine Einträge gefunden.</div>';return;}
-  le.innerHTML=[...filtered].sort((a,b)=>b.datum.localeCompare(a.datum)).map(e=>{
-    if(e.type==='kasse'){
-      const dc=e.diff>0.005?'amount-income':e.diff<-0.005?'amount-expense':'', dt=(e.diff>=0?'+':'')+fmt(e.diff);
-      return '<div class="entry-card" style="background:rgba(184,134,11,.08);border-color:rgba(184,134,11,.3);"><div><div class="ec-main">Kassenzählung</div><div class="ec-meta">'+fmtDate(e.datum)+' - '+esc(e.markt)+'</div><div class="ec-meta" style="margin-top:3px;">Anfang: '+fmt(e.anfang)+' - Soll: '+fmt(e.soll)+' - Diff: <span class="'+dc+'">'+dt+'</span></div><span class="ec-badge kasse">Zählung</span></div><div class="ec-actions"><div><div class="ec-amount kasse">'+fmt(e.betrag)+'</div><button class="del-btn" data-entry-id="'+e.id+'" style="margin-top:4px;">x</button></div></div></div>';
-    }
-    return '<div class="entry-card"><div><div class="ec-main">'+esc(e.bezeichnung)+'</div><div class="ec-meta">'+fmtDate(e.datum)+' - '+esc(e.markt)+' - '+esc(e.zahlung)+'</div><div class="ec-meta">'+esc(e.kategorie)+(e.notiz?' - '+esc(e.notiz):'')+'</div><span class="ec-badge '+e.type+'">'+(e.type==='income'?'Einnahme':'Ausgabe')+'</span></div><div class="ec-actions"><div><div class="ec-amount '+e.type+'">'+fmt(e.betrag)+'</div><button class="del-btn" data-entry-id="'+e.id+'" style="margin-top:4px;">x</button></div></div></div>';
-  }).join('');
-}
-
-function initAbschluss() {
-  const ms=el('ab-markt'), js=el('ab-jahr'), cm=ms.value, cj=js.value;
-  const real=entries.filter(e=>!e.kasseRef);
-  const maerkte=[...new Set(real.map(e=>e.markt))].filter(Boolean).sort();
-  const jahre=[...new Set(real.map(e=>e.datum.slice(0,4)))].filter(Boolean).sort().reverse();
-  ms.innerHTML='<option value="">Wählen</option>'+maerkte.map(m=>'<option value="'+esc(m)+'"'+(m===cm?' selected':'')+'>'+esc(m)+'</option>').join('');
-  js.innerHTML='<option value="">Wählen</option>'+jahre.map(j=>'<option value="'+esc(j)+'"'+(j===cj?' selected':'')+'>'+esc(j)+'</option>').join('');
-  calcAbschluss();
-}
-
-function calcAbschluss() {
-  const markt=el('ab-markt').value, jahr=el('ab-jahr').value, rest=parseFloat(el('ab-rest').value)||0;
-  if(!markt||!jahr){el('ab-result').style.display='none';el('ab-empty').style.display='block';return;}
-  const buch=entries.filter(e=>!e.kasseRef&&e.markt===markt&&e.datum.startsWith(jahr));
-  const ein=buch.filter(e=>e.type==='income'), aus=buch.filter(e=>e.type==='expense');
-  const mz=kassungen.filter(k=>k.markt===markt&&k.datum.startsWith(jahr));
-  let barEin=0, zd=[];
-  if(mz.length){mz.forEach(k=>{const tb=k.istBestand-k.anfang;barEin+=tb;zd.push({datum:k.datum,istBestand:k.istBestand,anfang:k.anfang,tagesBar:tb,notiz:k.notiz});});}
-  else{barEin=ein.filter(e=>e.zahlung==='Bar').reduce((s,e)=>s+e.betrag,0);}
-  const karteEin=ein.filter(e=>e.zahlung!=='Bar').reduce((s,e)=>s+e.betrag,0);
-  const barAus=aus.filter(e=>e.zahlung==='Bar').reduce((s,e)=>s+e.betrag,0);
-  const gesamtAus=aus.reduce((s,e)=>s+e.betrag,0);
-  const anfang0=mz.length?mz[0].anfang:0;
-  const sollKasse=barEin+anfang0-barAus, abgabe=sollKasse-rest, gesamtumsatz=barEin+karteEin;
-  let einHtml='';
-  if(zd.length){zd.forEach(z=>{einHtml+='<div class="ab-ergebnis-row"><span class="ab-label">Bar-Einnahmen (Kassenzählung)<br><small>'+fmtDate(z.datum)+' - Ist: '+fmt(z.istBestand)+' - Anfang: '+fmt(z.anfang)+(z.notiz?' - '+esc(z.notiz):'')+' </small></span><span class="ab-val" style="color:var(--green);">'+fmt(z.tagesBar)+'</span></div>';});}
-  else{ein.filter(e=>e.zahlung==='Bar').forEach(e=>{einHtml+='<div class="ab-ergebnis-row"><span class="ab-label">'+esc(e.bezeichnung)+'<br><small>'+fmtDate(e.datum)+' - Bar</small></span><span class="ab-val" style="color:var(--green);">'+fmt(e.betrag)+'</span></div>';});}
-  ein.filter(e=>e.zahlung!=='Bar').forEach(e=>{einHtml+='<div class="ab-ergebnis-row"><span class="ab-label">'+esc(e.bezeichnung)+'<br><small>'+fmtDate(e.datum)+' - '+esc(e.zahlung)+'</small></span><span class="ab-val" style="color:var(--green);">'+fmt(e.betrag)+'</span></div>';});
-  el('ab-einnahmen-list').innerHTML=einHtml||'<div class="empty-state" style="padding:12px;">Keine Einnahmen</div>';
-  el('ab-einnahmen-sum').textContent=fmt(gesamtumsatz);
-  el('ab-ausgaben-list').innerHTML=!aus.length?'<div class="empty-state" style="padding:12px;">Keine Ausgaben</div>':aus.map(e=>'<div class="ab-ergebnis-row"><span class="ab-label">'+esc(e.bezeichnung)+'<br><small>'+fmtDate(e.datum)+' - '+esc(e.zahlung)+'</small></span><span class="ab-val" style="color:var(--red);">'+fmt(e.betrag)+'</span></div>').join('');
-  el('ab-ausgaben-sum').textContent=fmt(gesamtAus);
-  el('ab-r-sollkasse').textContent=fmt(sollKasse);
-  el('ab-r-rest').textContent=fmt(rest);
-  el('ab-r-abgabe').textContent=fmt(Math.max(0,abgabe));
-  el('ab-r-barein').textContent=fmt(barEin);
-  el('ab-r-kartein').textContent=fmt(karteEin);
-  el('ab-r-gesamtumsatz').textContent=fmt(gesamtumsatz);
-  el('ab-r-kartein2').textContent=fmt(karteEin);
-  el('ab-r-aus').textContent=fmt(gesamtAus);
-  el('ab-r-abgabe2').textContent=fmt(Math.max(0,abgabe));
-  el('ab-r-rest2').textContent=fmt(rest);
-  el('ab-result').style.display='block'; el('ab-empty').style.display='none';
-}
-
-function printAbschluss() {
-  const markt=el('ab-markt').value, jahr=el('ab-jahr').value, area=el('ab-print-area').innerHTML;
-  try {
-    const win=window.open('','_blank'); if(!win) throw new Error('blocked');
-    win.document.write('<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Kassenabschluss '+esc(markt)+' '+esc(jahr)+'</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet"><style>body{font-family:IM Fell English,Georgia,serif;color:#1e1208;padding:30px;max-width:800px;margin:0 auto;font-size:.95rem;}.section-title{font-family:Cinzel,serif;font-size:.72rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#4a2e10;margin:20px 0 10px;padding-bottom:5px;border-bottom:1px solid #e0c97a;display:flex;align-items:center;gap:6px;}.ab-ergebnis-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0e8d0;font-size:.9rem;}.ab-label{color:#4a2e10;}.ab-val{font-family:Cinzel,serif;font-weight:600;}.ab-abgabe-box{background:#fef0f0;border:2px solid #8b1a1a;border-radius:4px;padding:16px;margin-top:16px;text-align:center;}.ab-abgabe-label{font-family:Cinzel,serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:#4a2e10;display:block;margin-bottom:4px;}.ab-abgabe-val{font-family:Cinzel,serif;font-size:2rem;font-weight:700;color:#8b1a1a;}.coin-section{padding:0;overflow:hidden;border:1px solid #e0c97a;border-radius:4px;margin:10px 0;}small{font-size:.75rem;color:#4a2e10;}@media print{body{padding:15px;}}</style></head><body>'+area+'</body></html>');
-    win.document.close(); setTimeout(()=>win.print(),700);
-  } catch { window.print(); }
-}
-
-function exportCSV() {
-  if(!entries.filter(e=>!e.kasseRef).length){toast('⚠ Keine Buchungen vorhanden');return;}
-  const hdr=['Datum','Markt','Bezeichnung','Kategorie','Typ','Betrag (€)','Zahlungsart','Notiz',...COIN_DEFS.map(c=>'Münzen '+c.label),...BILL_DEFS.map(b=>'Scheine '+b.label),'Anfangsbestand','Soll-Bestand','Differenz'];
-  const rows=entries.map(e=>{
-    const typ=e.type==='income'?'Einnahme':e.type==='expense'?'Ausgabe':'Kassenzählung';
-    const co=e.coins||{}, bi=e.bills||{};
-    return [fmtDate(e.datum),e.markt,e.bezeichnung,e.kategorie,typ,e.betrag.toFixed(2).replace('.',','),e.zahlung||'',e.notiz||'',...COIN_DEFS.map(c=>co[c.id]||0),...BILL_DEFS.map(b=>bi[b.id]||0),e.anfang!=null?Number(e.anfang).toFixed(2).replace('.',','):'',e.soll!=null?Number(e.soll).toFixed(2).replace('.',','):'',e.diff!=null?Number(e.diff).toFixed(2).replace('.',','): ''];
-  });
-  const csv=[hdr,...rows].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(';')).join('
-');
-  downloadFile('﻿'+csv,'Marktabrechnung.csv','text/csv;charset=utf-8;');
-}
-
-function exportJSON() {
-  const data={version:4,exportedAt:new Date().toISOString(),entries,kassungen};
-  downloadFile(JSON.stringify(data,null,2),'Marktabrechnung_'+new Date().toISOString().slice(0,10)+'.json','application/json');
-  try{localStorage.setItem(LS_BACKUP,new Date().toISOString());}catch{}
-  el('backup-banner').classList.remove('show');
-  toast('✓ Backup gespeichert');
-}
-
-function importJSON(event) {
-  const file=event.target.files[0]; if(!file) return;
-  showConfirm('Achtung: Bestehende Daten werden überschrieben. Fortfahren?').then(ok=>{
-    if(!ok){event.target.value='';return;}
-    const r=new FileReader();
-    r.onload=e=>{
-      try{
-        const d=JSON.parse(e.target.result);
-        if(!Array.isArray(d.entries)||!Array.isArray(d.kassungen)) throw new Error('Ungültiges Format');
-        entries=d.entries; kassungen=d.kassungen;
-        storageSave(); renderList(); renderKasseList(); calcKasse(); updateDataLists();
-        toast(entries.length+' Buchungen, '+kassungen.length+' Zaehlungen geladen');
-      }catch(err){toast('Import fehlgeschlagen: '+err.message);}
-    };
-    r.readAsText(file); event.target.value='';
-  });
-}
-
-async function clearAll() {
-  if(!await showConfirm('ALLE Daten unwiderruflich löschen?')) return;
-  entries=[]; kassungen=[];
-  storageSave(); renderList(); renderKasseList(); calcKasse();
-  toast('Alle Daten gelöscht');
-}
-
-function downloadFile(content,filename,mime) {
-  const blob=new Blob([content],{type:mime}), url=URL.createObjectURL(blob), a=document.createElement('a');
-  a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url);
-}
-
-function checkBackupReminder() {
-  try{
-    const last=localStorage.getItem(LS_BACKUP); if(!last) return;
-    const days=(Date.now()-new Date(last).getTime())/86400000;
-    el('backup-banner').classList.toggle('show',days>7);
-  }catch{}
-}
-
-document.addEventListener('DOMContentLoaded', function() { try {
-  storageLoad();
-  el('f-datum').valueAsDate=new Date();
-  el('k-datum').valueAsDate=new Date();
-
-  document.querySelectorAll('.nav-btn[data-page]').forEach(btn=>
-    btn.addEventListener('click',()=>showPage(btn.dataset.page))
-  );
-  document.querySelectorAll('.type-btn[data-type]').forEach(btn=>
-    btn.addEventListener('click',()=>setType(btn.dataset.type))
-  );
-
-  el('btn-add-entry').addEventListener('click',addEntry);
-  el('btn-save-kasse').addEventListener('click',saveKasse);
-  el('k-anfang').addEventListener('input',calcKasse);
-  [...COIN_DEFS,...BILL_DEFS].forEach(c=>el(c.id).addEventListener('input',calcKasse));
-  el('filter-markt').addEventListener('change',renderList);
-  el('filter-type').addEventListener('change',renderList);
-  el('filter-search').addEventListener('input',renderList);
-  el('ab-markt').addEventListener('change',calcAbschluss);
-  el('ab-jahr').addEventListener('change',calcAbschluss);
-  el('ab-rest').addEventListener('input',calcAbschluss);
-  el('btn-print-abschluss').addEventListener('click',printAbschluss);
-  el('btn-export-csv').addEventListener('click',exportCSV);
-  el('btn-print').addEventListener('click',()=>window.print());
-  el('btn-export-json').addEventListener('click',exportJSON);
-  el('import-file').addEventListener('change',importJSON);
-  el('btn-clear-all').addEventListener('click',clearAll);
-
-  document.addEventListener('click',function(e){
-    const t=e.target;
-    if(t.dataset.kasseId) { deleteKasse(parseInt(t.dataset.kasseId)); return; }
-    if(t.dataset.entryId) { deleteEntry(parseInt(t.dataset.entryId)); return; }
-    if(t.classList.contains('toggle-stueck')){
-      const box=t.nextElementSibling, open=box.classList.toggle('open');
-      t.textContent=open?'Stückelung verbergen':'Stückelung zeigen';
+  document.addEventListener('DOMContentLoaded', function() {
+    var btns = document.querySelectorAll('.nav-btn[data-page]');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].addEventListener('click', function() {
+        showPage(this.getAttribute('data-page'));
+      });
     }
   });
-
-  updateDataLists(); calcKasse(); showPage('kasse');
-  } catch(e) { console.error('Init error:', e); } });
 </script>
+
 </body>
 </html>
