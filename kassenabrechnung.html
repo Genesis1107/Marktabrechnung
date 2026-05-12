@@ -502,6 +502,108 @@
     color: var(--ink-light); opacity: 0.6; font-style: italic;
   }
 
+  /* Summary Cards (Übersicht) */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .sum-card {
+    background: rgba(255,255,255,0.4);
+    border: 1px solid var(--parchment-dark);
+    border-radius: 4px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .sum-card .sc-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.62rem;
+    letter-spacing: 2px;
+    color: var(--ink-light);
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .sum-card .sc-value {
+    font-family: 'Cinzel', serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+  .sum-card.einnahme .sc-value { color: var(--green); }
+  .sum-card.ausgabe  .sc-value { color: var(--red); }
+
+  /* Filter Bar */
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .filter-bar select,
+  .filter-bar input {
+    flex: 1;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px 10px;
+    font-size: 0.9rem;
+  }
+
+  /* Overview List - Einträge */
+  .ov-card {
+    background: rgba(255,255,255,0.35);
+    border: 1px solid var(--parchment-dark);
+    border-radius: 4px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+  .ov-card.zaehlung {
+    background: rgba(255,255,255,0.28);
+    border-left: 3px solid var(--wax-gold);
+  }
+  .ov-card.einnahme {
+    border-left: 3px solid var(--green-light);
+  }
+  .ov-card.ausgabe {
+    border-left: 3px solid var(--red);
+  }
+  .ov-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .ov-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ink);
+    flex: 1;
+    min-width: 0;
+  }
+  .ov-amount {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .ov-amount.einnahme { color: var(--green); }
+  .ov-amount.ausgabe  { color: var(--red); }
+  .ov-amount.zaehlung { color: var(--wax-gold); }
+  .ov-meta {
+    font-size: 0.78rem;
+    color: var(--ink-light);
+    margin-top: 2px;
+  }
+  .ov-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+    align-items: center;
+  }
+
   @media (min-width: 640px) {
     body { padding: 20px 20px calc(var(--nav-h) + var(--safe-bottom) + 20px); }
     .page-content {
@@ -731,17 +833,54 @@
   </div>
 </div>
 
-<!-- Seite: Übersicht (Platzhalter) -->
+<!-- Seite: Übersicht -->
 <div id="page-uebersicht" class="page">
   <div class="page-header">
     <h2>📜 Übersicht</h2>
     <div class="sub">Alle Buchungen &amp; Zählungen</div>
   </div>
   <div class="page-content">
-    <div class="placeholder">
-      <span class="ph-icon">📜</span>
-      <div class="ph-text">Übersicht<br>(folgt in Schritt 4)</div>
+
+    <!-- Summenkarten -->
+    <div class="summary-grid">
+      <div class="sum-card einnahme">
+        <span class="sc-label">Einnahmen</span>
+        <span class="sc-value" id="sum-einnahmen">0,00 €</span>
+      </div>
+      <div class="sum-card ausgabe">
+        <span class="sc-label">Ausgaben</span>
+        <span class="sc-value" id="sum-ausgaben">0,00 €</span>
+      </div>
+      <div class="sum-card">
+        <span class="sc-label">Gewinn</span>
+        <span class="sc-value" id="sum-gewinn">0,00 €</span>
+      </div>
+      <div class="sum-card">
+        <span class="sc-label">Zählungen</span>
+        <span class="sc-value" id="sum-zaehlungen" style="color:var(--ink-light);">0</span>
+      </div>
     </div>
+
+    <!-- Filter -->
+    <div class="filter-bar">
+      <select id="filter-markt">
+        <option value="">— Alle Märkte —</option>
+      </select>
+      <select id="filter-typ">
+        <option value="">— Alle Typen —</option>
+        <option value="einnahme">Einnahmen</option>
+        <option value="ausgabe">Ausgaben</option>
+        <option value="abschluss">Tagesabschluss</option>
+        <option value="zwischen">Zwischenzählung</option>
+      </select>
+    </div>
+    <div class="filter-bar">
+      <input type="text" id="filter-suche" placeholder="🔍 Suchen …">
+    </div>
+
+    <div class="section-title">📋 Alle Einträge</div>
+    <div id="overview-list"><div class="empty-state">Noch keine Einträge vorhanden.</div></div>
+
   </div>
 </div>
 
@@ -906,6 +1045,9 @@
     if (name === 'buchung') {
       updateMarktDatalist();
       renderBuchungList();
+    }
+    if (name === 'uebersicht') {
+      renderOverview();
     }
   }
 
@@ -1353,6 +1495,176 @@
     toast('Buchung gelöscht');
   }
 
+  // ─────────────────────────────────────────────────────
+  // ÜBERSICHT
+  // ─────────────────────────────────────────────────────
+
+  // ── Filter-Markt-Dropdown aktualisieren ───────────
+  function updateFilterMarktList() {
+    var sel = el('filter-markt');
+    if (!sel) return;
+    var currentValue = sel.value;
+
+    var maerkte = {};
+    for (var i = 0; i < buchungen.length; i++) {
+      if (buchungen[i].markt) maerkte[buchungen[i].markt] = true;
+    }
+    for (var j = 0; j < kassungen.length; j++) {
+      if (kassungen[j].markt) maerkte[kassungen[j].markt] = true;
+    }
+    var list = Object.keys(maerkte).sort();
+
+    var html = '<option value="">— Alle Märkte —</option>';
+    for (var k = 0; k < list.length; k++) {
+      var selected = list[k] === currentValue ? ' selected' : '';
+      html += '<option value="' + esc(list[k]) + '"' + selected + '>' + esc(list[k]) + '</option>';
+    }
+    sel.innerHTML = html;
+  }
+
+  // ── Summenkarten berechnen ────────────────────────
+  function calcOverviewSums(filteredBuchungen, filteredKassungen) {
+    var einnahmen = 0, ausgaben = 0;
+    for (var i = 0; i < filteredBuchungen.length; i++) {
+      var b = filteredBuchungen[i];
+      if (b.typ === 'einnahme') einnahmen += b.betrag;
+      else if (b.typ === 'ausgabe') ausgaben += b.betrag;
+    }
+    var gewinn = einnahmen - ausgaben;
+
+    el('sum-einnahmen').textContent = fmt(einnahmen);
+    el('sum-ausgaben').textContent  = fmt(ausgaben);
+    var gEl = el('sum-gewinn');
+    gEl.textContent = fmt(gewinn);
+    gEl.style.color = gewinn > 0 ? 'var(--green)'
+                    : gewinn < 0 ? 'var(--red)'
+                    : 'var(--ink)';
+    el('sum-zaehlungen').textContent = String(filteredKassungen.length);
+  }
+
+  // ── Filter anwenden und Übersicht rendern ─────────
+  function renderOverview() {
+    updateFilterMarktList();
+
+    var marktFilter = el('filter-markt').value;
+    var typFilter   = el('filter-typ').value;
+    var suche       = (el('filter-suche').value || '').toLowerCase().trim();
+
+    // Filter auf Buchungen
+    var fBuch = [];
+    for (var i = 0; i < buchungen.length; i++) {
+      var b = buchungen[i];
+      if (marktFilter && b.markt !== marktFilter) continue;
+      if (typFilter && typFilter !== b.typ) {
+        // Bei Typfilter auf Buchungs-Typen: nur passende durchlassen
+        if (typFilter === 'abschluss' || typFilter === 'zwischen') continue;
+        if (typFilter !== b.typ) continue;
+      }
+      if (suche) {
+        var hay = (b.bezeichnung + ' ' + b.kategorie + ' ' + (b.notiz || '') + ' ' + b.markt).toLowerCase();
+        if (hay.indexOf(suche) === -1) continue;
+      }
+      fBuch.push(b);
+    }
+
+    // Filter auf Zählungen
+    var fKass = [];
+    for (var j = 0; j < kassungen.length; j++) {
+      var k = kassungen[j];
+      if (marktFilter && k.markt !== marktFilter) continue;
+      if (typFilter) {
+        if (typFilter === 'abschluss' && k.typ !== 'abschluss') continue;
+        if (typFilter === 'zwischen'  && k.typ !== 'zwischen')  continue;
+        if (typFilter === 'einnahme' || typFilter === 'ausgabe') continue;
+      }
+      if (suche) {
+        var hay2 = ('kassenzählung zählung ' + k.markt + ' ' + (k.notiz || '')).toLowerCase();
+        if (hay2.indexOf(suche) === -1) continue;
+      }
+      fKass.push(k);
+    }
+
+    // Summenkarten
+    calcOverviewSums(fBuch, fKass);
+
+    // Liste: alle Einträge zusammenführen
+    var items = [];
+    for (var a = 0; a < fBuch.length; a++) {
+      items.push({ kind: 'buchung', data: fBuch[a], datum: fBuch[a].datum, id: fBuch[a].id });
+    }
+    for (var c = 0; c < fKass.length; c++) {
+      items.push({ kind: 'zaehlung', data: fKass[c], datum: fKass[c].datum, id: fKass[c].id });
+    }
+
+    // Sortierung: neueste zuerst (Datum desc, dann ID desc)
+    items.sort(function(a, b) {
+      if (a.datum !== b.datum) return b.datum.localeCompare(a.datum);
+      return b.id - a.id;
+    });
+
+    var container = el('overview-list');
+    if (items.length === 0) {
+      container.innerHTML = '<div class="empty-state">Keine Einträge gefunden.</div>';
+      return;
+    }
+
+    var html = '';
+    for (var n = 0; n < items.length; n++) {
+      var item = items[n];
+      if (item.kind === 'buchung') {
+        html += renderOverviewBuchung(item.data);
+      } else {
+        html += renderOverviewZaehlung(item.data);
+      }
+    }
+    container.innerHTML = html;
+  }
+
+  function renderOverviewBuchung(b) {
+    var typ = b.typ || 'einnahme';
+    var sign = typ === 'ausgabe' ? '−' : '+';
+    var zahlungCls = b.zahlung === 'Bar' ? 'bar' : 'karte';
+
+    var h = '';
+    h += '<div class="ov-card ' + typ + '">';
+    h += '<div class="ov-header">';
+    h += '<div class="ov-title">' + esc(b.bezeichnung) + '</div>';
+    h += '<div class="ov-amount ' + typ + '">' + sign + ' ' + fmt(b.betrag) + '</div>';
+    h += '</div>';
+    h += '<div class="ov-meta">' + fmtDate(b.datum) + ' · ' + esc(b.markt) + ' · ' + esc(b.kategorie) + '</div>';
+    if (b.notiz) h += '<div class="ov-meta">' + esc(b.notiz) + '</div>';
+    h += '<div class="ov-badges">';
+    h += '<span class="bc-badge ' + typ + '">' + (typ === 'einnahme' ? 'Einnahme' : 'Ausgabe') + '</span>';
+    h += '<span class="bc-badge ' + zahlungCls + '">' + esc(b.zahlung) + '</span>';
+    h += '</div>';
+    h += '</div>';
+    return h;
+  }
+
+  function renderOverviewZaehlung(k) {
+    var typ = k.typ || 'abschluss';
+    var isZwischen = typ === 'zwischen';
+    var diffCls = k.diff > 0.005 ? 'diff-pos' : k.diff < -0.005 ? 'diff-neg' : 'diff-zero';
+    var diffTxt = (k.diff >= 0 ? '+' : '') + fmt(k.diff);
+    var badge = isZwischen
+      ? '<span class="kc-badge zwischen">Zwischenzählung</span>'
+      : '<span class="kc-badge abschluss">Tagesabschluss</span>';
+
+    var h = '';
+    h += '<div class="ov-card zaehlung">';
+    h += '<div class="ov-header">';
+    h += '<div class="ov-title">🪙 Kassenzählung · ' + esc(k.markt) + '</div>';
+    h += '<div class="ov-amount zaehlung">' + fmt(k.istBestand) + '</div>';
+    h += '</div>';
+    h += '<div class="ov-meta">' + fmtDate(k.datum);
+    if (k.notiz) h += ' · ' + esc(k.notiz);
+    h += '</div>';
+    h += '<div class="ov-meta">Anfang: ' + fmt(k.anfang) + ' · Differenz: <span class="' + diffCls + '">' + diffTxt + '</span></div>';
+    h += '<div class="ov-badges">' + badge + '</div>';
+    h += '</div>';
+    return h;
+  }
+
   // ── Init ───────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function() {
     storageLoad();
@@ -1393,6 +1705,11 @@
     el('btn-type-ausgabe').addEventListener('click', function() { setBuchTyp('ausgabe'); });
     el('btn-save-buchung').addEventListener('click', saveBuchung);
     el('btn-cancel-edit-buchung').addEventListener('click', cancelEditBuchung);
+
+    // ── Übersicht: Filter ──
+    el('filter-markt').addEventListener('change', renderOverview);
+    el('filter-typ').addEventListener('change', renderOverview);
+    el('filter-suche').addEventListener('input', renderOverview);
 
     // Delegierte Click-Handler für dynamische Buttons
     document.addEventListener('click', function(e) {
