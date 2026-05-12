@@ -57,6 +57,7 @@
     pointer-events: none;
     white-space: nowrap;
     box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    max-width: 90vw;
   }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
@@ -130,6 +131,40 @@
     border-bottom: 1px solid var(--parchment-dark);
   }
 
+  /* Edit Banner */
+  .edit-banner {
+    background: rgba(184,134,11,0.18);
+    border: 2px solid var(--wax-gold);
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    font-size: 0.85rem;
+    color: var(--ink);
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .edit-banner.show { display: flex; }
+  .edit-banner .eb-text {
+    font-family: 'Cinzel', serif;
+    font-size: 0.78rem;
+    letter-spacing: 1px;
+    font-weight: 600;
+  }
+  .edit-banner button {
+    background: none;
+    border: 1px solid var(--ink-light);
+    color: var(--ink-light);
+    padding: 6px 12px;
+    border-radius: 3px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    min-height: 32px;
+  }
+
   /* Forms */
   .form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
   .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -153,6 +188,39 @@
   input:focus, select:focus {
     background: rgba(255,255,255,0.85);
     border-bottom-color: var(--wax-red);
+  }
+
+  /* Type Toggle */
+  .type-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .type-btn {
+    padding: 13px 10px;
+    border: 2px solid var(--parchment-dark);
+    border-radius: 3px;
+    background: rgba(255,255,255,0.3);
+    font-family: 'Cinzel', serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+    color: var(--ink-light);
+    min-height: 44px;
+    text-transform: uppercase;
+  }
+  .type-btn.abschluss.active {
+    background: rgba(45,90,39,0.15);
+    border-color: var(--green-light);
+    color: var(--green);
+  }
+  .type-btn.zwischen.active {
+    background: rgba(184,134,11,0.15);
+    border-color: var(--wax-gold);
+    color: var(--ink);
   }
 
   /* Coin Section */
@@ -246,6 +314,12 @@
     box-shadow: 0 3px 14px rgba(45,90,39,0.3);
   }
   .btn-primary:active { transform: scale(0.98); opacity: 0.9; }
+  .btn-primary:disabled {
+    background: linear-gradient(135deg, #888 0%, #666 100%);
+    cursor: not-allowed;
+    opacity: 0.6;
+    box-shadow: none;
+  }
 
   /* Kasse Cards */
   .kasse-card {
@@ -254,30 +328,71 @@
     border-radius: 4px;
     padding: 14px;
     margin-bottom: 10px;
+    transition: opacity 0.2s;
+  }
+  .kasse-card.zwischen {
+    background: rgba(255,255,255,0.2);
+    opacity: 0.85;
+    border-style: dashed;
   }
   .kc-header {
     display: flex; justify-content: space-between;
     align-items: flex-start; margin-bottom: 6px;
+    gap: 8px;
+  }
+  .kc-title-row {
+    display: flex; align-items: center; gap: 8px;
+    flex-wrap: wrap;
   }
   .kc-title {
     font-family: 'Cinzel', serif; font-size: 0.9rem;
     font-weight: 600; color: var(--ink);
   }
+  .kc-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .kc-badge.abschluss {
+    background: rgba(45,90,39,0.15);
+    color: var(--green);
+    border: 1px solid rgba(45,90,39,0.3);
+  }
+  .kc-badge.zwischen {
+    background: rgba(184,134,11,0.15);
+    color: var(--ink-light);
+    border: 1px solid rgba(184,134,11,0.3);
+  }
   .kc-diff {
     font-family: 'Cinzel', serif; font-size: 1rem; font-weight: 700;
+    white-space: nowrap;
   }
   .kc-meta {
     font-size: 0.8rem; color: var(--ink-light);
     margin-bottom: 4px;
   }
+  .kc-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
 
-  .del-btn {
+  .icon-btn {
     background: none; border: none; color: var(--ink-light);
-    cursor: pointer; font-size: 1rem; opacity: 0.4;
+    cursor: pointer; font-size: 0.95rem; opacity: 0.5;
     padding: 6px; min-width: 36px; min-height: 36px;
     display: flex; align-items: center; justify-content: center;
+    border-radius: 3px;
+    transition: opacity 0.2s, background 0.2s;
   }
-  .del-btn:active { opacity: 1; color: var(--red); }
+  .icon-btn:active { opacity: 1; background: rgba(0,0,0,0.05); }
+  .icon-btn.del:active { color: var(--red); }
+  .icon-btn.edit:active { color: var(--wax-gold); }
 
   .empty-state {
     text-align: center; padding: 32px 16px;
@@ -305,6 +420,18 @@
     <div class="sub">Bargeld zählen &amp; Abgleich</div>
   </div>
   <div class="page-content">
+
+    <!-- Edit-Banner (sichtbar wenn Zählung bearbeitet wird) -->
+    <div id="edit-banner" class="edit-banner">
+      <span class="eb-text">✏️ Bearbeiten: <span id="eb-info"></span></span>
+      <button id="btn-cancel-edit">Abbrechen</button>
+    </div>
+
+    <!-- Typ-Auswahl -->
+    <div class="type-toggle">
+      <button class="type-btn abschluss active" id="btn-type-abschluss" data-type="abschluss">🏁 Tagesabschluss</button>
+      <button class="type-btn zwischen" id="btn-type-zwischen" data-type="zwischen">⏱ Zwischenzählung</button>
+    </div>
 
     <div class="form-grid-2">
       <div class="form-group">
@@ -409,7 +536,7 @@
 
     <div class="form-group" style="margin-top:14px;">
       <label for="k-notiz">Notiz (optional)</label>
-      <input type="text" id="k-notiz" placeholder="z.B. Tagesabschluss …">
+      <input type="text" id="k-notiz" placeholder="z.B. Vormittagszählung …">
     </div>
 
     <button class="btn-primary" id="btn-save-kasse">✦ Zählung speichern</button>
@@ -519,6 +646,8 @@
 
   // ── State ──────────────────────────────────────────
   var kassungen = [];
+  var currentZaehlTyp = 'abschluss'; // 'abschluss' oder 'zwischen'
+  var editingId = null;              // ID der zu bearbeitenden Zählung, sonst null
 
   // ── Hilfsfunktionen ────────────────────────────────
   function el(id) { return document.getElementById(id); }
@@ -552,7 +681,7 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function() {
       t.classList.remove('show');
-    }, 2400);
+    }, 2800);
   }
 
   // ── Storage ────────────────────────────────────────
@@ -560,7 +689,7 @@
     try {
       localStorage.setItem(LS_KASSUNGEN, JSON.stringify(kassungen));
     } catch (e) {
-      toast('Speichern fehlgeschlagen');
+      toast('⚠ Speichern fehlgeschlagen');
     }
   }
 
@@ -571,6 +700,10 @@
       kassungen = [];
     }
     if (!Array.isArray(kassungen)) kassungen = [];
+    // Migration: alte Zählungen ohne typ-Feld → 'abschluss'
+    for (var i = 0; i < kassungen.length; i++) {
+      if (!kassungen[i].typ) kassungen[i].typ = 'abschluss';
+    }
   }
 
   // ── Navigation ─────────────────────────────────────
@@ -589,6 +722,25 @@
     if (btn) btn.classList.add('active');
 
     if (name === 'kasse') renderKasseList();
+  }
+
+  // ── Zählungs-Typ Toggle ────────────────────────────
+  function setZaehlTyp(typ) {
+    currentZaehlTyp = typ;
+    el('btn-type-abschluss').classList.toggle('active', typ === 'abschluss');
+    el('btn-type-zwischen').classList.toggle('active', typ === 'zwischen');
+  }
+
+  // ── Sucht Tagesabschluss für Markt+Datum ──────────
+  function findAbschluss(markt, datum, exceptId) {
+    for (var i = 0; i < kassungen.length; i++) {
+      var k = kassungen[i];
+      if (k.typ === 'abschluss' && k.markt === markt && k.datum === datum) {
+        if (exceptId != null && k.id === exceptId) continue;
+        return k;
+      }
+    }
+    return null;
   }
 
   // ── Kassenzählung Live-Berechnung ─────────────────
@@ -627,13 +779,21 @@
       (diff > 0.005 ? 'diff-pos' : diff < -0.005 ? 'diff-neg' : 'diff-zero');
   }
 
-  // ── Zählung speichern ──────────────────────────────
+  // ── Zählung speichern (oder updaten) ───────────────
   function saveKasse() {
     var markt = el('k-markt').value.trim();
     var datum = el('k-datum').value;
 
     if (!markt || !datum) {
-      toast('Bitte Markt und Datum angeben');
+      toast('⚠ Bitte Markt und Datum angeben');
+      return;
+    }
+
+    // Prüfung: Existiert bereits ein Tagesabschluss für diesen Markt/Tag?
+    // Ausnahme: Wenn wir genau diesen Tagesabschluss gerade bearbeiten.
+    var existing = findAbschluss(markt, datum, editingId);
+    if (existing) {
+      toast('⚠ Für ' + markt + ' am ' + fmtDate(datum) + ' existiert bereits ein Tagesabschluss');
       return;
     }
 
@@ -662,8 +822,9 @@
     var diff = ist - soll;
     var notiz = el('k-notiz').value.trim();
 
-    kassungen.push({
-      id: Date.now(),
+    var data = {
+      id: editingId != null ? editingId : Date.now(),
+      typ: currentZaehlTyp,
       markt: markt,
       datum: datum,
       anfang: anfang,
@@ -675,19 +836,80 @@
       soll: soll,
       diff: diff,
       notiz: notiz
-    });
+    };
+
+    if (editingId != null) {
+      // Update – bestehende Zählung ersetzen
+      for (var k = 0; k < kassungen.length; k++) {
+        if (kassungen[k].id === editingId) {
+          kassungen[k] = data;
+          break;
+        }
+      }
+      toast('✓ Zählung aktualisiert');
+    } else {
+      kassungen.push(data);
+      toast('✓ Zählung gespeichert');
+    }
 
     storageSave();
+    resetForm();
+    renderKasseList();
+  }
 
-    // Formular zurücksetzen
+  // ── Formular zurücksetzen ──────────────────────────
+  function resetForm() {
+    editingId = null;
+    el('edit-banner').classList.remove('show');
+    el('k-markt').value = '';
     el('k-anfang').value = '';
     el('k-notiz').value = '';
-    for (var k = 0; k < COINS.length; k++) el(COINS[k].id).value = 0;
-    for (var l = 0; l < BILLS.length; l++) el(BILLS[l].id).value = 0;
+    el('k-datum').valueAsDate = new Date();
+    for (var i = 0; i < COINS.length; i++) el(COINS[i].id).value = 0;
+    for (var j = 0; j < BILLS.length; j++) el(BILLS[j].id).value = 0;
+    setZaehlTyp('abschluss');
+    calcKasse();
+  }
+
+  // ── Zählung bearbeiten ─────────────────────────────
+  function editKasse(id) {
+    var k = null;
+    for (var i = 0; i < kassungen.length; i++) {
+      if (kassungen[i].id === id) { k = kassungen[i]; break; }
+    }
+    if (!k) return;
+
+    editingId = id;
+    setZaehlTyp(k.typ || 'abschluss');
+    el('k-markt').value = k.markt;
+    el('k-datum').value = k.datum;
+    el('k-anfang').value = k.anfang;
+    el('k-notiz').value = k.notiz || '';
+
+    var coins = k.coins || {};
+    for (var c = 0; c < COINS.length; c++) {
+      el(COINS[c].id).value = coins[COINS[c].id] || 0;
+    }
+    var bills = k.bills || {};
+    for (var b = 0; b < BILLS.length; b++) {
+      el(BILLS[b].id).value = bills[BILLS[b].id] || 0;
+    }
+
     calcKasse();
 
-    renderKasseList();
-    toast('✓ Zählung gespeichert');
+    // Edit-Banner anzeigen
+    var typLabel = (k.typ === 'zwischen') ? 'Zwischenzählung' : 'Tagesabschluss';
+    el('eb-info').textContent = typLabel + ' · ' + k.markt + ' · ' + fmtDate(k.datum);
+    el('edit-banner').classList.add('show');
+
+    // Nach oben scrollen
+    window.scrollTo(0, 0);
+    toast('Bearbeitungsmodus');
+  }
+
+  function cancelEdit() {
+    resetForm();
+    toast('Bearbeitung abgebrochen');
   }
 
   // ── Liste rendern ──────────────────────────────────
@@ -699,29 +921,46 @@
       return;
     }
 
+    // Sortierung: neueste zuerst (nach Datum, dann nach ID)
+    var sorted = kassungen.slice().sort(function(a, b) {
+      if (a.datum !== b.datum) return b.datum.localeCompare(a.datum);
+      return b.id - a.id;
+    });
+
     var html = '';
-    var sorted = kassungen.slice().reverse();
     for (var i = 0; i < sorted.length; i++) {
       var k = sorted[i];
+      var typ = k.typ || 'abschluss';
+      var isZwischen = typ === 'zwischen';
       var diffCls = k.diff > 0.005 ? 'diff-pos' : k.diff < -0.005 ? 'diff-neg' : 'diff-zero';
       var diffTxt = (k.diff >= 0 ? '+' : '') + fmt(k.diff);
+      var badge = isZwischen
+        ? '<span class="kc-badge zwischen">Zwischenzählung</span>'
+        : '<span class="kc-badge abschluss">Tagesabschluss</span>';
 
-      html += '<div class="kasse-card">';
+      html += '<div class="kasse-card' + (isZwischen ? ' zwischen' : '') + '">';
       html += '<div class="kc-header">';
-      html += '<div>';
-      html += '<div class="kc-title">' + esc(k.markt) + '</div>';
-      html += '<div class="kc-meta">' + fmtDate(k.datum);
+      html += '<div style="flex:1;min-width:0;">';
+      html += '<div class="kc-title-row">';
+      html += '<span class="kc-title">' + esc(k.markt) + '</span>';
+      html += badge;
+      html += '</div>';
+      html += '<div class="kc-meta" style="margin-top:4px;">' + fmtDate(k.datum);
       if (k.notiz) html += ' · ' + esc(k.notiz);
       html += '</div>';
       html += '</div>';
-      html += '<div style="display:flex;align-items:center;gap:6px;">';
+      html += '<div class="kc-actions">';
       html += '<span class="kc-diff ' + diffCls + '">' + diffTxt + '</span>';
-      html += '<button class="del-btn" data-del-id="' + k.id + '">✕</button>';
+      html += '<button class="icon-btn edit" data-edit-id="' + k.id + '" title="Bearbeiten">✏️</button>';
+      html += '<button class="icon-btn del" data-del-id="' + k.id + '" title="Löschen">✕</button>';
       html += '</div>';
       html += '</div>';
       html += '<div class="kc-meta">';
       html += 'Anfang: ' + fmt(k.anfang) + ' · ';
       html += 'Ist: ' + fmt(k.istBestand) + ' · ';
+      html += 'Differenz: <span class="' + diffCls + '">' + diffTxt + '</span>';
+      html += '</div>';
+      html += '<div class="kc-meta">';
       html += 'Münzen: ' + fmt(k.muenzen) + ' · ';
       html += 'Scheine: ' + fmt(k.scheine);
       html += '</div>';
@@ -734,6 +973,12 @@
   // ── Zählung löschen ────────────────────────────────
   function deleteKasse(id) {
     if (!confirm('Zählung wirklich löschen?')) return;
+
+    // Falls die zu löschende Zählung gerade bearbeitet wird, abbrechen
+    if (editingId === id) {
+      resetForm();
+    }
+
     var filtered = [];
     for (var i = 0; i < kassungen.length; i++) {
       if (kassungen[i].id !== id) filtered.push(kassungen[i]);
@@ -759,6 +1004,10 @@
       });
     }
 
+    // Typ-Toggle
+    el('btn-type-abschluss').addEventListener('click', function() { setZaehlTyp('abschluss'); });
+    el('btn-type-zwischen').addEventListener('click', function() { setZaehlTyp('zwischen'); });
+
     // Kasse: Live-Berechnung
     el('k-anfang').addEventListener('input', calcKasse);
     for (var c = 0; c < COINS.length; c++) {
@@ -771,16 +1020,28 @@
     // Speichern
     el('btn-save-kasse').addEventListener('click', saveKasse);
 
-    // Delete via Event-Delegation (für dynamische Buttons)
+    // Edit abbrechen
+    el('btn-cancel-edit').addEventListener('click', cancelEdit);
+
+    // Delegierte Click-Handler für dynamische Buttons
     document.addEventListener('click', function(e) {
       var t = e.target;
-      var delId = t.getAttribute && t.getAttribute('data-del-id');
+      if (!t.getAttribute) return;
+
+      var delId = t.getAttribute('data-del-id');
       if (delId) {
         deleteKasse(parseInt(delId));
+        return;
+      }
+
+      var editId = t.getAttribute('data-edit-id');
+      if (editId) {
+        editKasse(parseInt(editId));
+        return;
       }
     });
 
-    // Initial rendern
+    // Initial
     calcKasse();
     renderKasseList();
   });
