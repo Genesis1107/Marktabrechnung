@@ -604,6 +604,74 @@
     align-items: center;
   }
 
+  /* Toggle-Button und Stückelung */
+  .toggle-stueck {
+    background: rgba(255,255,255,0.4);
+    border: 1px solid var(--parchment-dark);
+    border-radius: 10px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    cursor: pointer;
+    padding: 4px 10px;
+    min-height: 28px;
+    transition: background 0.2s;
+  }
+  .toggle-stueck:active { background: rgba(184,134,11,0.2); }
+
+  .stueck-detail {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.3);
+    border: 1px solid var(--parchment-dark);
+    border-radius: 4px;
+  }
+  .stueck-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 0.85rem;
+    border-bottom: 1px solid rgba(184,134,11,0.15);
+  }
+  .stueck-row:last-child { border-bottom: none; }
+  .stueck-denom {
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .stueck-count {
+    text-align: center;
+    color: var(--ink-light);
+    font-size: 0.82rem;
+  }
+  .stueck-sum {
+    text-align: right;
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    color: var(--green-light);
+  }
+  .stueck-row.stueck-total {
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 2px solid var(--parchment-dark);
+    border-bottom: none;
+  }
+  .stueck-row.stueck-total .stueck-denom {
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--ink-light);
+  }
+  .stueck-row.stueck-total .stueck-sum {
+    color: var(--green);
+    font-size: 0.95rem;
+  }
+
   @media (min-width: 640px) {
     body { padding: 20px 20px calc(var(--nav-h) + var(--safe-bottom) + 20px); }
     .page-content {
@@ -1650,6 +1718,41 @@
       ? '<span class="kc-badge zwischen">Zwischenzählung</span>'
       : '<span class="kc-badge abschluss">Tagesabschluss</span>';
 
+    // Stückelung aufbauen
+    var coins = k.coins || {};
+    var bills = k.bills || {};
+    var stueckRows = '';
+    var c;
+    for (c = 0; c < COINS.length; c++) {
+      var cn = coins[COINS[c].id] || 0;
+      if (cn > 0) {
+        stueckRows += '<div class="stueck-row">';
+        stueckRows += '<span class="stueck-denom">' + fmt(COINS[c].val) + '</span>';
+        stueckRows += '<span class="stueck-count">' + cn + ' Stk.</span>';
+        stueckRows += '<span class="stueck-sum">' + fmt(cn * COINS[c].val) + '</span>';
+        stueckRows += '</div>';
+      }
+    }
+    for (c = 0; c < BILLS.length; c++) {
+      var bn = bills[BILLS[c].id] || 0;
+      if (bn > 0) {
+        stueckRows += '<div class="stueck-row">';
+        stueckRows += '<span class="stueck-denom">' + fmt(BILLS[c].val) + '</span>';
+        stueckRows += '<span class="stueck-count">' + bn + ' Stk.</span>';
+        stueckRows += '<span class="stueck-sum">' + fmt(bn * BILLS[c].val) + '</span>';
+        stueckRows += '</div>';
+      }
+    }
+    if (!stueckRows) {
+      stueckRows = '<div class="ov-meta" style="text-align:center;padding:6px;">Keine Münzen oder Scheine gezählt</div>';
+    } else {
+      stueckRows += '<div class="stueck-row stueck-total">';
+      stueckRows += '<span class="stueck-denom">Münzen + Scheine</span>';
+      stueckRows += '<span class="stueck-count"></span>';
+      stueckRows += '<span class="stueck-sum">' + fmt(k.muenzen + k.scheine) + '</span>';
+      stueckRows += '</div>';
+    }
+
     var h = '';
     h += '<div class="ov-card zaehlung">';
     h += '<div class="ov-header">';
@@ -1660,7 +1763,14 @@
     if (k.notiz) h += ' · ' + esc(k.notiz);
     h += '</div>';
     h += '<div class="ov-meta">Anfang: ' + fmt(k.anfang) + ' · Differenz: <span class="' + diffCls + '">' + diffTxt + '</span></div>';
-    h += '<div class="ov-badges">' + badge + '</div>';
+    h += '<div class="ov-badges">';
+    h += badge;
+    h += '<div style="flex:1;"></div>';
+    h += '<button class="toggle-stueck" data-toggle-stueck="' + k.id + '">Stückelung anzeigen ▾</button>';
+    h += '</div>';
+    h += '<div class="stueck-detail" id="stueck-' + k.id + '" style="display:none;">';
+    h += stueckRows;
+    h += '</div>';
     h += '</div>';
     return h;
   }
@@ -1737,6 +1847,17 @@
       var editBuchId = t.getAttribute('data-edit-buch-id');
       if (editBuchId) {
         editBuchung(parseInt(editBuchId));
+        return;
+      }
+
+      var toggleId = t.getAttribute('data-toggle-stueck');
+      if (toggleId) {
+        var detail = el('stueck-' + toggleId);
+        if (detail) {
+          var isOpen = detail.style.display !== 'none';
+          detail.style.display = isOpen ? 'none' : 'block';
+          t.textContent = isOpen ? 'Stückelung anzeigen ▾' : 'Stückelung verbergen ▴';
+        }
         return;
       }
     });
