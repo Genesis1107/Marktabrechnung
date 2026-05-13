@@ -423,6 +423,14 @@
     opacity: 0.6;
     box-shadow: none;
   }
+  .btn-primary.green {
+    background: linear-gradient(135deg, #2d5a27 0%, #1e3d1b 100%);
+    box-shadow: 0 3px 14px rgba(45,90,39,0.3);
+  }
+  .btn-primary.grey {
+    background: linear-gradient(135deg, #555 0%, #333 100%);
+    box-shadow: 0 3px 14px rgba(0,0,0,0.3);
+  }
 
   /* Kasse Cards */
   .kasse-card {
@@ -814,6 +822,48 @@
     font-size: 0.78rem;
     color: var(--ink-light);
     grid-column: 1 / -1;
+  }
+
+  /* Daten/Backup */
+  .backup-banner {
+    background: rgba(139,26,26,0.1);
+    border: 1px solid var(--wax-red);
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 0.85rem;
+    color: var(--red);
+    display: none;
+  }
+  .backup-banner.show { display: block; }
+
+  .data-stats {
+    background: rgba(255,255,255,0.3);
+    border: 1px solid var(--parchment-dark);
+    border-radius: 4px;
+    padding: 12px 14px;
+  }
+  .data-stats .ds-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 0.9rem;
+  }
+  .data-stats .ds-row + .ds-row {
+    border-top: 1px solid rgba(184,134,11,0.15);
+    margin-top: 4px;
+    padding-top: 8px;
+  }
+  .data-stats .ds-label { color: var(--ink-light); }
+  .data-stats .ds-val {
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  input[type="file"] {
+    padding: 8px;
+    cursor: pointer;
   }
 
   @media (min-width: 640px) {
@@ -1209,17 +1259,55 @@
   </div>
 </div>
 
-<!-- Seite: Daten (Platzhalter) -->
+<!-- Seite: Daten -->
 <div id="page-daten" class="page">
   <div class="page-header">
     <h2>💾 Daten</h2>
     <div class="sub">Backup &amp; Einstellungen</div>
   </div>
   <div class="page-content">
-    <div class="placeholder">
-      <span class="ph-icon">💾</span>
-      <div class="ph-text">Backup &amp; Daten<br>(folgt in Schritt 6)</div>
+
+    <div class="backup-banner" id="backup-banner">
+      ⚠ Letztes Backup ist mehr als 7 Tage alt – bitte jetzt sichern!
     </div>
+
+    <div class="section-title">💾 Backup speichern</div>
+    <p style="font-size:0.85rem;color:var(--ink-light);margin-bottom:10px;line-height:1.5;">
+      Alle Buchungen und Zählungen als JSON-Datei speichern. Tipp: in iCloud Drive ablegen, damit du sie geräteübergreifend nutzen kannst.
+    </p>
+    <div id="backup-info" style="font-size:0.8rem;color:var(--ink-light);font-style:italic;margin-bottom:10px;"></div>
+    <button class="btn-primary green" id="btn-export-json" style="margin-bottom:20px;">⬇ Backup als JSON speichern</button>
+
+    <div class="section-title">📂 Backup einspielen</div>
+    <p style="font-size:0.85rem;color:var(--ink-light);margin-bottom:10px;line-height:1.5;">
+      JSON-Datei auswählen, um bestehende Daten zu ersetzen.
+    </p>
+    <p style="font-size:0.82rem;color:var(--red);font-style:italic;margin-bottom:10px;">
+      ⚠ Achtung: Alle aktuellen Daten werden überschrieben!
+    </p>
+    <div class="form-group">
+      <input type="file" id="import-file" accept=".json,application/json">
+    </div>
+
+    <div class="section-title" style="margin-top:24px;">📊 Aktueller Datenbestand</div>
+    <div class="data-stats" id="data-stats"></div>
+
+    <div class="section-title" style="margin-top:24px;">🗑 Alle Daten löschen</div>
+    <p style="font-size:0.85rem;color:var(--ink-light);margin-bottom:10px;line-height:1.5;">
+      Setzt die App komplett zurück. Mach vorher unbedingt ein Backup!
+    </p>
+    <button class="btn-primary grey" id="btn-clear-all">Alle Daten unwiderruflich löschen</button>
+
+    <div class="section-title" style="margin-top:24px;">📱 App auf Homescreen installieren</div>
+    <div class="info-box">
+      <strong>So geht's auf dem iPhone:</strong>
+      1. App in Safari öffnen<br>
+      2. Teilen-Symbol antippen (Pfeil nach oben)<br>
+      3. „Zum Home-Bildschirm" wählen<br>
+      4. Namen bestätigen → fertig!<br><br>
+      Die App startet dann wie eine normale App – ohne Browser-Leiste, im Vollbild.
+    </div>
+
   </div>
 </div>
 
@@ -1362,6 +1450,9 @@
     }
     if (name === 'abschluss') {
       initAbschluss();
+    }
+    if (name === 'daten') {
+      renderDatenPage();
     }
   }
 
@@ -2247,6 +2338,144 @@
     el('ab-empty').style.display  = 'none';
   }
 
+  // ─────────────────────────────────────────────────────
+  // DATEN / BACKUP
+  // ─────────────────────────────────────────────────────
+
+  var LS_BACKUP = 'markt-last-backup';
+
+  // ── Daten-Seite rendern ────────────────────────────
+  function renderDatenPage() {
+    // Statistiken anzeigen
+    var abschluesse = 0, zwischenz = 0;
+    for (var i = 0; i < kassungen.length; i++) {
+      if (kassungen[i].typ === 'zwischen') zwischenz++;
+      else abschluesse++;
+    }
+    var einnahmen = 0, ausgaben = 0;
+    for (var j = 0; j < buchungen.length; j++) {
+      if (buchungen[j].typ === 'einnahme') einnahmen++;
+      else if (buchungen[j].typ === 'ausgabe') ausgaben++;
+    }
+
+    var html = '';
+    html += '<div class="ds-row"><span class="ds-label">Tagesabschlüsse</span><span class="ds-val">' + abschluesse + '</span></div>';
+    html += '<div class="ds-row"><span class="ds-label">Zwischenzählungen</span><span class="ds-val">' + zwischenz + '</span></div>';
+    html += '<div class="ds-row"><span class="ds-label">Einnahmen-Buchungen</span><span class="ds-val">' + einnahmen + '</span></div>';
+    html += '<div class="ds-row"><span class="ds-label">Ausgaben-Buchungen</span><span class="ds-val">' + ausgaben + '</span></div>';
+    el('data-stats').innerHTML = html;
+
+    // Backup-Status anzeigen
+    var lastBackup = null;
+    try {
+      lastBackup = localStorage.getItem(LS_BACKUP);
+    } catch (e) {}
+
+    var info = el('backup-info');
+    var banner = el('backup-banner');
+
+    if (lastBackup) {
+      var d = new Date(lastBackup);
+      info.textContent = 'Letztes Backup: ' + fmtDate(d.toISOString().slice(0, 10))
+                       + ' um ' + d.toTimeString().slice(0, 5) + ' Uhr';
+      var daysSince = (Date.now() - d.getTime()) / 86400000;
+      banner.classList.toggle('show', daysSince > 7);
+    } else {
+      info.textContent = 'Noch kein Backup erstellt.';
+      banner.classList.remove('show');
+    }
+  }
+
+  // ── JSON-Export ────────────────────────────────────
+  function exportJSON() {
+    var data = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      kassungen: kassungen,
+      buchungen: buchungen
+    };
+    var json = JSON.stringify(data, null, 2);
+    var blob = new Blob([json], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+
+    var dateStr = new Date().toISOString().slice(0, 10);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'Marktabrechnung_' + dateStr + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+
+    try {
+      localStorage.setItem(LS_BACKUP, new Date().toISOString());
+    } catch (e) {}
+
+    el('backup-banner').classList.remove('show');
+    renderDatenPage();
+    toast('✓ Backup gespeichert');
+  }
+
+  // ── JSON-Import ────────────────────────────────────
+  function importJSON(event) {
+    var file = event.target.files[0];
+    if (!file) return;
+
+    if (!confirm('Bestehende Daten werden überschrieben. Fortfahren?')) {
+      event.target.value = '';
+      return;
+    }
+
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        var data = JSON.parse(e.target.result);
+        if (!data || typeof data !== 'object') throw new Error('Ungültiges Format');
+        if (!Array.isArray(data.kassungen)) throw new Error('Zählungen fehlen oder defekt');
+        if (!Array.isArray(data.buchungen)) throw new Error('Buchungen fehlen oder defekt');
+
+        kassungen = data.kassungen;
+        buchungen = data.buchungen;
+
+        // Migration: alte Zählungen ohne typ-Feld
+        for (var i = 0; i < kassungen.length; i++) {
+          if (!kassungen[i].typ) kassungen[i].typ = 'abschluss';
+        }
+
+        storageSave();
+        renderDatenPage();
+        toast('✓ ' + kassungen.length + ' Zählungen, ' + buchungen.length + ' Buchungen geladen');
+      } catch (err) {
+        toast('⚠ Import fehlgeschlagen: ' + err.message);
+      }
+    };
+    reader.onerror = function() {
+      toast('⚠ Datei konnte nicht gelesen werden');
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  }
+
+  // ── Alle Daten löschen ─────────────────────────────
+  function clearAllData() {
+    if (!confirm('Wirklich ALLE Daten unwiderruflich löschen? Dies kann nicht rückgängig gemacht werden!')) return;
+    if (!confirm('Bist du WIRKLICH sicher? Letzte Warnung!')) return;
+
+    kassungen = [];
+    buchungen = [];
+    try {
+      localStorage.removeItem(LS_KASSUNGEN);
+      localStorage.removeItem(LS_BUCHUNGEN);
+      localStorage.removeItem(LS_BACKUP);
+    } catch (e) {}
+
+    renderDatenPage();
+    renderKasseList();
+    renderBuchungList();
+    toast('Alle Daten gelöscht');
+  }
+
   // ── Init ───────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function() {
     storageLoad();
@@ -2297,6 +2526,11 @@
     el('ab-markt').addEventListener('change', calcAbschluss);
     el('ab-jahr').addEventListener('change', calcAbschluss);
     el('ab-rest').addEventListener('input', calcAbschluss);
+
+    // ── Daten/Backup ──
+    el('btn-export-json').addEventListener('click', exportJSON);
+    el('import-file').addEventListener('change', importJSON);
+    el('btn-clear-all').addEventListener('click', clearAllData);
 
     // Delegierte Click-Handler für dynamische Buttons
     document.addEventListener('click', function(e) {
