@@ -902,8 +902,12 @@
 
     <div class="form-grid-2">
       <div class="form-group">
-        <label for="k-markt">Markt</label>
-        <input type="text" id="k-markt" placeholder="z.B. Burgfest" autocomplete="off">
+        <label for="k-markt-sel">Markt</label>
+        <select id="k-markt-sel" class="markt-select">
+          <option value="">— Markt wählen —</option>
+          <option value="__new__">+ Neuen Markt eintippen</option>
+        </select>
+        <input type="text" id="k-markt" placeholder="Name des neuen Marktes" autocomplete="off" style="display:none;margin-top:8px;">
       </div>
       <div class="form-group">
         <label for="k-datum">Datum</label>
@@ -1036,9 +1040,12 @@
 
     <div class="form-grid-2">
       <div class="form-group">
-        <label for="b-markt">Markt</label>
-        <input type="text" id="b-markt" placeholder="z.B. Burgfest" autocomplete="off" list="markt-list">
-        <datalist id="markt-list"></datalist>
+        <label for="b-markt-sel">Markt</label>
+        <select id="b-markt-sel" class="markt-select">
+          <option value="">— Markt wählen —</option>
+          <option value="__new__">+ Neuen Markt eintippen</option>
+        </select>
+        <input type="text" id="b-markt" placeholder="Name des neuen Marktes" autocomplete="off" style="display:none;margin-top:8px;">
       </div>
       <div class="form-group">
         <label for="b-datum">Datum</label>
@@ -1440,9 +1447,12 @@
     var btn = document.querySelector('.nav-btn[data-page="' + name + '"]');
     if (btn) btn.classList.add('active');
 
-    if (name === 'kasse')   renderKasseList();
+    if (name === 'kasse')   {
+      updateMarktDropdowns();
+      renderKasseList();
+    }
     if (name === 'buchung') {
-      updateMarktDatalist();
+      updateMarktDropdowns();
       renderBuchungList();
     }
     if (name === 'uebersicht') {
@@ -1513,7 +1523,7 @@
 
   // ── Zählung speichern (oder updaten) ───────────────
   function saveKasse() {
-    var markt = el('k-markt').value.trim();
+    var markt = getMarktValue('k-markt-sel', 'k-markt');
     var datum = el('k-datum').value;
 
     if (!markt || !datum) {
@@ -1521,8 +1531,23 @@
       return;
     }
 
+    // Ähnlichkeits-Prüfung nur bei wirklich neuem Markt (Texteingabe sichtbar)
+    if (el('k-markt-sel').value === '__new__') {
+      var similar = findSimilarMarkt(markt);
+      if (similar) {
+        var msg = 'Achtung: Der Markt „' + similar + '" existiert bereits und ist sehr ähnlich zu „' + markt + '".\n\n'
+                + 'Auf „OK" klicken, um stattdessen „' + similar + '" zu verwenden.\n'
+                + 'Auf „Abbrechen" klicken, um „' + markt + '" wirklich als NEUEN Markt anzulegen.';
+        if (confirm(msg)) {
+          // Benutzer akzeptiert vorhandenen Markt
+          markt = similar;
+          setMarktValue('k-markt-sel', 'k-markt', similar);
+        }
+        // Sonst: weiter mit dem neu eingetippten Namen
+      }
+    }
+
     // Prüfung: Existiert bereits ein Tagesabschluss für diesen Markt/Tag?
-    // Ausnahme: Wenn wir genau diesen Tagesabschluss gerade bearbeiten.
     var existing = findAbschluss(markt, datum, editingId);
     if (existing) {
       toast('⚠ Für ' + markt + ' am ' + fmtDate(datum) + ' existiert bereits ein Tagesabschluss');
@@ -1593,7 +1618,7 @@
   function resetForm() {
     editingId = null;
     el('edit-banner').classList.remove('show');
-    el('k-markt').value = '';
+    setMarktValue('k-markt-sel', 'k-markt', '');
     el('k-anfang').value = '';
     el('k-notiz').value = '';
     el('k-datum').valueAsDate = new Date();
@@ -1613,7 +1638,8 @@
 
     editingId = id;
     setZaehlTyp(k.typ || 'abschluss');
-    el('k-markt').value = k.markt;
+    updateMarktDropdowns();
+    setMarktValue('k-markt-sel', 'k-markt', k.markt);
     el('k-datum').value = k.datum;
     el('k-anfang').value = k.anfang;
     el('k-notiz').value = k.notiz || '';
@@ -1725,8 +1751,8 @@
   // BUCHUNGEN
   // ─────────────────────────────────────────────────────
 
-  // ── Märkte-Vorschlagsliste aktualisieren ───────────
-  function updateMarktDatalist() {
+  // ── Liste aller bisherigen Märkte sammeln ──────────
+  function getAllMaerkte() {
     var maerkte = {};
     for (var i = 0; i < kassungen.length; i++) {
       if (kassungen[i].markt) maerkte[kassungen[i].markt] = true;
@@ -1734,13 +1760,146 @@
     for (var j = 0; j < buchungen.length; j++) {
       if (buchungen[j].markt) maerkte[buchungen[j].markt] = true;
     }
-    var list = Object.keys(maerkte).sort();
-    var html = '';
-    for (var k = 0; k < list.length; k++) {
-      html += '<option value="' + esc(list[k]) + '">';
+    return Object.keys(maerkte).sort();
+  }
+
+  // ── Markt-Dropdowns aktualisieren (Zählung + Buchung) ──
+  function updateMarktDropdowns() {
+    var list = getAllMaerkte();
+    var ids = ['k-markt-sel', 'b-markt-sel'];
+
+    for (var idx = 0; idx < ids.length; idx++) {
+      var sel = el(ids[idx]);
+      if (!sel) continue;
+      var currentVal = sel.value;
+
+      var html = '<option value="">— Markt wählen —</option>';
+      for (var k = 0; k < list.length; k++) {
+        var selAttr = (list[k] === currentVal) ? ' selected' : '';
+        html += '<option value="' + esc(list[k]) + '"' + selAttr + '>' + esc(list[k]) + '</option>';
+      }
+      html += '<option value="__new__">+ Neuen Markt eintippen</option>';
+      sel.innerHTML = html;
     }
-    var dl = el('markt-list');
-    if (dl) dl.innerHTML = html;
+  }
+
+  // Alter Name als Alias, damit alte Aufrufe weiter funktionieren
+  function updateMarktDatalist() { updateMarktDropdowns(); }
+
+  // ── Markt-Dropdown-Wechsel: Texteingabe ein/ausblenden ──
+  function onMarktSelChange(selId, inputId) {
+    var sel = el(selId);
+    var inp = el(inputId);
+    if (sel.value === '__new__') {
+      inp.style.display = 'block';
+      inp.value = '';
+      setTimeout(function() { inp.focus(); }, 50);
+    } else {
+      inp.style.display = 'none';
+      inp.value = '';
+    }
+  }
+
+  // ── Markt-Namen aus Dropdown+Input ermitteln ───────
+  function getMarktValue(selId, inputId) {
+    var sel = el(selId);
+    var inp = el(inputId);
+    if (sel.value === '__new__') {
+      return inp.value.trim();
+    }
+    return sel.value;
+  }
+
+  // ── Markt-Wert im Formular setzen (für Edit-Modus) ─
+  function setMarktValue(selId, inputId, marktName) {
+    var sel = el(selId);
+    var inp = el(inputId);
+    if (!marktName) {
+      sel.value = '';
+      inp.style.display = 'none';
+      inp.value = '';
+      return;
+    }
+    // Prüfen ob Markt bereits in Dropdown vorhanden
+    var found = false;
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === marktName) { found = true; break; }
+    }
+    if (found) {
+      sel.value = marktName;
+      inp.style.display = 'none';
+      inp.value = '';
+    } else {
+      // Markt nicht (mehr) in Liste – als "neu" anzeigen
+      sel.value = '__new__';
+      inp.style.display = 'block';
+      inp.value = marktName;
+    }
+  }
+
+  // ── Ähnlichkeits-Check für Marktnamen (Tipp-Warnung) ──
+  // Normalisierung: lowercase, Leerzeichen weg, Umlaute vereinheitlicht
+  function normMarkt(s) {
+    return String(s).toLowerCase()
+      .replace(/ä/g, 'a').replace(/ö/g, 'o').replace(/ü/g, 'u').replace(/ß/g, 'ss')
+      .replace(/[\s\-_.]/g, '');
+  }
+
+  // Levenshtein-Distanz (Anzahl Buchstaben-Änderungen)
+  function levenshtein(a, b) {
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+    var prev = [];
+    var i, j;
+    for (j = 0; j <= b.length; j++) prev[j] = j;
+    for (i = 1; i <= a.length; i++) {
+      var curr = [i];
+      for (j = 1; j <= b.length; j++) {
+        var cost = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
+        curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+      }
+      prev = curr;
+    }
+    return prev[b.length];
+  }
+
+  // Findet einen ähnlichen bestehenden Markt – null wenn keiner gefunden
+  function findSimilarMarkt(newName) {
+    var all = getAllMaerkte();
+    var normNew = normMarkt(newName);
+    for (var i = 0; i < all.length; i++) {
+      var existing = all[i];
+      if (existing === newName) return null; // exakt gleich – kein "ähnlich"
+      var normExisting = normMarkt(existing);
+      // Nach Normalisierung identisch (z. B. "Burg Fest" vs "Burgfest")
+      if (normNew === normExisting) return existing;
+
+      // Wenn der Markt mehrere Wörter hat (z. B. "Mittelaltermarkt Köln"),
+      // soll ein anderer Ort am Ende NICHT als Tippfehler durchgehen.
+      // Wir vergleichen daher das jeweils letzte Wort separat.
+      var wordsNew = String(newName).toLowerCase().split(/\s+/).filter(Boolean);
+      var wordsEx  = String(existing).toLowerCase().split(/\s+/).filter(Boolean);
+      if (wordsNew.length > 1 && wordsEx.length > 1) {
+        var lastNew = normMarkt(wordsNew[wordsNew.length - 1]);
+        var lastEx  = normMarkt(wordsEx[wordsEx.length - 1]);
+        if (lastNew !== lastEx) {
+          var lastDist = levenshtein(lastNew, lastEx);
+          // Wenn das letzte Wort deutlich abweicht (mehr als 1 Buchstabe oder >25 %),
+          // gilt der Markt als anderer Markt.
+          var lastLen = Math.max(lastNew.length, lastEx.length);
+          if (lastDist > 1 || (lastDist / lastLen) > 0.25) continue;
+        }
+      }
+
+      // Sonst: enge absolute UND relative Schwelle
+      var len = Math.max(normNew.length, normExisting.length);
+      var dist = levenshtein(normNew, normExisting);
+      var maxDist = len <= 5 ? 1 : (len <= 10 ? 1 : 2);
+      var maxRatio = 0.15;
+      if (dist <= maxDist && (dist / len) <= maxRatio) return existing;
+    }
+    return null;
   }
 
   // ── Buchungs-Typ Toggle ────────────────────────────
@@ -1752,7 +1911,7 @@
 
   // ── Buchung speichern (oder updaten) ───────────────
   function saveBuchung() {
-    var markt       = el('b-markt').value.trim();
+    var markt       = getMarktValue('b-markt-sel', 'b-markt');
     var datum       = el('b-datum').value;
     var bezeichnung = el('b-bezeichnung').value.trim();
     var betrag      = parseFloat(el('b-betrag').value);
@@ -1768,6 +1927,20 @@
     if (isNaN(betrag) || betrag <= 0) {
       toast('⚠ Bitte einen gültigen Betrag eingeben');
       return;
+    }
+
+    // Ähnlichkeits-Prüfung nur bei wirklich neuem Markt
+    if (el('b-markt-sel').value === '__new__') {
+      var similar = findSimilarMarkt(markt);
+      if (similar) {
+        var msg = 'Achtung: Der Markt „' + similar + '" existiert bereits und ist sehr ähnlich zu „' + markt + '".\n\n'
+                + 'Auf „OK" klicken, um stattdessen „' + similar + '" zu verwenden.\n'
+                + 'Auf „Abbrechen" klicken, um „' + markt + '" wirklich als NEUEN Markt anzulegen.';
+        if (confirm(msg)) {
+          markt = similar;
+          setMarktValue('b-markt-sel', 'b-markt', similar);
+        }
+      }
     }
 
     var data = {
@@ -1822,7 +1995,8 @@
 
     editingBuchId = id;
     setBuchTyp(b.typ || 'einnahme');
-    el('b-markt').value       = b.markt;
+    updateMarktDropdowns();
+    setMarktValue('b-markt-sel', 'b-markt', b.markt);
     el('b-datum').value       = b.datum;
     el('b-bezeichnung').value = b.bezeichnung;
     el('b-kategorie').value   = b.kategorie;
@@ -2534,6 +2708,14 @@
     el('btn-type-ausgabe').addEventListener('click', function() { setBuchTyp('ausgabe'); });
     el('btn-save-buchung').addEventListener('click', saveBuchung);
     el('btn-cancel-edit-buchung').addEventListener('click', cancelEditBuchung);
+
+    // ── Markt-Dropdowns: Texteingabe ein/ausblenden ──
+    el('k-markt-sel').addEventListener('change', function() {
+      onMarktSelChange('k-markt-sel', 'k-markt');
+    });
+    el('b-markt-sel').addEventListener('change', function() {
+      onMarktSelChange('b-markt-sel', 'b-markt');
+    });
 
     // ── Übersicht: Filter ──
     el('filter-markt').addEventListener('change', renderOverview);
