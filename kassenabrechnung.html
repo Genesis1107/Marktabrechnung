@@ -2495,14 +2495,32 @@
     el('btn-type-abschluss').addEventListener('click', function() { setZaehlTyp('abschluss'); });
     el('btn-type-zwischen').addEventListener('click', function() { setZaehlTyp('zwischen'); });
 
-    // Kasse: Live-Berechnung
+    // Kasse: Live-Berechnung + Komfort beim Antippen
     el('k-anfang').addEventListener('input', calcKasse);
-    for (var c = 0; c < COINS.length; c++) {
-      el(COINS[c].id).addEventListener('input', calcKasse);
+
+    // Hilfsfunktion: Eingabefeld so vorbereiten, dass eine 0 beim Antippen verschwindet
+    function setupCoinInput(id) {
+      var inp = el(id);
+      inp.addEventListener('input', calcKasse);
+      // Beim Antippen/Fokussieren: "0" automatisch leeren
+      inp.addEventListener('focus', function() {
+        if (inp.value === '0') inp.value = '';
+        // Auf iOS hilft zusätzlich select(), falls eine andere Zahl drinsteht
+        setTimeout(function() {
+          try { inp.select(); } catch (e) {}
+        }, 0);
+      });
+      // Beim Verlassen: leeres Feld wieder auf 0 setzen
+      inp.addEventListener('blur', function() {
+        if (inp.value === '' || isNaN(parseInt(inp.value))) {
+          inp.value = 0;
+          calcKasse();
+        }
+      });
     }
-    for (var b = 0; b < BILLS.length; b++) {
-      el(BILLS[b].id).addEventListener('input', calcKasse);
-    }
+
+    for (var c = 0; c < COINS.length; c++) setupCoinInput(COINS[c].id);
+    for (var b = 0; b < BILLS.length; b++) setupCoinInput(BILLS[b].id);
 
     // Speichern
     el('btn-save-kasse').addEventListener('click', saveKasse);
