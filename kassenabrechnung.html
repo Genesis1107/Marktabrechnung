@@ -114,7 +114,8 @@
   .page-content {
     background: var(--parchment);
     min-height: calc(100vh - var(--nav-h) - 60px);
-    padding: 24px 16px 32px;
+    /* Mehr Abstand unten, damit der letzte Eintrag nicht von der Nav-Leiste verdeckt wird */
+    padding: 24px 16px calc(40px + var(--nav-h));
     max-width: 640px;
     margin: 0 auto;
   }
@@ -871,7 +872,7 @@
     .page-content {
       border-radius: 4px;
       box-shadow: 0 0 0 6px #5c3d1e, 0 0 0 10px #3a2210, 0 16px 40px rgba(0,0,0,0.7);
-      padding: 24px 32px 40px;
+      padding: 24px 32px calc(40px + var(--nav-h));
     }
   }
 </style>
