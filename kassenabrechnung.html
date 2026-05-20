@@ -2413,6 +2413,14 @@
       }
     }
 
+    // Bar-Buchungen-Einnahmen: Buchungen vom Typ einnahme + zahlung == Bar
+    var barBuchEinnahmen = 0;
+    for (var c2 = 0; c2 < fBuch.length; c2++) {
+      if (fBuch[c2].typ === 'einnahme' && fBuch[c2].zahlung === 'Bar') {
+        barBuchEinnahmen += fBuch[c2].betrag;
+      }
+    }
+
     // Bar-Ausgaben: Buchungen vom Typ ausgabe + zahlung == Bar
     var barAusgaben = 0;
     for (var d = 0; d < fBuch.length; d++) {
@@ -2433,7 +2441,7 @@
     // Berechnungen
     var sollKasse    = barEinnahmen + anfangsbestand - barAusgaben;
     var abgabe       = sollKasse - rest;
-    var gesamtumsatz = barEinnahmen + karteEinnahmen;
+    var gesamtumsatz = barEinnahmen + karteEinnahmen + barBuchEinnahmen;
 
     // ── Tagesabschlüsse-Liste ──
     var tageHtml = '';
@@ -2464,10 +2472,10 @@
       einHtml += '<span class="ab-val" style="color:var(--green);">' + fmt(barEinnahmen) + '</span>';
       einHtml += '</div>';
     }
-    // Karten-Einnahmen aus Buchungen
+    // Alle Buchungs-Einnahmen (Bar und Karte)
     for (var fe = 0; fe < fBuch.length; fe++) {
       var fb = fBuch[fe];
-      if (fb.typ === 'einnahme' && fb.zahlung !== 'Bar') {
+      if (fb.typ === 'einnahme') {
         einHtml += '<div class="ab-row">';
         einHtml += '<span class="ab-label">' + esc(fb.bezeichnung);
         einHtml += '<br><small>' + fmtDate(fb.datum) + ' · ' + esc(fb.zahlung) + '</small></span>';
@@ -2501,7 +2509,7 @@
     el('ab-r-abgabe').textContent     = fmt(Math.max(0, abgabe));
 
     // ── Mittelherkunft & Verwendung ──
-    el('ab-r-barein').textContent       = fmt(barEinnahmen);
+    el('ab-r-barein').textContent       = fmt(barEinnahmen + barBuchEinnahmen);
     el('ab-r-kartein').textContent      = fmt(karteEinnahmen);
     el('ab-r-gesamtumsatz').textContent = fmt(gesamtumsatz);
     el('ab-r-kartein2').textContent     = fmt(karteEinnahmen);
