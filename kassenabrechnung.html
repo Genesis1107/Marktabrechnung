@@ -878,61 +878,36 @@
   }
 
   /* ── Setup-Overlay ── */
-  #setup-overlay {
-    position: fixed; inset: 0;
-    background: rgba(26,15,5,0.97);
-    z-index: 1000;
-    display: flex; align-items: center; justify-content: center;
-    padding: 24px;
-  }
-  #setup-overlay.hidden { display: none; }
-  .setup-box {
-    background: var(--parchment); border-radius: 6px;
-    padding: 28px 22px; max-width: 380px; width: 100%;
-    box-shadow: 0 0 0 4px #5c3d1e, 0 16px 40px rgba(0,0,0,0.8);
-  }
-  .setup-box h2 {
-    font-family: 'Cinzel', serif; font-size: 1rem; font-weight: 700;
-    letter-spacing: 2px; text-transform: uppercase; color: var(--ink);
-    margin-bottom: 6px; text-align: center;
-  }
-  .setup-sub {
-    font-size: 0.82rem; color: var(--ink-light); font-style: italic;
-    text-align: center; margin-bottom: 20px; line-height: 1.5;
-  }
+  #setup-overlay { position:fixed;inset:0;background:rgba(26,15,5,0.97);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px; }
+  #setup-overlay.hidden { display:none; }
+  .setup-box { background:var(--parchment);border-radius:6px;padding:28px 22px;max-width:380px;width:100%;box-shadow:0 0 0 4px #5c3d1e,0 16px 40px rgba(0,0,0,0.8); }
+  .setup-box h2 { font-family:'Cinzel',serif;font-size:1rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--ink);margin-bottom:6px;text-align:center; }
+  .setup-sub { font-size:0.82rem;color:var(--ink-light);font-style:italic;text-align:center;margin-bottom:20px;line-height:1.5; }
   /* ── Anfangsbestand-Hint ── */
-  .anfang-hint {
-    background: rgba(184,134,11,0.12); border: 1px solid var(--wax-gold);
-    border-radius: 3px; padding: 6px 10px;
-    font-size: 0.78rem; color: var(--ink-light);
-    margin-top: 6px; font-style: italic; display: none;
-  }
-  .anfang-hint.show { display: block; }
+  .anfang-hint { background:rgba(184,134,11,0.12);border:1px solid var(--wax-gold);border-radius:3px;padding:6px 10px;font-size:0.78rem;color:var(--ink-light);margin-top:6px;font-style:italic;display:none; }
+  .anfang-hint.show { display:block; }
   /* ── Mitarbeiter-Box ── */
-  .ma-box {
-    background: rgba(255,255,255,0.35); border: 1px solid var(--parchment-dark);
-    border-radius: 4px; padding: 12px 14px;
-    display: flex; justify-content: space-between; align-items: center; gap: 10px;
-    margin-bottom: 4px;
-  }
-  .ma-box .ma-name  { font-family: 'Cinzel', serif; font-weight: 600; font-size: 1rem; color: var(--ink); }
-  .ma-box .ma-label { font-size: 0.72rem; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-light); font-family: 'Cinzel', serif; }
-  .ma-box button {
-    background: none; border: 1px solid var(--parchment-dark); color: var(--ink-light);
-    padding: 6px 12px; border-radius: 3px; font-family: 'Cinzel', serif;
-    font-size: 0.7rem; letter-spacing: 1px; cursor: pointer; min-height: 32px;
-  }
+  .ma-box { background:rgba(255,255,255,0.35);border:1px solid var(--parchment-dark);border-radius:4px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px; }
+  .ma-box .ma-name { font-family:'Cinzel',serif;font-weight:600;font-size:1rem;color:var(--ink); }
+  .ma-box .ma-label { font-size:0.72rem;letter-spacing:1px;text-transform:uppercase;color:var(--ink-light);font-family:'Cinzel',serif; }
+  .ma-box button { background:none;border:1px solid var(--parchment-dark);color:var(--ink-light);padding:6px 12px;border-radius:3px;font-family:'Cinzel',serif;font-size:0.7rem;letter-spacing:1px;cursor:pointer;min-height:32px; }
   /* ── Aktions-Grid ── */
-  .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
-  .action-grid .btn-primary { margin-bottom: 0; font-size: 0.78rem; letter-spacing: 1px; padding: 13px 8px; }
-  .btn-primary.wa { background: linear-gradient(135deg, #25a244 0%, #128c3d 100%); box-shadow: 0 3px 14px rgba(37,162,68,0.3); }
+  .action-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px; }
+  .action-grid .btn-primary { margin-bottom:0;font-size:0.78rem;letter-spacing:1px;padding:13px 8px; }
+  .btn-primary.wa { background:linear-gradient(135deg,#25a244 0%,#128c3d 100%);box-shadow:0 3px 14px rgba(37,162,68,0.3); }
+  /* ── Abschluss Tagesabschluss-Karte (erweitert) ── */
+  .ab-tag-header { display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:start; }
+  .ab-tag-summen { display:flex;gap:12px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(184,134,11,0.2);font-size:0.78rem;color:var(--ink-light);flex-wrap:wrap;align-items:center; }
+  .ab-tag-summen span { font-family:'Cinzel',serif;font-weight:600;color:var(--green-light); }
+  .ab-tag-toggle { background:rgba(255,255,255,0.4);border:1px solid var(--parchment-dark);border-radius:10px;font-family:'Cinzel',serif;font-size:0.62rem;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--ink-light);cursor:pointer;padding:3px 9px;min-height:26px;margin-left:auto;transition:background 0.2s; }
+  .ab-tag-toggle:active { background:rgba(184,134,11,0.2); }
+  .ab-tag-stueck { margin-top:8px;padding:8px 10px;background:rgba(255,255,255,0.3);border:1px solid var(--parchment-dark);border-radius:4px; }
 
 </style>
 </head>
 <body>
 
 
-<!-- ── Setup-Overlay (erster Start) ── -->
 <div id="setup-overlay" class="hidden">
   <div class="setup-box">
     <h2>⚔ Willkommen</h2>
@@ -941,7 +916,7 @@
       <label for="setup-name">Dein Name</label>
       <input type="text" id="setup-name" placeholder="z.B. Anna Müller" autocomplete="name">
     </div>
-    <button class="btn-primary green" id="btn-setup-save" style="margin-top:8px;">✦ Speichern &amp; starten</button>
+    <button class="btn-primary green" id="btn-setup-save" style="margin-top:8px;">❆ Speichern &amp; starten</button>
   </div>
 </div>
 
@@ -1336,14 +1311,6 @@
         <button class="btn-primary wa"    id="btn-whatsapp"     disabled>💬 WhatsApp</button>
       </div>
 
-
-      <!-- Versand -->
-      <div class="section-title" style="margin-top:20px;">📤 Abrechnung senden</div>
-      <div class="action-grid">
-        <button class="btn-primary green" id="btn-pdf-download" disabled>📄 PDF speichern</button>
-        <button class="btn-primary wa"    id="btn-whatsapp"     disabled>💬 WhatsApp</button>
-      </div>
-
     </div>
 
   </div>
@@ -1359,16 +1326,6 @@
 
     <div class="backup-banner" id="backup-banner">
       ⚠ Letztes Backup ist mehr als 7 Tage alt – bitte jetzt sichern!
-    </div>
-
-
-    <div class="section-title">👤 Mitarbeiter</div>
-    <div class="ma-box">
-      <div>
-        <div class="ma-label">Angemeldet als</div>
-        <div class="ma-name" id="ma-name-display">—</div>
-      </div>
-      <button id="btn-change-name">✏ ändern</button>
     </div>
 
     <div class="section-title">👤 Mitarbeiter</div>
@@ -2544,13 +2501,37 @@
       for (var ti = 0; ti < fTage.length; ti++) {
         var tk = fTage[ti];
         var tagesBar = tk.istBestand - tk.anfang;
+        var tkCoins = tk.coins || {};
+        var tkBills = tk.bills || {};
+        var stueckRows = '';
+        var c, n;
+        for (c = 0; c < COINS.length; c++) {
+          n = tkCoins[COINS[c].id] || 0;
+          if (n > 0) stueckRows += '<div class="stueck-row"><span class="stueck-denom">' + fmt(COINS[c].val) + '</span><span class="stueck-count">' + n + ' Stk.</span><span class="stueck-sum">' + fmt(n * COINS[c].val) + '</span></div>';
+        }
+        for (c = 0; c < BILLS.length; c++) {
+          n = tkBills[BILLS[c].id] || 0;
+          if (n > 0) stueckRows += '<div class="stueck-row"><span class="stueck-denom">' + fmt(BILLS[c].val) + '</span><span class="stueck-count">' + n + ' Stk.</span><span class="stueck-sum">' + fmt(n * BILLS[c].val) + '</span></div>';
+        }
+        if (stueckRows) {
+          stueckRows += '<div class="stueck-row stueck-total"><span class="stueck-denom">Gesamt</span><span class="stueck-count"></span><span class="stueck-sum">' + fmt(tk.muenzen + tk.scheine) + '</span></div>';
+        } else {
+          stueckRows = '<div style="font-size:0.78rem;color:var(--ink-light);text-align:center;padding:4px;font-style:italic;">Keine Stückelung erfasst</div>';
+        }
         tageHtml += '<div class="ab-tag-card">';
+        tageHtml += '<div class="ab-tag-header">';
         tageHtml += '<div class="ab-tag-datum">' + fmtDate(tk.datum) + '</div>';
         tageHtml += '<div class="ab-tag-bar">' + fmt(tagesBar) + '</div>';
-        tageHtml += '<div class="ab-tag-meta">';
-        tageHtml += 'Ist: ' + fmt(tk.istBestand) + ' − Anfang: ' + fmt(tk.anfang) + ' = Bar-Einnahme';
+        tageHtml += '<div class="ab-tag-meta">Ist: ' + fmt(tk.istBestand) + ' − Anfang: ' + fmt(tk.anfang) + ' = Bar-Einnahme';
         if (tk.notiz) tageHtml += ' · ' + esc(tk.notiz);
         tageHtml += '</div>';
+        tageHtml += '</div>';
+        tageHtml += '<div class="ab-tag-summen">';
+        tageHtml += 'Münzen: <span>' + fmt(tk.muenzen) + '</span>';
+        tageHtml += '&nbsp;&nbsp;Scheine: <span>' + fmt(tk.scheine) + '</span>';
+        tageHtml += '<button class="ab-tag-toggle" data-toggle-ab="' + tk.id + '">Stückelung ▾</button>';
+        tageHtml += '</div>';
+        tageHtml += '<div class="ab-tag-stueck" id="ab-stueck-' + tk.id + '" style="display:none;">' + stueckRows + '</div>';
         tageHtml += '</div>';
       }
     }
@@ -2612,16 +2593,13 @@
 
     el('ab-result').style.display = 'block';
     el('ab-empty').style.display  = 'none';
-
-    // Daten für PDF & WhatsApp merken
     lastAb = {
       markt: markt, jahr: jahr, rest: rest, ma: mitarbeiter,
       datum: new Date().toISOString().slice(0,10),
       barEin: barEinnahmen, karteEin: karteEinnahmen,
       gesamtumsatz: gesamtumsatz, gesamtAus: gesamtAusgaben, barAus: barAusgaben,
       anfangsbestand: anfangsbestand, sollKasse: sollKasse,
-      abgabe: Math.max(0, abgabe),
-      fTage: fTage, fBuch: fBuch
+      abgabe: Math.max(0, abgabe), fTage: fTage, fBuch: fBuch
     };
     el('btn-pdf-download').disabled = false;
     el('btn-whatsapp').disabled     = false;
@@ -2636,10 +2614,6 @@
   // ── Daten-Seite rendern ────────────────────────────
   function renderDatenPage() {
     // Statistiken anzeigen
-    // Mitarbeitername anzeigen
-    var mnEl = el('ma-name-display');
-    if (mnEl) mnEl.textContent = mitarbeiter || '(noch nicht gesetzt)';
-
     var abschluesse = 0, zwischenz = 0;
     for (var i = 0; i < kassungen.length; i++) {
       if (kassungen[i].typ === 'zwischen') zwischenz++;
@@ -2657,6 +2631,9 @@
     html += '<div class="ds-row"><span class="ds-label">Einnahmen-Buchungen</span><span class="ds-val">' + einnahmen + '</span></div>';
     html += '<div class="ds-row"><span class="ds-label">Ausgaben-Buchungen</span><span class="ds-val">' + ausgaben + '</span></div>';
     el('data-stats').innerHTML = html;
+
+    var mnEl = el('ma-name-display');
+    if (mnEl) mnEl.textContent = mitarbeiter || '(noch nicht gesetzt)';
 
     // Backup-Status anzeigen
     var lastBackup = null;
@@ -2770,35 +2747,35 @@
   }
 
 
-  // ── Storage-Key Mitarbeiter ──
-  var LS_MITARB = 'markt-mitarbeiter';
+  // ────────────────────────────────────────────────
+  // MITARBEITER & SETUP
+  // ────────────────────────────────────────────────
+  var LS_MITARB   = 'markt-mitarbeiter';
   var mitarbeiter = '';
-  var lastAb = null;
+  var lastAb      = null;
 
-  // ── Mitarbeiter laden ──
   function loadMitarbeiter() {
     try { mitarbeiter = localStorage.getItem(LS_MITARB) || ''; } catch(e) { mitarbeiter = ''; }
   }
-
-  // ── Setup-Check ──
   function checkSetup() {
     if (!mitarbeiter) {
       el('setup-overlay').classList.remove('hidden');
-      setTimeout(function() { try { el('setup-name').focus(); } catch(e){} }, 100);
+      setTimeout(function(){ try { el('setup-name').focus(); } catch(e){} }, 100);
     } else {
       el('setup-overlay').classList.add('hidden');
     }
   }
-
   function saveMitarbeiter(name) {
-    name = (name || '').trim();
+    name = (name||'').trim();
     if (!name) { toast('⚠ Bitte einen Namen eingeben'); return false; }
     mitarbeiter = name;
     try { localStorage.setItem(LS_MITARB, mitarbeiter); } catch(e) {}
     return true;
   }
 
-  // ── Anfangsbestand-Fortschreibung ──
+  // ────────────────────────────────────────────────
+  // ANFANGSBESTAND-FORTSCHREIBUNG
+  // ────────────────────────────────────────────────
   function getVorAbschluss(markt, datum, exceptId) {
     var best = null;
     for (var i = 0; i < kassungen.length; i++) {
@@ -2810,7 +2787,6 @@
     }
     return best;
   }
-
   function updateAnfangHint() {
     var markt = getMarktValue('k-markt-sel', 'k-markt');
     var datum = el('k-datum').value;
@@ -2819,28 +2795,23 @@
     var vor = getVorAbschluss(markt, datum, null);
     if (vor) {
       var inp = el('k-anfang');
-      if (inp.value === '' || parseFloat(inp.value) === 0) {
-        inp.value = vor.anfang;
-        calcKasse();
-      }
-      hint.textContent = '\u2191 Anfangsbestand vom ' + fmtDate(vor.datum) + ' (\u20AC' + Number(vor.anfang).toFixed(2).replace('.',',') + ') \u00fcbernommen';
+      if (inp.value === '' || parseFloat(inp.value) === 0) { inp.value = vor.anfang; calcKasse(); }
+      hint.textContent = '↑ Anfangsbestand vom ' + fmtDate(vor.datum) + ' (' + fmt(vor.anfang) + ') übernommen';
       hint.classList.add('show');
-    } else {
-      hint.classList.remove('show');
-    }
+    } else { hint.classList.remove('show'); }
   }
 
-  // ── PDF erstellen ──
+  // ────────────────────────────────────────────────
+  // PDF-ERSTELLUNG
+  // ────────────────────────────────────────────────
   function createPdf() {
     if (!lastAb) return null;
     var jsPDFLib = (window.jspdf && window.jspdf.jsPDF) || (typeof jspdf !== 'undefined' && jspdf.jsPDF);
-    if (!jsPDFLib) { toast('\u26a0 PDF-Bibliothek noch nicht geladen'); return null; }
-
-    var doc = new jsPDFLib({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    if (!jsPDFLib) { toast('⚠ PDF-Bibliothek noch nicht geladen'); return null; }
+    var doc = new jsPDFLib({ orientation:'portrait', unit:'mm', format:'a4' });
     var ab = lastAb, W = 210, M = 15, y = 20;
-
-    function setC(r,g,b)  { doc.setTextColor(r,g,b); }
-    function lineH(yp,r,g,b) { doc.setDrawColor(r||184,g||134,b||11); doc.setLineWidth(0.4); doc.line(M,yp,W-M,yp); }
+    function setC(r,g,b) { doc.setTextColor(r,g,b); }
+    function lineH(yp) { doc.setDrawColor(184,134,11); doc.setLineWidth(0.4); doc.line(M,yp,W-M,yp); }
     function rowLine(label,value,yp,cr,cg,cb) {
       doc.setFontSize(9); doc.setFont(undefined,'normal');
       setC(120,100,80); doc.text(label, M, yp);
@@ -2849,66 +2820,53 @@
     }
     function secTitle(title, yp) {
       yp += 4; doc.setFontSize(7); doc.setFont(undefined,'bold');
-      setC(184,134,11); doc.text(title.toUpperCase(), M, yp);
+      setC(184,134,11); doc.text(title, M, yp);
       doc.setFont(undefined,'normal'); lineH(yp+1.5); return yp+6;
     }
-
     // Kopfzeile
     doc.setFillColor(30,18,8); doc.rect(0,0,W,28,'F');
     doc.setFontSize(14); doc.setFont(undefined,'bold'); setC(245,233,201);
     doc.text('KASSENABRECHNUNG', W/2, 12, {align:'center'});
     doc.setFontSize(8); doc.setFont(undefined,'normal'); setC(184,134,11);
-    doc.text(ab.markt + '  \u00b7  ' + ab.jahr, W/2, 19, {align:'center'});
-    doc.text('Erstellt von ' + (ab.ma||'unbekannt') + '  \u00b7  ' + fmtDate(ab.datum), W/2, 24, {align:'center'});
+    doc.text(ab.markt + '  ·  ' + ab.jahr, W/2, 19, {align:'center'});
+    doc.text('Erstellt von ' + (ab.ma||'unbekannt') + '  ·  ' + fmtDate(ab.datum), W/2, 24, {align:'center'});
     y = 36;
-
-    // Tagesabschlüsse
     if (ab.fTage && ab.fTage.length) {
-      y = secTitle('TAGESABSCHLUSSE', y);
+      y = secTitle('TAGESABSCHLUESSE', y);
       ab.fTage.forEach(function(tk) {
-        var tb = tk.istBestand - tk.anfang;
-        y = rowLine(fmtDate(tk.datum) + '   Anfang: ' + fmt(tk.anfang) + '   Ist: ' + fmt(tk.istBestand), fmt(tb), y, 30,77,26);
+        y = rowLine(fmtDate(tk.datum) + '   Anfang: ' + fmt(tk.anfang) + '   Ist: ' + fmt(tk.istBestand), fmt(tk.istBestand-tk.anfang), y, 30,77,26);
         if (y > 270) { doc.addPage(); y = 20; }
       });
       y += 2;
     }
-
-    // Einnahmen
     y = secTitle('EINNAHMEN', y);
-    if (ab.fTage && ab.fTage.length) y = rowLine('Bar-Einnahmen (' + ab.fTage.length + ' Tagesabschlusse)', fmt(ab.barEin), y, 30,77,26);
+    if (ab.fTage && ab.fTage.length) y = rowLine('Bar-Einnahmen (' + ab.fTage.length + ' Tagesabschluesse)', fmt(ab.barEin), y, 30,77,26);
     if (ab.fBuch) ab.fBuch.forEach(function(b) {
       if (b.typ==='einnahme'&&b.zahlung!=='Bar') { y=rowLine(b.bezeichnung+' ('+b.zahlung+')', fmt(b.betrag), y, 30,77,26); if(y>270){doc.addPage();y=20;} }
     });
     doc.setFontSize(9); doc.setFont(undefined,'bold'); setC(30,77,26);
     doc.text('Gesamtumsatz', M, y); doc.text(fmt(ab.gesamtumsatz), W-M, y, {align:'right'});
-    doc.setFont(undefined,'normal'); y += 7;
-
-    // Ausgaben
+    doc.setFont(undefined,'normal'); y+=7;
     y = secTitle('AUSGABEN', y);
-    var hasAus = false;
+    var hasAus=false;
     if (ab.fBuch) ab.fBuch.forEach(function(b) {
       if (b.typ==='ausgabe') { hasAus=true; y=rowLine(b.bezeichnung+' ('+b.zahlung+')', fmt(b.betrag), y, 122,28,28); if(y>270){doc.addPage();y=20;} }
     });
     if (!hasAus) { doc.setFontSize(9); setC(120,100,80); doc.text('Keine Ausgaben erfasst', M, y); y+=5.5; }
     doc.setFontSize(9); doc.setFont(undefined,'bold'); setC(122,28,28);
     doc.text('Gesamt Ausgaben', M, y); doc.text(fmt(ab.gesamtAus), W-M, y, {align:'right'});
-    doc.setFont(undefined,'normal'); y += 7;
-
-    if (y > 235) { doc.addPage(); y = 20; }
-
-    // Kassenabschluss-Box
+    doc.setFont(undefined,'normal'); y+=7;
+    if (y>235) { doc.addPage(); y=20; }
     y = secTitle('KASSENABSCHLUSS', y);
     doc.setFillColor(250,245,230); doc.setDrawColor(184,134,11); doc.setLineWidth(0.5);
     doc.roundedRect(M, y-2, W-2*M, 32, 2, 2, 'FD');
-    y = rowLine('Soll-Kassenbestand  (Bar-Einnahmen + Anfangsbestand - Bar-Ausgaben)', fmt(ab.sollKasse), y+3, 30,77,26);
+    y = rowLine('Soll-Kassenbestand (Bar-Einnahmen + Anfang - Bar-Ausgaben)', fmt(ab.sollKasse), y+3, 30,77,26);
     y = rowLine('- Kassenrest (verbleibt als Wechselgeld)', fmt(ab.rest), y, 30,18,8);
-    lineH(y, 184,134,11); y += 5;
+    lineH(y); y+=5;
     doc.setFontSize(12); doc.setFont(undefined,'bold');
     setC(30,18,8); doc.text('Abgabe an Firma', M+2, y);
     setC(139,26,26); doc.text(fmt(ab.abgabe), W-M-2, y, {align:'right'});
-    doc.setFont(undefined,'normal'); y += 13;
-
-    // Mittelherkunft
+    doc.setFont(undefined,'normal'); y+=13;
     y = secTitle('MITTELHERKUNFT & VERWENDUNG', y);
     y = rowLine('Bar-Einnahmen', fmt(ab.barEin), y, 30,77,26);
     y = rowLine('Karten-Einnahmen', fmt(ab.karteEin), y, 30,77,26);
@@ -2920,66 +2878,56 @@
     y = rowLine('+ Kassenrest (Wechselgeld)', fmt(ab.rest), y, 120,100,80);
     doc.setFontSize(9); doc.setFont(undefined,'bold'); setC(139,26,26);
     doc.text('= Abgabe an Firma', M, y); doc.text(fmt(ab.abgabe), W-M, y, {align:'right'});
-    doc.setFont(undefined,'normal'); y+=7;
-
-    // Fusszeile
-    var pages = doc.getNumberOfPages();
-    for (var p=1; p<=pages; p++) {
-      doc.setPage(p);
-      doc.setFillColor(30,18,8); doc.rect(0,287,W,10,'F');
+    doc.setFont(undefined,'normal');
+    var pages=doc.getNumberOfPages();
+    for (var p=1;p<=pages;p++) {
+      doc.setPage(p); doc.setFillColor(30,18,8); doc.rect(0,287,W,10,'F');
       doc.setFontSize(7); doc.setTextColor(120,100,60);
-      doc.text('Marktabrechnung  \u00b7  ' + (ab.ma||'') + '  \u00b7  ' + fmtDate(ab.datum), W/2, 292, {align:'center'});
+      doc.text('Marktabrechnung  ·  '+(ab.ma||'')+'  ·  '+fmtDate(ab.datum), W/2, 292, {align:'center'});
     }
     return doc;
   }
-
   function downloadPdf() {
-    var doc = createPdf();
-    if (!doc || !lastAb) return;
-    var ab = lastAb;
-    var fname = 'Abrechnung_' + ab.markt.replace(/\s+/g,'_') + '_' + ab.jahr + '_' + (ab.ma||'MA').replace(/\s+/g,'_') + '.pdf';
-    doc.save(fname);
-    toast('\u2713 PDF gespeichert');
+    var doc=createPdf(); if(!doc||!lastAb) return;
+    var ab=lastAb;
+    var fname='Abrechnung_'+ab.markt.replace(/\s+/g,'_')+'_'+ab.jahr+'_'+(ab.ma||'MA').replace(/\s+/g,'_')+'.pdf';
+    doc.save(fname); toast('✓ PDF gespeichert');
   }
 
-  // ── WhatsApp-Teilen ──
+  // ────────────────────────────────────────────────
+  // WHATSAPP-TEILEN
+  // ────────────────────────────────────────────────
   function shareWhatsApp() {
-    if (!lastAb) { toast('\u26a0 Bitte Markt und Jahr auswählen'); return; }
-    var ab = lastAb;
-    var lines = [
+    if (!lastAb) { toast('⚠ Bitte Markt und Jahr auswählen'); return; }
+    var ab=lastAb, lines=[
       '*KASSENABRECHNUNG*',
-      'Markt: ' + ab.markt + '  (' + ab.jahr + ')',
-      'Mitarbeiter: ' + (ab.ma || '\u2014'),
-      'Erstellt: ' + fmtDate(ab.datum),
-      ''
+      'Markt: '+ab.markt+'  ('+ab.jahr+')',
+      'Mitarbeiter: '+(ab.ma||'—'),
+      'Erstellt: '+fmtDate(ab.datum), ''
     ];
-    if (ab.fTage && ab.fTage.length) {
-      lines.push('*Tagesabschl\u00fcsse:*');
-      ab.fTage.forEach(function(tk){ lines.push('  ' + fmtDate(tk.datum) + ': Bar-Einnahme ' + fmt(tk.istBestand-tk.anfang)); });
+    if (ab.fTage&&ab.fTage.length) {
+      lines.push('*Tagesabschlüsse:*');
+      ab.fTage.forEach(function(tk){ lines.push('  '+fmtDate(tk.datum)+': Bar-Einnahme '+fmt(tk.istBestand-tk.anfang)); });
       lines.push('');
     }
     lines.push('*Einnahmen:*');
-    lines.push('  Bar-Einnahmen:    ' + fmt(ab.barEin));
-    if (ab.karteEin > 0) lines.push('  Karten-Einnahmen: ' + fmt(ab.karteEin));
-    lines.push('  Gesamtumsatz:     ' + fmt(ab.gesamtumsatz));
+    lines.push('  Bar-Einnahmen:    '+fmt(ab.barEin));
+    if (ab.karteEin>0) lines.push('  Karten-Einnahmen: '+fmt(ab.karteEin));
+    lines.push('  Gesamtumsatz:     '+fmt(ab.gesamtumsatz));
     lines.push('');
-    if (ab.gesamtAus > 0) {
+    if (ab.gesamtAus>0) {
       lines.push('*Ausgaben:*');
       if (ab.fBuch) ab.fBuch.forEach(function(b){ if(b.typ==='ausgabe') lines.push('  '+b.bezeichnung+' ('+b.zahlung+'): '+fmt(b.betrag)); });
-      lines.push('  Gesamt: ' + fmt(ab.gesamtAus));
+      lines.push('  Gesamt: '+fmt(ab.gesamtAus));
       lines.push('');
     }
     lines.push('*Kassenabschluss:*');
-    lines.push('  Soll-Bestand: ' + fmt(ab.sollKasse));
-    lines.push('  Kassenrest:   ' + fmt(ab.rest));
-    lines.push('  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500');
-    lines.push('  *Abgabe: ' + fmt(ab.abgabe) + '*');
-    window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+    lines.push('  Soll-Bestand: '+fmt(ab.sollKasse));
+    lines.push('  Kassenrest:   '+fmt(ab.rest));
+    lines.push('  ─────────────');
+    lines.push('  *Abgabe: '+fmt(ab.abgabe)+'*');
+    window.open('https://wa.me/?text='+encodeURIComponent(lines.join('\n')),'_blank');
   }
-
-  // ── Abschluss-Daten für PDF & WhatsApp merken ──
-  // Diese Funktion wird NACH calcAbschluss aufgerufen (Monkey-Patch)
-  var _origCalcAbschluss = null; // wird in DOMContentLoaded gesetzt
 
   // ── Init ───────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function() {
@@ -2987,17 +2935,14 @@
     loadMitarbeiter();
     checkSetup();
 
-    // Setup-Overlay
     el('btn-setup-save').addEventListener('click', function() {
       if (saveMitarbeiter(el('setup-name').value)) {
         el('setup-overlay').classList.add('hidden');
-        toast('\u2713 Willkommen, ' + mitarbeiter + '!');
+        toast('✓ Willkommen, ' + mitarbeiter + '!');
         renderDatenPage();
       }
     });
-    el('setup-name').addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') el('btn-setup-save').click();
-    });
+    el('setup-name').addEventListener('keydown', function(e) { if (e.key==='Enter') el('btn-setup-save').click(); });
 
     // Datum auf heute
     el('k-datum').valueAsDate = new Date();
@@ -3082,10 +3027,7 @@
     el('btn-clear-all').addEventListener('click', clearAllData);
     el('btn-change-name').addEventListener('click', function() {
       var name = prompt('Neuer Name:', mitarbeiter);
-      if (name !== null && saveMitarbeiter(name)) {
-        renderDatenPage();
-        toast('\u2713 Name ge\u00e4ndert');
-      }
+      if (name !== null && saveMitarbeiter(name)) { renderDatenPage(); toast('✓ Name geändert'); }
     });
 
     // Delegierte Click-Handler für dynamische Buttons
@@ -3124,6 +3066,17 @@
           var isOpen = detail.style.display !== 'none';
           detail.style.display = isOpen ? 'none' : 'block';
           t.textContent = isOpen ? 'Stückelung anzeigen ▾' : 'Stückelung verbergen ▴';
+        }
+        return;
+      }
+
+      var toggleAbId = t.getAttribute('data-toggle-ab');
+      if (toggleAbId) {
+        var abDetail = el('ab-stueck-' + toggleAbId);
+        if (abDetail) {
+          var abOpen = abDetail.style.display !== 'none';
+          abDetail.style.display = abOpen ? 'none' : 'block';
+          t.textContent = abOpen ? 'Stückelung ▾' : 'Stückelung ▴';
         }
         return;
       }
