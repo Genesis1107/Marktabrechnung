@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root {
     --parchment: #f5e9c9;
@@ -875,9 +876,74 @@
       padding: 24px 32px calc(40px + var(--nav-h));
     }
   }
+
+  /* ── Setup-Overlay ── */
+  #setup-overlay {
+    position: fixed; inset: 0;
+    background: rgba(26,15,5,0.97);
+    z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  #setup-overlay.hidden { display: none; }
+  .setup-box {
+    background: var(--parchment); border-radius: 6px;
+    padding: 28px 22px; max-width: 380px; width: 100%;
+    box-shadow: 0 0 0 4px #5c3d1e, 0 16px 40px rgba(0,0,0,0.8);
+  }
+  .setup-box h2 {
+    font-family: 'Cinzel', serif; font-size: 1rem; font-weight: 700;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--ink);
+    margin-bottom: 6px; text-align: center;
+  }
+  .setup-sub {
+    font-size: 0.82rem; color: var(--ink-light); font-style: italic;
+    text-align: center; margin-bottom: 20px; line-height: 1.5;
+  }
+  /* ── Anfangsbestand-Hint ── */
+  .anfang-hint {
+    background: rgba(184,134,11,0.12); border: 1px solid var(--wax-gold);
+    border-radius: 3px; padding: 6px 10px;
+    font-size: 0.78rem; color: var(--ink-light);
+    margin-top: 6px; font-style: italic; display: none;
+  }
+  .anfang-hint.show { display: block; }
+  /* ── Mitarbeiter-Box ── */
+  .ma-box {
+    background: rgba(255,255,255,0.35); border: 1px solid var(--parchment-dark);
+    border-radius: 4px; padding: 12px 14px;
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    margin-bottom: 4px;
+  }
+  .ma-box .ma-name  { font-family: 'Cinzel', serif; font-weight: 600; font-size: 1rem; color: var(--ink); }
+  .ma-box .ma-label { font-size: 0.72rem; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-light); font-family: 'Cinzel', serif; }
+  .ma-box button {
+    background: none; border: 1px solid var(--parchment-dark); color: var(--ink-light);
+    padding: 6px 12px; border-radius: 3px; font-family: 'Cinzel', serif;
+    font-size: 0.7rem; letter-spacing: 1px; cursor: pointer; min-height: 32px;
+  }
+  /* ── Aktions-Grid ── */
+  .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+  .action-grid .btn-primary { margin-bottom: 0; font-size: 0.78rem; letter-spacing: 1px; padding: 13px 8px; }
+  .btn-primary.wa { background: linear-gradient(135deg, #25a244 0%, #128c3d 100%); box-shadow: 0 3px 14px rgba(37,162,68,0.3); }
+
 </style>
 </head>
 <body>
+
+
+<!-- ── Setup-Overlay (erster Start) ── -->
+<div id="setup-overlay" class="hidden">
+  <div class="setup-box">
+    <h2>⚔ Willkommen</h2>
+    <p class="setup-sub">Bitte gib deinen Namen ein.<br>Er erscheint auf allen Abrechnungen.</p>
+    <div class="form-group">
+      <label for="setup-name">Dein Name</label>
+      <input type="text" id="setup-name" placeholder="z.B. Anna Müller" autocomplete="name">
+    </div>
+    <button class="btn-primary green" id="btn-setup-save" style="margin-top:8px;">✦ Speichern &amp; starten</button>
+  </div>
+</div>
 
 <div id="toast"></div>
 
@@ -922,6 +988,7 @@
       <div class="form-group" style="margin:0;">
         <label for="k-anfang">Betrag (€)</label>
         <input type="number" id="k-anfang" placeholder="0,00" min="0" step="0.01" inputmode="decimal">
+        <div id="anfang-hint" class="anfang-hint"></div>
       </div>
     </div>
 
@@ -1262,6 +1329,21 @@
         </div>
       </div>
 
+      <!-- Versand -->
+      <div class="section-title" style="margin-top:20px;">📤 Abrechnung senden</div>
+      <div class="action-grid">
+        <button class="btn-primary green" id="btn-pdf-download" disabled>📄 PDF speichern</button>
+        <button class="btn-primary wa"    id="btn-whatsapp"     disabled>💬 WhatsApp</button>
+      </div>
+
+
+      <!-- Versand -->
+      <div class="section-title" style="margin-top:20px;">📤 Abrechnung senden</div>
+      <div class="action-grid">
+        <button class="btn-primary green" id="btn-pdf-download" disabled>📄 PDF speichern</button>
+        <button class="btn-primary wa"    id="btn-whatsapp"     disabled>💬 WhatsApp</button>
+      </div>
+
     </div>
 
   </div>
@@ -1279,7 +1361,26 @@
       ⚠ Letztes Backup ist mehr als 7 Tage alt – bitte jetzt sichern!
     </div>
 
-    <div class="section-title">💾 Backup speichern</div>
+
+    <div class="section-title">👤 Mitarbeiter</div>
+    <div class="ma-box">
+      <div>
+        <div class="ma-label">Angemeldet als</div>
+        <div class="ma-name" id="ma-name-display">—</div>
+      </div>
+      <button id="btn-change-name">✏ ändern</button>
+    </div>
+
+    <div class="section-title">👤 Mitarbeiter</div>
+    <div class="ma-box">
+      <div>
+        <div class="ma-label">Angemeldet als</div>
+        <div class="ma-name" id="ma-name-display">—</div>
+      </div>
+      <button id="btn-change-name">✏ ändern</button>
+    </div>
+
+    <div class="section-title" style="margin-top:20px;">💾 Backup speichern</div>
     <p style="font-size:0.85rem;color:var(--ink-light);margin-bottom:10px;line-height:1.5;">
       Alle Buchungen und Zählungen als JSON-Datei speichern. Tipp: in iCloud Drive ablegen, damit du sie geräteübergreifend nutzen kannst.
     </p>
@@ -2413,14 +2514,6 @@
       }
     }
 
-    // Bar-Buchungen-Einnahmen: Buchungen vom Typ einnahme + zahlung == Bar
-    var barBuchEinnahmen = 0;
-    for (var c2 = 0; c2 < fBuch.length; c2++) {
-      if (fBuch[c2].typ === 'einnahme' && fBuch[c2].zahlung === 'Bar') {
-        barBuchEinnahmen += fBuch[c2].betrag;
-      }
-    }
-
     // Bar-Ausgaben: Buchungen vom Typ ausgabe + zahlung == Bar
     var barAusgaben = 0;
     for (var d = 0; d < fBuch.length; d++) {
@@ -2441,7 +2534,7 @@
     // Berechnungen
     var sollKasse    = barEinnahmen + anfangsbestand - barAusgaben;
     var abgabe       = sollKasse - rest;
-    var gesamtumsatz = barEinnahmen + karteEinnahmen + barBuchEinnahmen;
+    var gesamtumsatz = barEinnahmen + karteEinnahmen;
 
     // ── Tagesabschlüsse-Liste ──
     var tageHtml = '';
@@ -2472,10 +2565,10 @@
       einHtml += '<span class="ab-val" style="color:var(--green);">' + fmt(barEinnahmen) + '</span>';
       einHtml += '</div>';
     }
-    // Alle Buchungs-Einnahmen (Bar und Karte)
+    // Karten-Einnahmen aus Buchungen
     for (var fe = 0; fe < fBuch.length; fe++) {
       var fb = fBuch[fe];
-      if (fb.typ === 'einnahme') {
+      if (fb.typ === 'einnahme' && fb.zahlung !== 'Bar') {
         einHtml += '<div class="ab-row">';
         einHtml += '<span class="ab-label">' + esc(fb.bezeichnung);
         einHtml += '<br><small>' + fmtDate(fb.datum) + ' · ' + esc(fb.zahlung) + '</small></span>';
@@ -2509,7 +2602,7 @@
     el('ab-r-abgabe').textContent     = fmt(Math.max(0, abgabe));
 
     // ── Mittelherkunft & Verwendung ──
-    el('ab-r-barein').textContent       = fmt(barEinnahmen + barBuchEinnahmen);
+    el('ab-r-barein').textContent       = fmt(barEinnahmen);
     el('ab-r-kartein').textContent      = fmt(karteEinnahmen);
     el('ab-r-gesamtumsatz').textContent = fmt(gesamtumsatz);
     el('ab-r-kartein2').textContent     = fmt(karteEinnahmen);
@@ -2519,6 +2612,19 @@
 
     el('ab-result').style.display = 'block';
     el('ab-empty').style.display  = 'none';
+
+    // Daten für PDF & WhatsApp merken
+    lastAb = {
+      markt: markt, jahr: jahr, rest: rest, ma: mitarbeiter,
+      datum: new Date().toISOString().slice(0,10),
+      barEin: barEinnahmen, karteEin: karteEinnahmen,
+      gesamtumsatz: gesamtumsatz, gesamtAus: gesamtAusgaben, barAus: barAusgaben,
+      anfangsbestand: anfangsbestand, sollKasse: sollKasse,
+      abgabe: Math.max(0, abgabe),
+      fTage: fTage, fBuch: fBuch
+    };
+    el('btn-pdf-download').disabled = false;
+    el('btn-whatsapp').disabled     = false;
   }
 
   // ─────────────────────────────────────────────────────
@@ -2530,6 +2636,10 @@
   // ── Daten-Seite rendern ────────────────────────────
   function renderDatenPage() {
     // Statistiken anzeigen
+    // Mitarbeitername anzeigen
+    var mnEl = el('ma-name-display');
+    if (mnEl) mnEl.textContent = mitarbeiter || '(noch nicht gesetzt)';
+
     var abschluesse = 0, zwischenz = 0;
     for (var i = 0; i < kassungen.length; i++) {
       if (kassungen[i].typ === 'zwischen') zwischenz++;
@@ -2659,9 +2769,235 @@
     toast('Alle Daten gelöscht');
   }
 
+
+  // ── Storage-Key Mitarbeiter ──
+  var LS_MITARB = 'markt-mitarbeiter';
+  var mitarbeiter = '';
+  var lastAb = null;
+
+  // ── Mitarbeiter laden ──
+  function loadMitarbeiter() {
+    try { mitarbeiter = localStorage.getItem(LS_MITARB) || ''; } catch(e) { mitarbeiter = ''; }
+  }
+
+  // ── Setup-Check ──
+  function checkSetup() {
+    if (!mitarbeiter) {
+      el('setup-overlay').classList.remove('hidden');
+      setTimeout(function() { try { el('setup-name').focus(); } catch(e){} }, 100);
+    } else {
+      el('setup-overlay').classList.add('hidden');
+    }
+  }
+
+  function saveMitarbeiter(name) {
+    name = (name || '').trim();
+    if (!name) { toast('⚠ Bitte einen Namen eingeben'); return false; }
+    mitarbeiter = name;
+    try { localStorage.setItem(LS_MITARB, mitarbeiter); } catch(e) {}
+    return true;
+  }
+
+  // ── Anfangsbestand-Fortschreibung ──
+  function getVorAbschluss(markt, datum, exceptId) {
+    var best = null;
+    for (var i = 0; i < kassungen.length; i++) {
+      var k = kassungen[i];
+      if (k.typ !== 'abschluss' || k.markt !== markt) continue;
+      if (exceptId != null && k.id === exceptId) continue;
+      if (k.datum >= datum) continue;
+      if (!best || k.datum > best.datum) best = k;
+    }
+    return best;
+  }
+
+  function updateAnfangHint() {
+    var markt = getMarktValue('k-markt-sel', 'k-markt');
+    var datum = el('k-datum').value;
+    var hint  = el('anfang-hint');
+    if (!markt || !datum || editingId != null) { hint.classList.remove('show'); return; }
+    var vor = getVorAbschluss(markt, datum, null);
+    if (vor) {
+      var inp = el('k-anfang');
+      if (inp.value === '' || parseFloat(inp.value) === 0) {
+        inp.value = vor.anfang;
+        calcKasse();
+      }
+      hint.textContent = '\u2191 Anfangsbestand vom ' + fmtDate(vor.datum) + ' (\u20AC' + Number(vor.anfang).toFixed(2).replace('.',',') + ') \u00fcbernommen';
+      hint.classList.add('show');
+    } else {
+      hint.classList.remove('show');
+    }
+  }
+
+  // ── PDF erstellen ──
+  function createPdf() {
+    if (!lastAb) return null;
+    var jsPDFLib = (window.jspdf && window.jspdf.jsPDF) || (typeof jspdf !== 'undefined' && jspdf.jsPDF);
+    if (!jsPDFLib) { toast('\u26a0 PDF-Bibliothek noch nicht geladen'); return null; }
+
+    var doc = new jsPDFLib({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    var ab = lastAb, W = 210, M = 15, y = 20;
+
+    function setC(r,g,b)  { doc.setTextColor(r,g,b); }
+    function lineH(yp,r,g,b) { doc.setDrawColor(r||184,g||134,b||11); doc.setLineWidth(0.4); doc.line(M,yp,W-M,yp); }
+    function rowLine(label,value,yp,cr,cg,cb) {
+      doc.setFontSize(9); doc.setFont(undefined,'normal');
+      setC(120,100,80); doc.text(label, M, yp);
+      setC(cr||30,cg||18,cb||8); doc.text(value, W-M, yp, {align:'right'});
+      return yp + 5.5;
+    }
+    function secTitle(title, yp) {
+      yp += 4; doc.setFontSize(7); doc.setFont(undefined,'bold');
+      setC(184,134,11); doc.text(title.toUpperCase(), M, yp);
+      doc.setFont(undefined,'normal'); lineH(yp+1.5); return yp+6;
+    }
+
+    // Kopfzeile
+    doc.setFillColor(30,18,8); doc.rect(0,0,W,28,'F');
+    doc.setFontSize(14); doc.setFont(undefined,'bold'); setC(245,233,201);
+    doc.text('KASSENABRECHNUNG', W/2, 12, {align:'center'});
+    doc.setFontSize(8); doc.setFont(undefined,'normal'); setC(184,134,11);
+    doc.text(ab.markt + '  \u00b7  ' + ab.jahr, W/2, 19, {align:'center'});
+    doc.text('Erstellt von ' + (ab.ma||'unbekannt') + '  \u00b7  ' + fmtDate(ab.datum), W/2, 24, {align:'center'});
+    y = 36;
+
+    // Tagesabschlüsse
+    if (ab.fTage && ab.fTage.length) {
+      y = secTitle('TAGESABSCHLUSSE', y);
+      ab.fTage.forEach(function(tk) {
+        var tb = tk.istBestand - tk.anfang;
+        y = rowLine(fmtDate(tk.datum) + '   Anfang: ' + fmt(tk.anfang) + '   Ist: ' + fmt(tk.istBestand), fmt(tb), y, 30,77,26);
+        if (y > 270) { doc.addPage(); y = 20; }
+      });
+      y += 2;
+    }
+
+    // Einnahmen
+    y = secTitle('EINNAHMEN', y);
+    if (ab.fTage && ab.fTage.length) y = rowLine('Bar-Einnahmen (' + ab.fTage.length + ' Tagesabschlusse)', fmt(ab.barEin), y, 30,77,26);
+    if (ab.fBuch) ab.fBuch.forEach(function(b) {
+      if (b.typ==='einnahme'&&b.zahlung!=='Bar') { y=rowLine(b.bezeichnung+' ('+b.zahlung+')', fmt(b.betrag), y, 30,77,26); if(y>270){doc.addPage();y=20;} }
+    });
+    doc.setFontSize(9); doc.setFont(undefined,'bold'); setC(30,77,26);
+    doc.text('Gesamtumsatz', M, y); doc.text(fmt(ab.gesamtumsatz), W-M, y, {align:'right'});
+    doc.setFont(undefined,'normal'); y += 7;
+
+    // Ausgaben
+    y = secTitle('AUSGABEN', y);
+    var hasAus = false;
+    if (ab.fBuch) ab.fBuch.forEach(function(b) {
+      if (b.typ==='ausgabe') { hasAus=true; y=rowLine(b.bezeichnung+' ('+b.zahlung+')', fmt(b.betrag), y, 122,28,28); if(y>270){doc.addPage();y=20;} }
+    });
+    if (!hasAus) { doc.setFontSize(9); setC(120,100,80); doc.text('Keine Ausgaben erfasst', M, y); y+=5.5; }
+    doc.setFontSize(9); doc.setFont(undefined,'bold'); setC(122,28,28);
+    doc.text('Gesamt Ausgaben', M, y); doc.text(fmt(ab.gesamtAus), W-M, y, {align:'right'});
+    doc.setFont(undefined,'normal'); y += 7;
+
+    if (y > 235) { doc.addPage(); y = 20; }
+
+    // Kassenabschluss-Box
+    y = secTitle('KASSENABSCHLUSS', y);
+    doc.setFillColor(250,245,230); doc.setDrawColor(184,134,11); doc.setLineWidth(0.5);
+    doc.roundedRect(M, y-2, W-2*M, 32, 2, 2, 'FD');
+    y = rowLine('Soll-Kassenbestand  (Bar-Einnahmen + Anfangsbestand - Bar-Ausgaben)', fmt(ab.sollKasse), y+3, 30,77,26);
+    y = rowLine('- Kassenrest (verbleibt als Wechselgeld)', fmt(ab.rest), y, 30,18,8);
+    lineH(y, 184,134,11); y += 5;
+    doc.setFontSize(12); doc.setFont(undefined,'bold');
+    setC(30,18,8); doc.text('Abgabe an Firma', M+2, y);
+    setC(139,26,26); doc.text(fmt(ab.abgabe), W-M-2, y, {align:'right'});
+    doc.setFont(undefined,'normal'); y += 13;
+
+    // Mittelherkunft
+    y = secTitle('MITTELHERKUNFT & VERWENDUNG', y);
+    y = rowLine('Bar-Einnahmen', fmt(ab.barEin), y, 30,77,26);
+    y = rowLine('Karten-Einnahmen', fmt(ab.karteEin), y, 30,77,26);
+    doc.setFontSize(9); doc.setFont(undefined,'bold'); setC(30,18,8);
+    doc.text('Gesamtumsatz', M, y); doc.text(fmt(ab.gesamtumsatz), W-M, y, {align:'right'});
+    doc.setFont(undefined,'normal'); y+=7;
+    y = rowLine('- Karten (bereits auf Konto)', fmt(ab.karteEin), y, 120,100,80);
+    y = rowLine('- Ausgaben', fmt(ab.gesamtAus), y, 122,28,28);
+    y = rowLine('+ Kassenrest (Wechselgeld)', fmt(ab.rest), y, 120,100,80);
+    doc.setFontSize(9); doc.setFont(undefined,'bold'); setC(139,26,26);
+    doc.text('= Abgabe an Firma', M, y); doc.text(fmt(ab.abgabe), W-M, y, {align:'right'});
+    doc.setFont(undefined,'normal'); y+=7;
+
+    // Fusszeile
+    var pages = doc.getNumberOfPages();
+    for (var p=1; p<=pages; p++) {
+      doc.setPage(p);
+      doc.setFillColor(30,18,8); doc.rect(0,287,W,10,'F');
+      doc.setFontSize(7); doc.setTextColor(120,100,60);
+      doc.text('Marktabrechnung  \u00b7  ' + (ab.ma||'') + '  \u00b7  ' + fmtDate(ab.datum), W/2, 292, {align:'center'});
+    }
+    return doc;
+  }
+
+  function downloadPdf() {
+    var doc = createPdf();
+    if (!doc || !lastAb) return;
+    var ab = lastAb;
+    var fname = 'Abrechnung_' + ab.markt.replace(/\s+/g,'_') + '_' + ab.jahr + '_' + (ab.ma||'MA').replace(/\s+/g,'_') + '.pdf';
+    doc.save(fname);
+    toast('\u2713 PDF gespeichert');
+  }
+
+  // ── WhatsApp-Teilen ──
+  function shareWhatsApp() {
+    if (!lastAb) { toast('\u26a0 Bitte Markt und Jahr auswählen'); return; }
+    var ab = lastAb;
+    var lines = [
+      '*KASSENABRECHNUNG*',
+      'Markt: ' + ab.markt + '  (' + ab.jahr + ')',
+      'Mitarbeiter: ' + (ab.ma || '\u2014'),
+      'Erstellt: ' + fmtDate(ab.datum),
+      ''
+    ];
+    if (ab.fTage && ab.fTage.length) {
+      lines.push('*Tagesabschl\u00fcsse:*');
+      ab.fTage.forEach(function(tk){ lines.push('  ' + fmtDate(tk.datum) + ': Bar-Einnahme ' + fmt(tk.istBestand-tk.anfang)); });
+      lines.push('');
+    }
+    lines.push('*Einnahmen:*');
+    lines.push('  Bar-Einnahmen:    ' + fmt(ab.barEin));
+    if (ab.karteEin > 0) lines.push('  Karten-Einnahmen: ' + fmt(ab.karteEin));
+    lines.push('  Gesamtumsatz:     ' + fmt(ab.gesamtumsatz));
+    lines.push('');
+    if (ab.gesamtAus > 0) {
+      lines.push('*Ausgaben:*');
+      if (ab.fBuch) ab.fBuch.forEach(function(b){ if(b.typ==='ausgabe') lines.push('  '+b.bezeichnung+' ('+b.zahlung+'): '+fmt(b.betrag)); });
+      lines.push('  Gesamt: ' + fmt(ab.gesamtAus));
+      lines.push('');
+    }
+    lines.push('*Kassenabschluss:*');
+    lines.push('  Soll-Bestand: ' + fmt(ab.sollKasse));
+    lines.push('  Kassenrest:   ' + fmt(ab.rest));
+    lines.push('  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500');
+    lines.push('  *Abgabe: ' + fmt(ab.abgabe) + '*');
+    window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+  }
+
+  // ── Abschluss-Daten für PDF & WhatsApp merken ──
+  // Diese Funktion wird NACH calcAbschluss aufgerufen (Monkey-Patch)
+  var _origCalcAbschluss = null; // wird in DOMContentLoaded gesetzt
+
   // ── Init ───────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function() {
     storageLoad();
+    loadMitarbeiter();
+    checkSetup();
+
+    // Setup-Overlay
+    el('btn-setup-save').addEventListener('click', function() {
+      if (saveMitarbeiter(el('setup-name').value)) {
+        el('setup-overlay').classList.add('hidden');
+        toast('\u2713 Willkommen, ' + mitarbeiter + '!');
+        renderDatenPage();
+      }
+    });
+    el('setup-name').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') el('btn-setup-save').click();
+    });
 
     // Datum auf heute
     el('k-datum').valueAsDate = new Date();
@@ -2680,6 +3016,7 @@
 
     // Kasse: Live-Berechnung + Komfort beim Antippen
     el('k-anfang').addEventListener('input', calcKasse);
+    el('k-datum').addEventListener('change', updateAnfangHint);
 
     // Hilfsfunktion: Eingabefeld so vorbereiten, dass eine 0 beim Antippen verschwindet
     function setupCoinInput(id) {
@@ -2721,6 +3058,7 @@
     // ── Markt-Dropdowns: Texteingabe ein/ausblenden ──
     el('k-markt-sel').addEventListener('change', function() {
       onMarktSelChange('k-markt-sel', 'k-markt');
+      updateAnfangHint();
     });
     el('b-markt-sel').addEventListener('change', function() {
       onMarktSelChange('b-markt-sel', 'b-markt');
@@ -2737,9 +3075,18 @@
     el('ab-rest').addEventListener('input', calcAbschluss);
 
     // ── Daten/Backup ──
+    el('btn-pdf-download').addEventListener('click', downloadPdf);
+    el('btn-whatsapp').addEventListener('click', shareWhatsApp);
     el('btn-export-json').addEventListener('click', exportJSON);
     el('import-file').addEventListener('change', importJSON);
     el('btn-clear-all').addEventListener('click', clearAllData);
+    el('btn-change-name').addEventListener('click', function() {
+      var name = prompt('Neuer Name:', mitarbeiter);
+      if (name !== null && saveMitarbeiter(name)) {
+        renderDatenPage();
+        toast('\u2713 Name ge\u00e4ndert');
+      }
+    });
 
     // Delegierte Click-Handler für dynamische Buttons
     document.addEventListener('click', function(e) {
