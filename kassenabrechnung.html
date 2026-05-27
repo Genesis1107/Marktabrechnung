@@ -803,27 +803,78 @@
     border: 1px solid var(--parchment-dark);
     border-radius: 4px;
     padding: 10px 14px;
-    margin-bottom: 6px;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 4px 12px;
+    margin-bottom: 8px;
     font-size: 0.85rem;
+  }
+  /* Header-Zeile: Datum links, Betrag rechts */
+  .ab-tag-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 3px;
   }
   .ab-tag-datum {
     font-family: 'Cinzel', serif;
     font-weight: 600;
+    font-size: 0.95rem;
     color: var(--ink);
   }
   .ab-tag-bar {
     font-family: 'Cinzel', serif;
     font-weight: 700;
+    font-size: 1rem;
     color: var(--green);
-    text-align: right;
+    white-space: nowrap;
   }
   .ab-tag-meta {
     font-size: 0.78rem;
     color: var(--ink-light);
-    grid-column: 1 / -1;
+    margin-bottom: 6px;
+    line-height: 1.5;
+  }
+  /* Summenzeile: Münzen / Scheine / Toggle-Button */
+  .ab-tag-summen {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-top: 6px;
+    border-top: 1px solid rgba(184,134,11,0.2);
+    font-size: 0.78rem;
+    color: var(--ink-light);
+  }
+  .ab-tag-summen .sum-label { white-space: nowrap; }
+  .ab-tag-summen .sum-val {
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    color: var(--green-light);
+  }
+  .ab-tag-toggle {
+    margin-left: auto;
+    background: rgba(255,255,255,0.4);
+    border: 1px solid var(--parchment-dark);
+    border-radius: 10px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    cursor: pointer;
+    padding: 4px 10px;
+    min-height: 28px;
+    white-space: nowrap;
+    transition: background 0.2s;
+  }
+  .ab-tag-toggle:active { background: rgba(184,134,11,0.2); }
+  /* Stückelungs-Detail: volle Breite, leicht eingerückt */
+  .ab-tag-stueck {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.45);
+    border: 1px solid var(--parchment-dark);
+    border-radius: 4px;
   }
 
   /* Daten/Backup */
@@ -897,11 +948,7 @@
   .btn-primary.wa { background:linear-gradient(135deg,#25a244 0%,#128c3d 100%);box-shadow:0 3px 14px rgba(37,162,68,0.3); }
   /* ── Abschluss Tagesabschluss-Karte (erweitert) ── */
   .ab-tag-header { display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:start; }
-  .ab-tag-summen { display:flex;gap:12px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(184,134,11,0.2);font-size:0.78rem;color:var(--ink-light);flex-wrap:wrap;align-items:center; }
-  .ab-tag-summen span { font-family:'Cinzel',serif;font-weight:600;color:var(--green-light); }
-  .ab-tag-toggle { background:rgba(255,255,255,0.4);border:1px solid var(--parchment-dark);border-radius:10px;font-family:'Cinzel',serif;font-size:0.62rem;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--ink-light);cursor:pointer;padding:3px 9px;min-height:26px;margin-left:auto;transition:background 0.2s; }
-  .ab-tag-toggle:active { background:rgba(184,134,11,0.2); }
-  .ab-tag-stueck { margin-top:8px;padding:8px 10px;background:rgba(255,255,255,0.3);border:1px solid var(--parchment-dark);border-radius:4px; }
+  /* ab-tag-summen, ab-tag-toggle, ab-tag-stueck: siehe oben */
 
 </style>
 </head>
@@ -2501,37 +2548,95 @@
       for (var ti = 0; ti < fTage.length; ti++) {
         var tk = fTage[ti];
         var tagesBar = tk.istBestand - tk.anfang;
-        var tkCoins = tk.coins || {};
-        var tkBills = tk.bills || {};
+        var tkCoins  = tk.coins || {};
+        var tkBills  = tk.bills || {};
+
+        // Stückelung aufbauen – mit Zwischensummen für Münzen & Scheine
         var stueckRows = '';
-        var c, n;
+        var c, n, muenzSum = 0, scheinSum = 0;
+        var muenzRows = '', scheinRows = '';
+
         for (c = 0; c < COINS.length; c++) {
           n = tkCoins[COINS[c].id] || 0;
-          if (n > 0) stueckRows += '<div class="stueck-row"><span class="stueck-denom">' + fmt(COINS[c].val) + '</span><span class="stueck-count">' + n + ' Stk.</span><span class="stueck-sum">' + fmt(n * COINS[c].val) + '</span></div>';
+          if (n > 0) {
+            var sub = n * COINS[c].val;
+            muenzSum += sub;
+            muenzRows += '<div class="stueck-row">'
+              + '<span class="stueck-denom">' + fmt(COINS[c].val) + '</span>'
+              + '<span class="stueck-count">' + n + ' Stk.</span>'
+              + '<span class="stueck-sum">' + fmt(sub) + '</span>'
+              + '</div>';
+          }
         }
         for (c = 0; c < BILLS.length; c++) {
           n = tkBills[BILLS[c].id] || 0;
-          if (n > 0) stueckRows += '<div class="stueck-row"><span class="stueck-denom">' + fmt(BILLS[c].val) + '</span><span class="stueck-count">' + n + ' Stk.</span><span class="stueck-sum">' + fmt(n * BILLS[c].val) + '</span></div>';
+          if (n > 0) {
+            var sub2 = n * BILLS[c].val;
+            scheinSum += sub2;
+            scheinRows += '<div class="stueck-row">'
+              + '<span class="stueck-denom">' + fmt(BILLS[c].val) + '</span>'
+              + '<span class="stueck-count">' + n + ' Stk.</span>'
+              + '<span class="stueck-sum">' + fmt(sub2) + '</span>'
+              + '</div>';
+          }
         }
-        if (stueckRows) {
-          stueckRows += '<div class="stueck-row stueck-total"><span class="stueck-denom">Gesamt</span><span class="stueck-count"></span><span class="stueck-sum">' + fmt(tk.muenzen + tk.scheine) + '</span></div>';
+
+        if (muenzRows || scheinRows) {
+          // Münzen-Block mit Zwischensumme
+          if (muenzRows) {
+            stueckRows += '<div class="stueck-row" style="background:rgba(184,134,11,0.06);margin-bottom:2px;">'
+              + '<span class="stueck-denom" style="font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--ink-light);">Münzen</span>'
+              + '<span class="stueck-count"></span><span class="stueck-sum"></span></div>';
+            stueckRows += muenzRows;
+            stueckRows += '<div class="stueck-row stueck-total">'
+              + '<span class="stueck-denom">Münzen gesamt</span>'
+              + '<span class="stueck-count"></span>'
+              + '<span class="stueck-sum">' + fmt(muenzSum) + '</span>'
+              + '</div>';
+          }
+          // Scheine-Block mit Zwischensumme
+          if (scheinRows) {
+            stueckRows += '<div class="stueck-row" style="background:rgba(184,134,11,0.06);margin-top:6px;margin-bottom:2px;">'
+              + '<span class="stueck-denom" style="font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--ink-light);">Scheine</span>'
+              + '<span class="stueck-count"></span><span class="stueck-sum"></span></div>';
+            stueckRows += scheinRows;
+            stueckRows += '<div class="stueck-row stueck-total">'
+              + '<span class="stueck-denom">Scheine gesamt</span>'
+              + '<span class="stueck-count"></span>'
+              + '<span class="stueck-sum">' + fmt(scheinSum) + '</span>'
+              + '</div>';
+          }
+          // Gesamtsumme
+          stueckRows += '<div class="stueck-row" style="border-top:2px solid var(--wax-gold);margin-top:4px;padding-top:6px;">'
+            + '<span class="stueck-denom" style="font-size:0.75rem;color:var(--ink);">Gesamt</span>'
+            + '<span class="stueck-count"></span>'
+            + '<span class="stueck-sum" style="color:var(--green);font-size:0.95rem;">' + fmt(tk.muenzen + tk.scheine) + '</span>'
+            + '</div>';
         } else {
-          stueckRows = '<div style="font-size:0.78rem;color:var(--ink-light);text-align:center;padding:4px;font-style:italic;">Keine Stückelung erfasst</div>';
+          stueckRows = '<div style="font-size:0.78rem;color:var(--ink-light);text-align:center;padding:6px;font-style:italic;">Keine Stückelung erfasst</div>';
         }
+
         tageHtml += '<div class="ab-tag-card">';
+        // Header: Datum links, Bar-Einnahme rechts
         tageHtml += '<div class="ab-tag-header">';
-        tageHtml += '<div class="ab-tag-datum">' + fmtDate(tk.datum) + '</div>';
-        tageHtml += '<div class="ab-tag-bar">' + fmt(tagesBar) + '</div>';
-        tageHtml += '<div class="ab-tag-meta">Ist: ' + fmt(tk.istBestand) + ' − Anfang: ' + fmt(tk.anfang) + ' = Bar-Einnahme';
+        tageHtml += '<span class="ab-tag-datum">' + fmtDate(tk.datum) + '</span>';
+        tageHtml += '<span class="ab-tag-bar">+ ' + fmt(tagesBar) + '</span>';
+        tageHtml += '</div>';
+        // Meta-Zeile
+        tageHtml += '<div class="ab-tag-meta">';
+        tageHtml += 'Ist-Bestand: ' + fmt(tk.istBestand) + ' − Anfangsbestand: ' + fmt(tk.anfang);
         if (tk.notiz) tageHtml += ' · ' + esc(tk.notiz);
         tageHtml += '</div>';
-        tageHtml += '</div>';
+        // Summenzeile mit Toggle-Button
         tageHtml += '<div class="ab-tag-summen">';
-        tageHtml += 'Münzen: <span>' + fmt(tk.muenzen) + '</span>';
-        tageHtml += '&nbsp;&nbsp;Scheine: <span>' + fmt(tk.scheine) + '</span>';
+        tageHtml += '<span class="sum-label">Münzen: <span class="sum-val">' + fmt(tk.muenzen) + '</span></span>';
+        tageHtml += '<span class="sum-label">Scheine: <span class="sum-val">' + fmt(tk.scheine) + '</span></span>';
         tageHtml += '<button class="ab-tag-toggle" data-toggle-ab="' + tk.id + '">Stückelung ▾</button>';
         tageHtml += '</div>';
-        tageHtml += '<div class="ab-tag-stueck" id="ab-stueck-' + tk.id + '" style="display:none;">' + stueckRows + '</div>';
+        // Stückelungs-Detail
+        tageHtml += '<div class="ab-tag-stueck" id="ab-stueck-' + tk.id + '" style="display:none;">';
+        tageHtml += stueckRows;
+        tageHtml += '</div>';
         tageHtml += '</div>';
       }
     }
@@ -2568,7 +2673,7 @@
       if (fb2.typ === 'ausgabe') {
         ausHtml += '<div class="ab-row">';
         ausHtml += '<span class="ab-label">' + esc(fb2.bezeichnung);
-        ausHtml += '<br><small>' + fmtDate(fb2.datum) + ' · ' + esc(fb2.zahlung) + '</small></span>';
+        ausHtml += '<br><small>' + fmtDate(fb2.datum) + ' · ' + esc(fb2.kategorie) + ' · ' + esc(fb2.zahlung) + '</small></span>';
         ausHtml += '<span class="ab-val" style="color:var(--red);">' + fmt(fb2.betrag) + '</span>';
         ausHtml += '</div>';
       }
@@ -2917,7 +3022,7 @@
     lines.push('');
     if (ab.gesamtAus>0) {
       lines.push('*Ausgaben:*');
-      if (ab.fBuch) ab.fBuch.forEach(function(b){ if(b.typ==='ausgabe') lines.push('  '+b.bezeichnung+' ('+b.zahlung+'): '+fmt(b.betrag)); });
+      if (ab.fBuch) ab.fBuch.forEach(function(b){ if(b.typ==='ausgabe') lines.push('  '+b.bezeichnung+' · '+b.kategorie+' ('+b.zahlung+'): '+fmt(b.betrag)); });
       lines.push('  Gesamt: '+fmt(ab.gesamtAus));
       lines.push('');
     }
