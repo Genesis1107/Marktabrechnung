@@ -208,13 +208,13 @@ textarea:focus{border-color:var(--cr)}
       <div class="kpi-card" data-g="📜" style="--ca:var(--ib)"><div class="kpi-l">EC Ø</div><div class="kpi-v" id="k-e">–</div><div class="kpi-d dneu" id="d-e">–</div></div>
       <div class="kpi-card" data-g="⚖" style="--ca:var(--fo)"><div class="kpi-l">EC-Anteil Ø</div><div class="kpi-v" id="k-p">–</div><div class="kpi-d dneu" id="d-p">–</div></div>
     </div>
-    <div class="card"><div class="ct">Tagesumsatz Verlauf</div><div style="position:relative;height:180px"><canvas id="lc"></canvas></div></div>
+    <div class="card"><div class="ct">Tagesumsatz Verlauf</div><div id="lc-wrap" style="width:100%;min-height:180px"></div></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
       <div class="card" style="margin-bottom:0">
         <div class="ct">Zahlungsarten</div>
         <div class="pay-bar"><div class="pbl"><span>Bar</span><span id="pb-b">–</span></div><div class="pbt"><div class="pbf" id="pf-b" style="background:var(--gl);width:0"></div></div></div>
         <div class="pay-bar"><div class="pbl"><span>EC</span><span id="pb-e">–</span></div><div class="pbt"><div class="pbf" id="pf-e" style="background:var(--ib);width:0"></div></div></div>
-        <div style="position:relative;height:100px;margin-top:8px"><canvas id="dc"></canvas></div>
+        <div id="dc-wrap" style="width:100%;min-height:100px;margin-top:8px"></div>
       </div>
       <div class="card" style="margin-bottom:0">
         <div class="ct">Kumuliert <span id="ky" style="color:var(--cr);margin-left:4px"></span></div>
@@ -226,7 +226,7 @@ textarea:focus{border-color:var(--cr)}
         </div>
       </div>
     </div>
-    <div class="card"><div class="ct">Bar vs. EC pro Tag</div><div style="position:relative;height:160px"><canvas id="sc"></canvas></div></div>
+    <div class="card"><div class="ct">Bar vs. EC pro Tag</div><div id="sc-wrap" style="width:100%;min-height:160px"></div></div>
     <div class="ct" style="margin:14px 0 10px">Kutschenvergleich</div>
     <div class="k-cards" id="k-cards"></div>
     <div class="card">
@@ -280,7 +280,7 @@ textarea:focus{border-color:var(--cr)}
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script></script>
 <script>
 // ══════════════════════════════════════════════════════
 //  KONSTANTEN
@@ -415,7 +415,7 @@ function groupByKutsche(eintraege) {
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
   document.getElementById('screen-' + name).classList.add('active');
-  document.querySelectorAll('.tbtn[id^="btn-"]').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelectorAll('.tbtn').forEach(function(b){ if(b.id && b.id.indexOf('btn-')===0){ b.classList.remove('active'); } });
   var btn = document.getElementById('btn-' + name);
   if (btn) btn.classList.add('active');
   if (name === 'overview') {
@@ -743,49 +743,108 @@ function setDelta(id, c, p, isPP, py) {
 // ══════════════════════════════════════════════════════
 //  CHARTS (App — Chart.js)
 // ══════════════════════════════════════════════════════
-var TK = {color:'#7a5c3a', font:{family:'Crimson Text', size:10}};
-var GR = {color:'rgba(122,92,58,.12)'};
-var TT = {backgroundColor:'#2c1a0e', titleColor:'#f2e8d0', bodyColor:'#c9b07a'};
-
 function renderCharts(rC, rP, tB, tE) {
-  if (lC) lC.destroy();
-  var c1 = document.getElementById('lc').getContext('2d');
-  var g  = c1.createLinearGradient(0,0,0,180);
-  g.addColorStop(0,'rgba(139,26,26,.2)'); g.addColorStop(1,'rgba(139,26,26,0)');
-  lC = new Chart(c1, {
-    type:'line',
-    data:{labels:rC.map(function(r){return r.datum;}), datasets:[
-      {data:rC.map(function(r){return r.umsatz;}), borderColor:'#8b1a1a', backgroundColor:g, borderWidth:2, pointRadius:3, pointBackgroundColor:'#8b1a1a', fill:true, tension:.4},
-      {data:rP.slice(0,rC.length).map(function(r){return r.umsatz;}), borderColor:'#c9b07a', backgroundColor:'transparent', borderWidth:1.5, pointRadius:0, borderDash:[4,3], fill:false, tension:.4}
-    ]},
-    options:{responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}, tooltip:{backgroundColor:'#2c1a0e', bodyColor:'#c9b07a', callbacks:{label:function(c){return ' '+eur(c.parsed.y);}}}},
-      scales:{x:{grid:GR,ticks:{color:'#7a5c3a',font:{family:'Crimson Text',size:10},maxTicksLimit:7}},
-              y:{grid:GR,ticks:{color:'#7a5c3a',font:{family:'Crimson Text',size:10},callback:function(v){return eur(v);}}}}}
-  });
+  renderSvgLine(rC, rP);
+  renderSvgDonut(tB, tE);
+  renderSvgStack(rC);
+}
 
-  if (dC) dC.destroy();
-  dC = new Chart(document.getElementById('dc').getContext('2d'), {
-    type:'doughnut',
-    data:{labels:['Bar','EC'], datasets:[{data:[tB,tE], backgroundColor:['#c9950a','#1a2d4a'], borderWidth:0, hoverOffset:4}]},
-    options:{cutout:'68%', responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:true, position:'bottom', labels:{color:'#7a5c3a', font:{family:'Crimson Text',size:11}, boxWidth:8, padding:8}},
-      tooltip:{backgroundColor:'#2c1a0e', bodyColor:'#c9b07a', callbacks:{label:function(c){return ' '+eur(c.parsed);}}}}}
-  });
+function svgEur(v) {
+  if (v >= 1000) return (v/1000).toFixed(1)+'k';
+  return Math.round(v)+'€';
+}
 
-  if (sC) sC.destroy();
-  sC = new Chart(document.getElementById('sc').getContext('2d'), {
-    type:'bar',
-    data:{labels:rC.map(function(r){return r.datum;}), datasets:[
-      {label:'Bar', data:rC.map(function(r){return r.bar;}), backgroundColor:'#c9950a', borderRadius:2, stack:'s'},
-      {label:'EC',  data:rC.map(function(r){return r.ec;}),  backgroundColor:'#1a2d4a', borderRadius:2, stack:'s'}
-    ]},
-    options:{responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:true, labels:{color:'#7a5c3a', font:{family:'Crimson Text',size:11}, boxWidth:8}},
-      tooltip:{backgroundColor:'#2c1a0e', bodyColor:'#c9b07a', callbacks:{label:function(c){return ' '+c.dataset.label+': '+eur(c.parsed.y);}}}},
-      scales:{x:{grid:{display:false}, ticks:{color:'#7a5c3a',font:{family:'Crimson Text',size:10},maxTicksLimit:9}, stacked:true},
-              y:{grid:GR, ticks:{color:'#7a5c3a',font:{family:'Crimson Text',size:10},callback:function(v){return eur(v);}}, stacked:true}}}
+function renderSvgLine(rC, rP) {
+  var wrap = document.getElementById('lc-wrap');
+  if (!wrap) return;
+  var W=wrap.offsetWidth||320, H=180;
+  var pad={l:46,r:10,t:10,b:28};
+  var w=W-pad.l-pad.r, h=H-pad.t-pad.b;
+  if (!rC.length) { wrap.innerHTML='<svg width="'+W+'" height="'+H+'"><text x="50%" y="50%" text-anchor="middle" fill="#7a5c3a" font-family="Crimson Text" font-style="italic" font-size="13">Keine Daten</text></svg>'; return; }
+  var allV=rC.map(function(r){return r.umsatz;}).concat(rP.map(function(r){return r.umsatz;}));
+  var mn=0, mx=Math.max.apply(null,allV.concat([1]));
+  function sy(v){return pad.t+h-((v-mn)/(mx-mn))*h;}
+  var xS=rC.length>1?w/(rC.length-1):w;
+  var out='<defs><linearGradient id="lg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8b1a1a" stop-opacity="0.2"/><stop offset="100%" stop-color="#8b1a1a" stop-opacity="0"/></linearGradient></defs>';
+  // Grid
+  for(var i=0;i<=4;i++){
+    var gv=mn+(mx-mn)*i/4, gy=pad.t+h-h*i/4;
+    out+='<line x1="'+pad.l+'" y1="'+gy+'" x2="'+(pad.l+w)+'" y2="'+gy+'" stroke="rgba(122,92,58,.12)" stroke-width="0.5"/>';
+    out+='<text x="'+(pad.l-4)+'" y="'+(gy+4)+'" text-anchor="end" fill="#7a5c3a" font-family="Crimson Text" font-size="9">'+svgEur(gv)+'</text>';
+  }
+  // X Labels
+  var step=Math.max(1,Math.ceil(rC.length/7));
+  rC.forEach(function(r,i){if(i%step===0||i===rC.length-1){var x=pad.l+i*xS;out+='<text x="'+x+'" y="'+(pad.t+h+16)+'" text-anchor="middle" fill="#7a5c3a" font-family="Crimson Text" font-size="9">'+r.datum+'</text>';}});
+  // Vorjahr
+  if(rP.length){var pvP=rP.slice(0,rC.length).map(function(r,i){return (pad.l+i*(rC.length>1?w/(rC.length-1):w))+','+sy(r.umsatz);});out+='<polyline points="'+pvP.join(' ')+'" stroke="#c9b07a" stroke-width="1.5" stroke-dasharray="4,3" fill="none" opacity="0.7"/>';}
+  // Area + Line
+  var pts=rC.map(function(r,i){return{x:pad.l+i*xS,y:sy(r.umsatz)};});
+  var area=pts.map(function(p,i){return(i===0?'M':'L')+p.x+','+p.y;}).join(' ')+' L'+pts[pts.length-1].x+','+(pad.t+h)+' L'+pts[0].x+','+(pad.t+h)+' Z';
+  var line=pts.map(function(p,i){return(i===0?'M':'L')+p.x+','+p.y;}).join(' ');
+  out+='<path d="'+area+'" fill="url(#lg1)"/>';
+  out+='<path d="'+line+'" stroke="#8b1a1a" stroke-width="2" fill="none"/>';
+  pts.forEach(function(p){out+='<circle cx="'+p.x+'" cy="'+p.y+'" r="3" fill="#8b1a1a"/>';});
+  out+='<line x1="'+pad.l+'" y1="'+pad.t+'" x2="'+pad.l+'" y2="'+(pad.t+h)+'" stroke="#c9b07a" stroke-width="0.5"/>';
+  wrap.innerHTML='<svg width="'+W+'" height="'+H+'">'+out+'</svg>';
+}
+
+function renderSvgDonut(tB, tE) {
+  var wrap = document.getElementById('dc-wrap');
+  if (!wrap) return;
+  var W=wrap.offsetWidth||220, H=100, cx=W/2, cy=H/2-8, r=36, iR=24;
+  var tot=tB+tE||1;
+  var bA=(tB/tot)*Math.PI*2, eA=(tE/tot)*Math.PI*2;
+  function arc(cx,cy,r,start,end,color){
+    var x1=cx+r*Math.cos(start-Math.PI/2), y1=cy+r*Math.sin(start-Math.PI/2);
+    var x2=cx+r*Math.cos(end-Math.PI/2),   y2=cy+r*Math.sin(end-Math.PI/2);
+    var xi1=cx+iR*Math.cos(end-Math.PI/2), yi1=cy+iR*Math.sin(end-Math.PI/2);
+    var xi2=cx+iR*Math.cos(start-Math.PI/2),yi2=cy+iR*Math.sin(start-Math.PI/2);
+    var lg=(end-start)>Math.PI?1:0;
+    return '<path d="M'+x1+','+y1+' A'+r+','+r+' 0 '+lg+',1 '+x2+','+y2+' L'+xi1+','+yi1+' A'+iR+','+iR+' 0 '+lg+',0 '+xi2+','+yi2+' Z" fill="'+color+'"/>';
+  }
+  var out = arc(cx,cy,r,0,bA,'#c9950a') + arc(cx,cy,r,bA,bA+eA,'#1a2d4a');
+  // Legende
+  var ly=H-6;
+  out+='<rect x="'+(cx-40)+'" y="'+(ly-8)+'" width="8" height="8" fill="#c9950a" rx="1"/>';
+  out+='<text x="'+(cx-28)+'" y="'+ly+'" fill="#7a5c3a" font-family="Crimson Text" font-size="10">Bar '+Math.round(tB/tot*100)+'%</text>';
+  out+='<rect x="'+(cx+20)+'" y="'+(ly-8)+'" width="8" height="8" fill="#1a2d4a" rx="1"/>';
+  out+='<text x="'+(cx+32)+'" y="'+ly+'" fill="#7a5c3a" font-family="Crimson Text" font-size="10">EC '+Math.round(tE/tot*100)+'%</text>';
+  wrap.innerHTML='<svg width="'+W+'" height="'+H+'">'+out+'</svg>';
+}
+
+function renderSvgStack(rC) {
+  var wrap = document.getElementById('sc-wrap');
+  if (!wrap) return;
+  var W=wrap.offsetWidth||320, H=160;
+  var pad={l:46,r:8,t:20,b:28};
+  var w=W-pad.l-pad.r, h=H-pad.t-pad.b;
+  if (!rC.length) { wrap.innerHTML='<svg width="'+W+'" height="'+H+'"><text x="50%" y="50%" text-anchor="middle" fill="#7a5c3a" font-family="Crimson Text" font-style="italic" font-size="13">Keine Daten</text></svg>'; return; }
+  var mx=Math.max.apply(null,rC.map(function(r){return r.bar+r.ec;}).concat([1]));
+  var bW=Math.max(4,(w/rC.length)*0.7), gap=w/rC.length;
+  var out='';
+  // Legende
+  out+='<rect x="'+pad.l+'" y="3" width="8" height="8" fill="#c9950a" rx="1"/>';
+  out+='<text x="'+(pad.l+11)+'" y="10" fill="#7a5c3a" font-family="Crimson Text" font-size="9">Bar</text>';
+  out+='<rect x="'+(pad.l+34)+'" y="3" width="8" height="8" fill="#1a2d4a" rx="1"/>';
+  out+='<text x="'+(pad.l+45)+'" y="10" fill="#7a5c3a" font-family="Crimson Text" font-size="9">EC</text>';
+  // Grid
+  for(var i=0;i<=4;i++){
+    var gv=mx*i/4, gy=pad.t+h-h*i/4;
+    out+='<line x1="'+pad.l+'" y1="'+gy+'" x2="'+(pad.l+w)+'" y2="'+gy+'" stroke="rgba(122,92,58,.12)" stroke-width="0.5"/>';
+    out+='<text x="'+(pad.l-4)+'" y="'+(gy+4)+'" text-anchor="end" fill="#7a5c3a" font-family="Crimson Text" font-size="9">'+svgEur(gv)+'</text>';
+  }
+  // X Labels
+  var step=Math.max(1,Math.ceil(rC.length/9));
+  rC.forEach(function(r,i){if(i%step===0||i===rC.length-1){var x=pad.l+i*gap+gap/2;out+='<text x="'+x+'" y="'+(pad.t+h+16)+'" text-anchor="middle" fill="#7a5c3a" font-family="Crimson Text" font-size="9">'+r.datum+'</text>';}});
+  // Balken
+  rC.forEach(function(r,i){
+    var x=pad.l+i*gap+(gap-bW)/2;
+    var hB=(r.bar/mx)*h, hE=(r.ec/mx)*h;
+    out+='<rect x="'+x+'" y="'+(pad.t+h-hB-hE)+'" width="'+bW+'" height="'+hE+'" fill="#1a2d4a" rx="2"/>';
+    out+='<rect x="'+x+'" y="'+(pad.t+h-hB)+'" width="'+bW+'" height="'+hB+'" fill="#c9950a" rx="2"/>';
   });
+  out+='<line x1="'+pad.l+'" y1="'+pad.t+'" x2="'+pad.l+'" y2="'+(pad.t+h)+'" stroke="#c9b07a" stroke-width="0.5"/>';
+  wrap.innerHTML='<svg width="'+W+'" height="'+H+'">'+out+'</svg>';
 }
 
 // ══════════════════════════════════════════════════════
