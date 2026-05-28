@@ -1032,22 +1032,76 @@ function exportPDF() {
   window._pdfHtml = html;
   window._pdfExportReady = true;
 
-  // Im Browser: in neuem Tab öffnen → dort Teilen/Drucken → PDF
+  // In Scriptable: dort wird das Signal vom Starter-Script abgeholt (QuickLook)
   var isScriptable = (typeof window.importModule !== 'undefined');
-  if (!isScriptable) {
-    var w = window.open('', '_blank');
-    if (w) {
-      w.document.open();
-      w.document.write(html);
-      w.document.close();
-    } else {
-      var blob = new Blob([html], { type: 'text/html' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url; a.target = '_blank'; a.click();
-      setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
-    }
+  if (isScriptable) return;
+
+  // Im Browser / als Homescreen-App: unsichtbares iframe + Apples Druck-/Vorschau
+  // (kein window.open — das friert im PWA-Vollbildmodus ein)
+  showPdfPreview(html);
+}
+
+// Öffnet die PDF-Ansicht über Apples native Druck-/Vorschau
+// Von dort: „Teilen → In Dateien sichern" oder als PDF speichern.
+function showPdfPreview(html) {
+  // Vorhandenes iframe entfernen
+  var old = document.getElementById('pdf-frame');
+  if (old && old.parentNode) old.parentNode.removeChild(old);
+
+  var iframe = document.createElement('iframe');
+  iframe.id = 'pdf-frame';
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '1px';
+  iframe.style.height = '1px';
+  iframe.style.opacity = '0';
+  iframe.style.border = '0';
+  iframe.style.pointerEvents = 'none';
+  document.body.appendChild(iframe);
+
+  var btn = document.getElementById('pdf-btn');
+  if (btn) {
+    btn.textContent = '\u23F3 Vorschau wird vorbereitet\u2026';
+    btn.disabled = true;
   }
+
+  var doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  // Warten bis Inhalt + Schriften geladen sind, dann drucken/vorschau
+  var done = false;
+  function fire() {
+    if (done) return;
+    done = true;
+    try {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    } catch (e) {
+      // Fallback: in gleichem Tab anzeigen (kein window.open)
+      try {
+        var blob = new Blob([html], { type: 'text/html' });
+        location.href = URL.createObjectURL(blob);
+      } catch (e2) {}
+    }
+    if (btn) {
+      setTimeout(function () {
+        btn.textContent = '\uD83D\uDCDC Dashboard als PDF speichern';
+        btn.disabled = false;
+      }, 1500);
+    }
+    // iframe nach dem Druckdialog wieder entfernen
+    setTimeout(function () {
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+    }, 60000);
+  }
+
+  // iframe onload + Sicherheits-Timeout (Schriften)
+  iframe.onload = function () { setTimeout(fire, 500); };
+  setTimeout(fire, 1500);
 }
 
 // SVG-Builder die einen String zurückgeben (für PDF)
