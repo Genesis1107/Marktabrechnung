@@ -10,18 +10,18 @@
 <title>MPS Marktchronik</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=IM+Fell+English:ital@0;1&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <style>
-:root{--p:#f2e8d0;--p2:#e8d9b5;--pd:#c9b07a;--ink:#2c1a0e;--im:#7a5c3a;--if:#a8865a;--cr:#8b1a1a;--cr2:#b22222;--go:#8b6914;--gl:#c9950a;--fo:#2d5016;--ib:#1a2d4a;--bdr:#8b6914}
+:root{--p:#f2e8d0;--p2:#e8d9b5;--pd:#c9b07a;--ink:#2c1a0e;--im:#7a5c3a;--if:#a8865a;--cr:#8b1a1a;--cr2:#b22222;--go:#8b6914;--gl:#c9950a;--fo:#2d5016;--ib:#1a2d4a;--bdr:#8b6914;--safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px)}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden}
 body{background:var(--p2);color:var(--ink);font-family:'Crimson Text',serif;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E")}
 #app{display:flex;flex-direction:column;height:100%;height:100dvh}
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 18px 10px;background:var(--ink);border-bottom:2px solid var(--bdr);flex-shrink:0}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:calc(12px + var(--safe-top)) 18px 10px;background:var(--ink);border-bottom:2px solid var(--bdr);flex-shrink:0}
 .topbar-title{font-family:'Cinzel',serif;font-size:15px;font-weight:900;color:var(--p);letter-spacing:3px;display:flex;align-items:center;gap:8px}
 .topbar-title span{color:var(--gl);font-size:18px}
 .topbar-actions{display:flex;gap:8px}
 .tbtn{padding:6px 14px;border-radius:2px;border:1px solid var(--bdr);background:transparent;color:var(--pd);font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;cursor:pointer;transition:all .2s}
 .tbtn:hover,.tbtn.active{background:var(--cr);color:var(--p);border-color:var(--cr)}
-.screen{display:none;flex:1;overflow-y:auto;padding:18px}
+.screen{display:none;flex:1;overflow-y:auto;padding:18px;padding-bottom:calc(18px + var(--safe-bottom))}
 .screen.active{display:block}
 .screen::-webkit-scrollbar{width:3px}
 .screen::-webkit-scrollbar-thumb{background:var(--pd);border-radius:2px}
@@ -50,13 +50,10 @@ body{background:var(--p2);color:var(--ink);font-family:'Crimson Text',serif;back
 .field input:focus,textarea:focus{border-color:var(--cr)}
 textarea{font-family:'IM Fell English',serif;font-style:italic;font-size:15px;resize:vertical;min-height:90px}
 .auto-field{background:var(--p2)!important;color:var(--im)!important;font-style:italic}
-.fahrer-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.fahrer-tag{display:inline-flex;align-items:center;gap:6px;background:var(--p2);border:1px solid var(--pd);border-radius:2px;padding:4px 10px;font-family:'Cinzel',serif;font-size:10px;color:var(--ink)}
-.fahrer-tag button{background:none;border:none;cursor:pointer;color:var(--im);font-size:15px;padding:0;line-height:1}
-.fahrer-tag button:active{color:var(--cr)}
-.fahrer-input-row{display:flex;gap:8px;margin-top:6px}
-.fahrer-input-row input{flex:1}
-.fahrer-input-row button{padding:0 14px;background:var(--cr);color:var(--p);border:1px solid var(--cr2);border-radius:2px;font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;cursor:pointer;white-space:nowrap}
+.fahrer-choice{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.fahrer-chip{padding:8px 14px;border:1px solid var(--pd);border-radius:2px;background:var(--p);color:var(--im);font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;cursor:pointer;transition:all .15s;-webkit-user-select:none;user-select:none}
+.fahrer-chip.sel{background:var(--cr);color:var(--p);border-color:var(--cr2)}
+.fahrer-chip:active{transform:scale(.96)}
 .entry-list{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
 .entry-row{display:flex;align-items:center;background:var(--p);border:1px solid var(--pd);border-radius:2px;padding:10px 14px;gap:10px}
 .entry-date{font-family:'Cinzel',serif;font-size:11px;color:var(--im);min-width:46px}
@@ -135,7 +132,26 @@ tbody td:first-child{text-align:left;color:var(--im);font-style:italic}
 .empty-icon{font-size:48px;margin-bottom:12px;opacity:.4}
 .empty-text{font-size:16px;margin-bottom:6px}
 .empty-hint{font-size:13px;color:var(--if)}
+.dash-mid-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
 @media(min-width:600px){.kpi-row{grid-template-columns:repeat(4,1fr)}.k-cards{grid-template-columns:repeat(3,1fr)}}
+/* ── iPhone / schmale Telefone ── */
+@media(max-width:480px){
+  .screen{padding:14px;padding-bottom:calc(14px + var(--safe-bottom))}
+  .topbar{padding-left:14px;padding-right:14px}
+  .topbar-title{font-size:13px;letter-spacing:1.5px}
+  .topbar-title span{font-size:16px}
+  .tbtn{padding:7px 11px;font-size:9px;letter-spacing:.5px}
+  .topbar-actions{gap:6px}
+  .dash-mid-grid{grid-template-columns:1fr}
+  .dash-title{font-size:21px;letter-spacing:2px}
+  .kpi-v{font-size:18px}
+  .kpi-row{gap:8px}
+  .k-umsatz{font-size:18px}
+  .markt-grid{grid-template-columns:1fr;gap:12px}
+  .modal{padding:24px 18px}
+  .fahrer-chip{padding:9px 14px;font-size:11px}
+  .yb{padding:6px 16px}
+}
 </style>
 </head>
 <body>
@@ -172,10 +188,23 @@ tbody td:first-child{text-align:left;color:var(--im);font-style:italic}
     </div>
     <div class="sec-title" id="eintraege-count">Einträge</div>
     <div class="entry-list" id="entry-list"></div>
-    <div class="sec-title">📜 Notizen für nächste Saison</div>
-    <div class="field" style="margin-bottom:14px">
-      <textarea id="e-notiz" placeholder="Hinweise, Besonderheiten, To-Dos für die nächste Saison…" oninput="saveNotiz()"></textarea>
+
+    <div class="sec-title">⚜ Saison verwalten</div>
+    <div style="background:var(--p);border:1px solid var(--pd);border-radius:2px;padding:16px 18px;margin-bottom:16px">
+      <div class="field" style="margin-bottom:14px">
+        <label>Saison / Jahr</label>
+        <select id="e-saison-sel" onchange="onSaisonChange()"></select>
+      </div>
+      <div class="field" style="margin-bottom:14px">
+        <label>Marktfahrer dieser Saison</label>
+        <div class="fahrer-choice" id="e-fahrer-choice"></div>
+      </div>
+      <div class="field">
+        <label>Notizen dieser Saison</label>
+        <textarea id="e-notiz" placeholder="Hinweise, Besonderheiten, To-Dos für diese Saison…" oninput="saveSaisonNotiz()"></textarea>
+      </div>
     </div>
+
     <button class="danger-btn" onclick="askDeleteMarkt()">🗑 Diesen Markt löschen</button>
   </div>
 
@@ -201,7 +230,7 @@ tbody td:first-child{text-align:left;color:var(--im);font-style:italic}
       <div class="kpi-card" data-g="⚖" style="--ca:var(--fo)"><div class="kpi-l">EC-Anteil Ø</div><div class="kpi-v" id="k-p">–</div><div class="kpi-d dneu" id="d-p">–</div></div>
     </div>
     <div class="card"><div class="ct">Tagesumsatz Verlauf</div><div id="lc-wrap" style="width:100%;min-height:180px"></div></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+    <div class="dash-mid-grid">
       <div class="card" style="margin-bottom:0">
         <div class="ct">Zahlungsarten</div>
         <div class="pay-bar"><div class="pbl"><span>Bar</span><span id="pb-b">–</span></div><div class="pbt"><div class="pbf" id="pf-b" style="background:var(--gl);width:0"></div></div></div>
@@ -226,7 +255,7 @@ tbody td:first-child{text-align:left;color:var(--im);font-style:italic}
       <div class="tbl-wrap"><table><thead><tr><th>Datum</th><th>Umsatz</th><th>Bar</th><th>EC</th><th>EC%</th></tr></thead><tbody id="tbl-body"></tbody></table></div>
     </div>
     <div class="notiz-box" id="dash-notiz-box" style="display:none">
-      <div class="notiz-box-title">📜 Notizen für nächste Saison</div>
+      <div class="notiz-box-title" id="dash-notiz-title">📜 Notizen</div>
       <div class="notiz-box-text" id="dash-notiz-text"></div>
     </div>
   </div>
@@ -240,18 +269,7 @@ tbody td:first-child{text-align:left;color:var(--im);font-style:italic}
     <div class="rd"></div>
     <div class="field" style="margin-bottom:12px"><label>Marktname</label><input type="text" id="m-name" placeholder="z.B. Rastede MPS"></div>
     <div class="field" style="margin-bottom:12px"><label>Region / Ort</label><input type="text" id="m-region" placeholder="z.B. Niedersachsen"></div>
-    <div class="field" style="margin-bottom:12px">
-      <label>Marktfahrer</label>
-      <div class="fahrer-input-row">
-        <input type="text" id="m-fahrer-input" placeholder="Name eingeben">
-        <button onclick="addFahrer()">+ Add</button>
-      </div>
-      <div class="fahrer-wrap" id="m-fahrer-list"></div>
-    </div>
-    <div class="field" style="margin-bottom:12px">
-      <label>Notizen für nächstes Jahr</label>
-      <textarea id="m-notiz" placeholder="Hinweise, Besonderheiten, To-Dos…"></textarea>
-    </div>
+    <div style="font-family:'IM Fell English',serif;font-style:italic;font-size:12px;color:var(--im);margin-bottom:4px">Marktfahrer und Notizen legst du je Saison im Bereich „Eingabe" fest.</div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="closeModal('modal-markt')">Abbrechen</button>
       <button class="btn btn-primary" onclick="createMarkt()">⚔ Anlegen</button>
@@ -290,6 +308,7 @@ tbody td:first-child{text-align:left;color:var(--im);font-style:italic}
 var COLORS = ['#8b1a1a','#2d5016','#1a2d4a','#8b6914','#5a2d6e','#4a3020','#6e4a1a'];
 var GLYPHS = ['\u2694','\uD83C\uDFF0','\u269C','\uD83D\uDDE1','\uD83D\uDEE1','\uD83D\uDD31','\u2691'];
 var LS_KEY = 'mps_marktchronik_v1';
+var FAHRER_LISTE = ['Andy', 'Jochen', 'Matthias', 'Karo', 'Laurin', 'Frenk'];
 
 // ════════════════════════════════════════════════════════
 //  STATE
@@ -298,7 +317,7 @@ var state = { maerkte: [], eintraege: [], nextMarktId: 1, nextEintragId: 1 };
 var activeMarktId = null;
 var activeYear = null;
 var deleteEintragTarget = null;
-var modalFahrer = [];
+var eingabeYear = null;
 
 // ════════════════════════════════════════════════════════
 //  DATEN LADEN / SPEICHERN
@@ -311,11 +330,51 @@ function loadData() {
       if (d && Array.isArray(d.maerkte) && Array.isArray(d.eintraege)) {
         if (typeof d.nextMarktId !== 'number')   d.nextMarktId = d.maerkte.length + 1;
         if (typeof d.nextEintragId !== 'number') d.nextEintragId = d.eintraege.length + 1;
+        migrateSaisons(d);
         return d;
       }
     }
   } catch (e) {}
   return { maerkte: [], eintraege: [], nextMarktId: 1, nextEintragId: 1 };
+}
+
+// Migration: alte markt-weite fahrer/notiz -> pro-Saison-Struktur
+function migrateSaisons(d) {
+  d.maerkte.forEach(function (m) {
+    if (!m.saisons || typeof m.saisons !== 'object') m.saisons = {};
+    // Jahre dieses Marktes aus Einträgen
+    var jahre = {};
+    d.eintraege.forEach(function (e) {
+      if (e.marktId === m.id) jahre[String(e.jahr || String(e.datum).split('-')[0])] = true;
+    });
+    var jahrListe = Object.keys(jahre);
+    var hatAlt = (Array.isArray(m.fahrer) && m.fahrer.length) || (m.notiz && String(m.notiz).trim());
+    if (hatAlt) {
+      var ziele = jahrListe.length ? jahrListe : [String(new Date().getFullYear())];
+      ziele.forEach(function (jy) {
+        if (!m.saisons[jy]) m.saisons[jy] = { fahrer: [], notiz: '' };
+        if ((!m.saisons[jy].fahrer || !m.saisons[jy].fahrer.length) && Array.isArray(m.fahrer)) {
+          m.saisons[jy].fahrer = m.fahrer.slice();
+        }
+        if ((!m.saisons[jy].notiz) && m.notiz) {
+          m.saisons[jy].notiz = m.notiz;
+        }
+      });
+    }
+    // Alte Felder entfernen
+    delete m.fahrer;
+    delete m.notiz;
+  });
+}
+
+// Liefert (und legt bei Bedarf an) das Saison-Objekt für Markt+Jahr
+function getSaison(m, jahr) {
+  if (!m.saisons) m.saisons = {};
+  var key = String(jahr);
+  if (!m.saisons[key]) m.saisons[key] = { fahrer: [], notiz: '' };
+  if (!Array.isArray(m.saisons[key].fahrer)) m.saisons[key].fahrer = [];
+  if (typeof m.saisons[key].notiz !== 'string') m.saisons[key].notiz = '';
+  return m.saisons[key];
 }
 
 function saveData() {
@@ -489,36 +548,9 @@ function openMarkt(id) {
 }
 
 function openMarktModal() {
-  modalFahrer = [];
-  renderFahrerTags();
   document.getElementById('m-name').value = '';
   document.getElementById('m-region').value = '';
-  document.getElementById('m-notiz').value = '';
-  document.getElementById('m-fahrer-input').value = '';
   openModal('modal-markt');
-}
-
-function addFahrer() {
-  var inp = document.getElementById('m-fahrer-input');
-  var name = inp.value.trim();
-  if (!name) return;
-  if (modalFahrer.indexOf(name) < 0) modalFahrer.push(name);
-  inp.value = '';
-  renderFahrerTags();
-}
-
-function removeFahrer(idx) {
-  modalFahrer.splice(idx, 1);
-  renderFahrerTags();
-}
-
-function renderFahrerTags() {
-  var list = document.getElementById('m-fahrer-list');
-  if (!list) return;
-  var html = modalFahrer.map(function (f, i) {
-    return '<div class="fahrer-tag">' + esc(f) + '<button onclick="removeFahrer(' + i + ')">\u00d7</button></div>';
-  }).join('');
-  list.innerHTML = html;
 }
 
 function createMarkt() {
@@ -530,15 +562,13 @@ function createMarkt() {
     id: state.nextMarktId++,
     name: name,
     region: region,
-    fahrer: modalFahrer.slice(),
-    notiz: document.getElementById('m-notiz').value.trim(),
+    saisons: {},
     color: COLORS[idx],
     glyph: GLYPHS[idx],
     createdAt: new Date().toISOString()
   });
   saveData();
   closeModal('modal-markt');
-  modalFahrer = [];
   renderOverview();
 }
 
@@ -559,14 +589,77 @@ function confirmDeleteMarkt() {
 // ════════════════════════════════════════════════════════
 function goEingabe() {
   var m = findMarkt(activeMarktId);
-  if (m) {
-    document.getElementById('eingabe-title').textContent = m.name;
-    document.getElementById('e-notiz').value = m.notiz || '';
-  }
+  if (m) document.getElementById('eingabe-title').textContent = m.name;
   document.getElementById('f-datum').value = todayISO();
   renderEintraege();
+  renderSaisonPanel();
   showScreen('eingabe');
   document.getElementById('btn-eingabe').classList.add('active');
+}
+
+// Liste wählbarer Jahre: Jahre mit Einträgen + aktuelles Jahr
+function eingabeYearOptions() {
+  var alle = state.eintraege.filter(function (e) { return e.marktId === activeMarktId; });
+  var ys = uniqueYears(alle);
+  var cy = new Date().getFullYear();
+  if (ys.indexOf(cy) < 0) ys.push(cy);
+  ys.sort(function (a, b) { return b - a; });
+  return ys;
+}
+
+// Saison-Panel (Jahr-Auswahl + Fahrer + Notiz) aufbauen
+function renderSaisonPanel() {
+  var ys = eingabeYearOptions();
+  if (eingabeYear === null || ys.indexOf(eingabeYear) < 0) eingabeYear = ys[0];
+  var sel = document.getElementById('e-saison-sel');
+  sel.innerHTML = ys.map(function (y) {
+    return '<option value="' + y + '"' + (y === eingabeYear ? ' selected' : '') + '>' + y + '</option>';
+  }).join('');
+  renderEingabeFahrer();
+  renderEingabeNotiz();
+}
+
+function onSaisonChange() {
+  eingabeYear = parseInt(document.getElementById('e-saison-sel').value, 10);
+  renderEingabeFahrer();
+  renderEingabeNotiz();
+}
+
+function renderEingabeFahrer() {
+  var box = document.getElementById('e-fahrer-choice');
+  if (!box) return;
+  var m = findMarkt(activeMarktId);
+  if (!m) { box.innerHTML = ''; return; }
+  var s = getSaison(m, eingabeYear);
+  box.innerHTML = FAHRER_LISTE.map(function (name) {
+    var on = s.fahrer.indexOf(name) >= 0 ? ' sel' : '';
+    return '<div class="fahrer-chip' + on + '" onclick="toggleSaisonFahrer(\'' + name + '\')">' + esc(name) + '</div>';
+  }).join('');
+}
+
+function toggleSaisonFahrer(name) {
+  var m = findMarkt(activeMarktId);
+  if (!m) return;
+  var s = getSaison(m, eingabeYear);
+  var i = s.fahrer.indexOf(name);
+  if (i < 0) s.fahrer.push(name);
+  else s.fahrer.splice(i, 1);
+  saveData();
+  renderEingabeFahrer();
+}
+
+function renderEingabeNotiz() {
+  var m = findMarkt(activeMarktId);
+  var ta = document.getElementById('e-notiz');
+  if (!m || !ta) return;
+  ta.value = getSaison(m, eingabeYear).notiz || '';
+}
+
+function saveSaisonNotiz() {
+  var m = findMarkt(activeMarktId);
+  if (!m) return;
+  getSaison(m, eingabeYear).notiz = document.getElementById('e-notiz').value;
+  saveData();
 }
 
 function todayISO() {
@@ -609,6 +702,7 @@ function addEintrag() {
   document.getElementById('f-ec').value = '';
   document.getElementById('f-total').value = '';
   renderEintraege();
+  renderSaisonPanel();
 }
 
 function renderEintraege() {
@@ -644,13 +738,6 @@ function confirmDeleteEintrag() {
   renderEintraege();
 }
 
-function saveNotiz() {
-  var m = findMarkt(activeMarktId);
-  if (!m) return;
-  m.notiz = document.getElementById('e-notiz').value;
-  saveData();
-}
-
 // ════════════════════════════════════════════════════════
 //  DASHBOARD
 // ════════════════════════════════════════════════════════
@@ -667,18 +754,6 @@ function renderDashboard() {
 
   document.getElementById('dash-name').textContent = m.name;
   document.getElementById('dash-meta').textContent = (m.region || '') + ' \u00b7 ' + alle.length + ' Eintr\u00e4ge';
-
-  var fEl = document.getElementById('dash-fahrer');
-  fEl.textContent = (m.fahrer && m.fahrer.length) ? '\u2694 ' + m.fahrer.join(' \u00b7 ') : '';
-
-  var nBox = document.getElementById('dash-notiz-box');
-  var nTxt = document.getElementById('dash-notiz-text');
-  if (m.notiz && m.notiz.trim()) {
-    nTxt.textContent = m.notiz;
-    nBox.style.display = 'block';
-  } else {
-    nBox.style.display = 'none';
-  }
 
   var ys = uniqueYears(alle);
   if (!ys.length) {
@@ -720,6 +795,24 @@ function setKpiDash(aU, aB, aE, aP, prevY, pU, pB, pE, pP) {
 
 function renderDashYear(alle, ys) {
   var cur = alle.filter(function (e) { return jahrOf(e) === activeYear; });
+
+  // Marktfahrer + Notiz der gewählten Saison
+  var m = findMarkt(activeMarktId);
+  var saison = m ? getSaison(m, activeYear) : { fahrer: [], notiz: '' };
+  var fEl = document.getElementById('dash-fahrer');
+  if (fEl) fEl.textContent = (saison.fahrer && saison.fahrer.length) ? '\u2694 ' + saison.fahrer.join(' \u00b7 ') : '';
+  var nBox = document.getElementById('dash-notiz-box');
+  var nTxt = document.getElementById('dash-notiz-text');
+  if (nBox && nTxt) {
+    if (saison.notiz && saison.notiz.trim()) {
+      nTxt.textContent = saison.notiz;
+      var nTit = document.getElementById('dash-notiz-title');
+      if (nTit) nTit.textContent = '\uD83D\uDCDC Notizen f\u00fcr die Saison ' + activeYear;
+      nBox.style.display = 'block';
+    } else {
+      nBox.style.display = 'none';
+    }
+  }
   var prevY = null;
   for (var i = 0; i < ys.length; i++) { if (ys[i] < activeYear) { prevY = ys[i]; break; } }
   var prev = prevY ? alle.filter(function (e) { return jahrOf(e) === prevY; }) : [];
@@ -984,8 +1077,9 @@ function exportPDF() {
 
   var bPct = tot > 0 ? Math.round(tB / tot * 100) : 0;
   var ePct = tot > 0 ? Math.round(tE / tot * 100) : 0;
-  var fahrerLine = (m.fahrer && m.fahrer.length) ? '<div style="font-family:IM Fell English,serif;font-style:italic;font-size:13px;color:#7a5c3a;margin-top:4px">\u2694 ' + m.fahrer.map(esc).join(' \u00b7 ') + '</div>' : '';
-  var notizBox = (m.notiz && m.notiz.trim()) ? '<div style="background:#f2e8d0;border:1px solid #c9b07a;border-left:3px solid #8b6914;border-radius:2px;padding:14px 16px;margin-top:12px"><div style="font-family:Cinzel,serif;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8b6914;margin-bottom:8px">\uD83D\uDCDC Notizen f\u00fcr n\u00e4chste Saison</div><div style="font-family:IM Fell English,serif;font-style:italic;font-size:14px;color:#2c1a0e;line-height:1.7;white-space:pre-wrap">' + esc(m.notiz) + '</div></div>' : '';
+  var saison = getSaison(m, activeYear);
+  var fahrerLine = (saison.fahrer && saison.fahrer.length) ? '<div style="font-family:IM Fell English,serif;font-style:italic;font-size:13px;color:#7a5c3a;margin-top:4px">\u2694 ' + saison.fahrer.map(esc).join(' \u00b7 ') + '</div>' : '';
+  var notizBox = (saison.notiz && saison.notiz.trim()) ? '<div style="background:#f2e8d0;border:1px solid #c9b07a;border-left:3px solid #8b6914;border-radius:2px;padding:14px 16px;margin-top:12px"><div style="font-family:Cinzel,serif;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8b6914;margin-bottom:8px">\uD83D\uDCDC Notizen f\u00fcr die Saison ' + activeYear + '</div><div style="font-family:IM Fell English,serif;font-style:italic;font-size:14px;color:#2c1a0e;line-height:1.7;white-space:pre-wrap">' + esc(saison.notiz) + '</div></div>' : '';
 
   var html = '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">'
     + '<meta name="viewport" content="width=device-width,initial-scale=1.0">'
@@ -1173,14 +1267,6 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 // ════════════════════════════════════════════════════════
 function init() {
   state = loadData();
-
-  // Enter-Taste im Marktfahrer-Feld
-  var fInp = document.getElementById('m-fahrer-input');
-  if (fInp) {
-    fInp.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); addFahrer(); }
-    });
-  }
 
   // Modal-Overlay Klick schließt
   var overlays = document.querySelectorAll('.modal-overlay');
