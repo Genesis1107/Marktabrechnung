@@ -893,30 +893,32 @@ h1.print-title,.print-meta{display:none}
           </div>
         </div>
 
-        <!-- Manuelle Eingabe -->
-        <div class="sec">Eintrag manuell</div>
-        <div class="card">
-          <div class="sync-bar"><div class="sync-dot"></div><span id="chronik-sync">Bereit</span></div>
-          <div class="form-row">
-            <div class="field"><label>Datum</label><input type="date" id="f-datum"></div>
-            <div class="field"><label>Kutsche</label><input type="text" id="f-kutsche" placeholder="K1" value="K1"></div>
-          </div>
-          <div class="form-row triple">
-            <div class="field"><label>Bar (€)</label><input type="number" id="f-bar" placeholder="0,00" step="0.01" min="0" inputmode="decimal" oninput="calcChronikTotal()"></div>
-            <div class="field"><label>EC (€)</label><input type="number" id="f-ec" placeholder="0,00" step="0.01" min="0" inputmode="decimal" oninput="calcChronikTotal()"></div>
-            <div class="field"><label>Umsatz</label><input type="text" id="f-total" class="auto-field" readonly></div>
-          </div>
-          <button class="btn btn-primary" onclick="addChronikEintrag()">⚔ Hinzufügen</button>
-        </div>
-        <div class="sec" id="eintraege-count">Einträge</div>
-        <div id="entry-list"></div>
-        <button class="btn btn-danger" onclick="askDeleteMarkt()">🗑 Diesen Markt löschen</button>
+        <button class="btn btn-danger" style="margin-top:8px" onclick="askDeleteMarkt()">🗑 Diesen Markt löschen</button>
       </div>
 
     </div><!-- /content -->
   </div><!-- /screen-detail -->
 
 </div><!-- /app -->
+
+<!-- PDF-VORSCHAU MODAL -->
+<div id="modal-pdf" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(30,18,8,.92);overflow-y:auto;padding:16px">
+  <div style="max-width:794px;margin:0 auto">
+    <!-- Toolbar -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px">
+      <div style="font-family:'Cinzel',serif;font-size:0.8rem;letter-spacing:2px;color:var(--p);text-transform:uppercase">⚜ Druckvorschau</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="doPrint()" style="background:var(--cr);color:var(--p);border:none;padding:9px 18px;font-family:'Cinzel',serif;font-size:0.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;border-radius:2px;cursor:pointer">🖨 Drucken</button>
+        <button onclick="closePdfModal()" style="background:rgba(245,233,201,.15);color:var(--p);border:1px solid rgba(245,233,201,.3);padding:9px 18px;font-family:'Cinzel',serif;font-size:0.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;border-radius:2px;cursor:pointer">✕ Schließen</button>
+      </div>
+    </div>
+    <!-- A4-Seite -->
+    <div id="pdf-page" style="background:white;width:100%;max-width:794px;min-height:1123px;margin:0 auto;padding:28mm 20mm 20mm 20mm;box-shadow:0 4px 32px rgba(0,0,0,.5);font-family:'Crimson Text',Georgia,serif;color:#2c1a0e;box-sizing:border-box">
+      <div id="pdf-content"></div>
+    </div>
+    <div style="height:32px"></div>
+  </div>
+</div>
 
 <!-- Bottom Nav (nur auf Startseite sichtbar) -->
 <nav class="bottom-nav" id="bottom-nav">
@@ -2158,19 +2160,204 @@ var LS_BACKUP_TS = 'mps_marktfahrer_backup_ts';
 
 function exportPDF(){
   var m=findMarkt(activeMarktId);
-  document.title=(m?m.name:'Marktchronik')+' – '+activeYear;
-  document.querySelectorAll('.screen').forEach(function(s){
-    s.setAttribute('data-pd',s.style.display||'');
-    if(s.id!=='screen-detail')s.style.display='none';
-    else s.classList.add('active');
+  if(!m)return;
+  var alle=state.eintraege.filter(function(e){return e.marktId===activeMarktId});
+  var ys=uniqueYears(alle);
+  var cur=alle.filter(function(e){return jahrOf(e)===activeYear});
+  var prev=null;
+  for(var i=0;i<ys.length;i++){if(ys[i]<activeYear){prev=alle.filter(function(e){return jahrOf(e)===ys[i]});break}}
+  var rC=groupByDate(cur);
+  var rP=prev?groupByDate(prev):[];
+  var saison=getSaison(m,activeYear);
+  var prevY=rP.length?(ys.filter(function(y){return y<activeYear})[0]||null):null;
+
+  // ── Werte berechnen ──
+  var totU=sm(rC.map(function(r){return r.umsatz}));
+  var avgU=rC.length?totU/rC.length:0;
+  var tB=sm(rC.map(function(r){return r.bar}));
+  var tE=sm(rC.map(function(r){return r.ec}));
+  var tot=tB+tE||1;
+  var ecPct=tE/tot*100;
+  var bestTag=rC.length?rC.reduce(function(a,b){return a.umsatz>b.umsatz?a:b}):null;
+  var WTS=['So','Mo','Di','Mi','Do','Fr','Sa'];
+  var totUP=sm(rP.map(function(r){return r.umsatz}));
+  var avgUP=rP.length?totUP/rP.length:0;
+  var tEP=sm(rP.map(function(r){return r.ec}));
+  var tBP=sm(rP.map(function(r){return r.bar}));
+  var totP=tBP+tEP||1;
+  var ecPctP=prevY?tEP/totP*100:null;
+
+  // ── Notizen ──
+  var notizSrc=prevY?getSaison(m,prevY):null;
+  var notizText=notizSrc&&notizSrc.notiz?notizSrc.notiz.trim():'';
+  var curNotiz=saison&&saison.notiz?saison.notiz.trim():'';
+
+  // ── Jahrestrend ──
+  var trendData=ys.slice().reverse().map(function(y){
+    var einY=alle.filter(function(e){return jahrOf(e)===y});
+    var rY=groupByDate(einY);
+    return{jahr:y,umsatz:sm(rY.map(function(r){return r.umsatz})),tage:rY.length,isCur:y===activeYear};
   });
-  window.print();
-  setTimeout(function(){
-    document.querySelectorAll('.screen').forEach(function(s){
-      var prev=s.getAttribute('data-pd')||'';
-      s.style.display=prev;
-    });
-  },600);
+  var maxTrend=Math.max.apply(null,trendData.map(function(d){return d.umsatz}))||1;
+
+  function fmtDelta(c,p,isPP,py){
+    if(!p||!py)return'';
+    var d=isPP?c-p:(c-p)/p*100;
+    return'<span style="font-size:10px;padding:1px 5px;border-radius:2px;background:'+(d>=0?'rgba(45,80,22,.1)':'rgba(139,26,26,.1)')+';color:'+(d>=0?'#2d5016':'#8b1a1a')+'">'+(d>=0?'▲ ':'▼ ')+Math.abs(d).toFixed(1)+(isPP?'pp':'%')+' ggü. '+py+'</span>';
+  }
+
+  // ── Tages-Karten für PDF ──
+  var maxU2=rC.length?Math.max.apply(null,rC.map(function(r){return r.umsatz})):1;
+  var tageHtml=rC.map(function(r){
+    var wt=new Date(r.rawDatum).getDay();
+    var rel=r.umsatz/maxU2;
+    var isStark=r.umsatz===maxU2;
+    var bg=Math.round(rel*50);
+    return'<div style="background:'+(isStark?'rgba(139,26,26,.07)':'white')+';border:1px solid '+(isStark?'#8b1a1a':'#c9b07a')+';border-top:3px solid '+(isStark?'#8b1a1a':'#c9b07a')+';border-radius:2px;padding:6px 4px;text-align:center;position:relative">'
+      +'<div style="font-family:Cinzel,serif;font-size:7px;letter-spacing:1px;text-transform:uppercase;color:#7a5c3a">'+WTS[wt]+(isStark?' ★':'')+'</div>'
+      +'<div style="font-size:8px;color:#a8865a;margin:1px 0">'+r.datum+'</div>'
+      +'<div style="font-family:Cinzel,serif;font-size:11px;font-weight:700;color:#2c1a0e">'+eur(r.umsatz)+'</div>'
+      +'<div style="font-size:8px;color:#1a2d4a">EC '+pct(r.ecAnteil)+'</div>'
+      +'</div>';
+  }).join('');
+
+  // ── Trend-HTML ──
+  var trendHtml=trendData.map(function(d){
+    var w=d.umsatz/maxTrend*100;
+    var inside=w>35;
+    return'<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">'
+      +'<span style="font-family:Cinzel,serif;font-size:10px;font-weight:600;min-width:36px">'+d.jahr+'</span>'
+      +'<div style="flex:1;height:20px;background:#f2e0c8;border:1px solid #c9b07a;border-radius:1px;position:relative;overflow:hidden">'
+      +'<div style="height:100%;width:'+w+'%;background:'+(d.isCur?'linear-gradient(to right,#2d5016,#3d6b20)':'linear-gradient(to right,#8b1a1a,#a83232)')+';display:flex;align-items:center;padding-left:6px">'
+      +(inside?'<span style="font-family:Cinzel,serif;font-size:9px;font-weight:700;color:white;white-space:nowrap;overflow:hidden">'+eur(d.umsatz)+'</span>':'')
+      +'</div>'
+      +(!inside?'<span style="position:absolute;top:50%;transform:translateY(-50%);left:'+w+'%;margin-left:5px;font-family:Cinzel,serif;font-size:9px;font-weight:600;color:#2c1a0e">'+eur(d.umsatz)+'</span>':'')
+      +'</div>'
+      +'<span style="font-size:9px;color:#7a5c3a;min-width:28px;text-align:right">'+d.tage+'T</span>'
+      +'</div>';
+  }).join('');
+
+  // ── Tabellen-HTML ──
+  var tblRows=rC.map(function(r){
+    var wt=new Date(r.rawDatum).getDay();
+    var isStark=r.umsatz===maxU2;
+    return'<tr style="border-bottom:1px solid #f0e4cc;background:'+(isStark?'rgba(139,26,26,.04)':'white')+'">'
+      +'<td style="padding:4px 6px;font-size:11px;color:#7a5c3a;font-style:italic">'+WTS[wt]+' '+r.datum+'</td>'
+      +'<td style="padding:4px 6px;text-align:right;font-family:Cinzel,serif;font-size:11px;font-weight:700">'+eur(r.umsatz)+(isStark?' ★':'')+'</td>'
+      +'<td style="padding:4px 6px;text-align:right;font-size:11px">'+eur(r.bar)+'</td>'
+      +'<td style="padding:4px 6px;text-align:right;font-size:11px;color:#1a2d4a">'+eur(r.ec)+'</td>'
+      +'<td style="padding:4px 6px;text-align:right;font-size:11px;color:'+(r.ecAnteil>=50?'#2d5016':'#2c1a0e')+'">'+pct(r.ecAnteil)+'</td>'
+      +'</tr>';
+  }).join('');
+
+  // ── HTML zusammenbauen ──
+  var html='';
+
+  // Header
+  html+='<div style="text-align:center;border-bottom:2px solid #8b6914;padding-bottom:12px;margin-bottom:16px">'
+    +'<div style="font-size:14px;letter-spacing:6px;color:#8b6914;margin-bottom:4px">⚔ ⚜ ⚔</div>'
+    +'<div style="font-family:Cinzel,serif;font-size:22px;font-weight:900;letter-spacing:2px">'+esc(m.name)+'</div>'
+    +'<div style="font-family:Georgia,serif;font-style:italic;font-size:12px;color:#7a5c3a;margin-top:3px">Marktchronik · Saison '+activeYear+'</div>'
+    +(saison&&saison.fahrer&&saison.fahrer.length?'<div style="font-family:Georgia,serif;font-style:italic;font-size:11px;color:#a8865a;margin-top:2px">⚔ '+saison.fahrer.join(' · ')+'</div>':'')
+    +'</div>';
+
+  // Notizen
+  if(notizText){
+    html+='<div style="background:rgba(139,105,20,.08);border:1px solid #8b6914;border-left:3px solid #8b6914;border-radius:2px;padding:10px 12px;margin-bottom:14px">'
+      +'<div style="font-family:Cinzel,serif;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8b6914;margin-bottom:5px">📜 Hinweise aus '+prevY+'</div>'
+      +'<div style="font-family:Georgia,serif;font-style:italic;font-size:12px;line-height:1.6;white-space:pre-wrap">'+esc(notizText)+'</div>'
+      +'</div>';
+  }
+
+  // KPIs 2x2
+  function kpiBox(label,val,delta,color){
+    return'<div style="background:white;border:1px solid #c9b07a;border-top:3px solid '+color+';border-radius:2px;padding:10px 12px">'
+      +'<div style="font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:#7a5c3a;margin-bottom:4px">'+label+'</div>'
+      +'<div style="font-family:Cinzel,serif;font-size:18px;font-weight:700;color:#2c1a0e;line-height:1">'+val+'</div>'
+      +(delta?'<div style="margin-top:4px">'+delta+'</div>':'')
+      +'</div>';
+  }
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
+    +kpiBox('Gesamtumsatz',eur(totU),fmtDelta(totU,totUP,false,prevY),'#8b1a1a')
+    +kpiBox('Tagesumsatz Ø',eur(avgU),fmtDelta(avgU,avgUP,false,prevY),'#8b6914')
+    +kpiBox('Markttage',rC.length+(rC.length===1?' Tag':' Tage'),'','#7a5c3a')
+    +kpiBox('Bester Tag',bestTag?eur(bestTag.umsatz):'–',bestTag?'<span style="font-size:10px;color:#7a5c3a">'+WTS[new Date(bestTag.rawDatum).getDay()]+', '+bestTag.datum+'</span>':'','#2d5016')
+    +'</div>';
+
+  // EC-Analyse
+  var barPct=tB/tot*100;
+  html+='<div style="background:white;border:1px solid #c9b07a;border-top:3px solid #1a2d4a;border-radius:2px;padding:10px 12px;margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center">'
+    +'<div><div style="font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:#7a5c3a;margin-bottom:3px">EC-Anteil</div>'
+    +'<div style="font-family:Cinzel,serif;font-size:26px;font-weight:700;color:#1a2d4a">'+pct(ecPct)+'</div>'
+    +(ecPctP!==null?'<div style="margin-top:3px">'+fmtDelta(ecPct,ecPctP,true,prevY)+'</div>':'')+'</div>'
+    +'<div>'
+    +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><span style="font-family:Cinzel,serif;font-size:8px;color:#7a5c3a;min-width:20px">Bar</span><div style="flex:1;height:8px;background:#f2e0c8;border:1px solid #c9b07a;border-radius:1px;overflow:hidden"><div style="height:100%;width:'+barPct+'%;background:#c9950a"></div></div><span style="font-family:Cinzel,serif;font-size:9px;font-weight:600;min-width:34px;text-align:right">'+pct(barPct)+'</span></div>'
+    +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-family:Cinzel,serif;font-size:8px;color:#7a5c3a;min-width:20px">EC</span><div style="flex:1;height:8px;background:#f2e0c8;border:1px solid #c9b07a;border-radius:1px;overflow:hidden"><div style="height:100%;width:'+ecPct+'%;background:#1a2d4a"></div></div><span style="font-family:Cinzel,serif;font-size:9px;font-weight:600;min-width:34px;text-align:right">'+pct(ecPct)+'</span></div>'
+    +'<div style="font-size:10px;color:#7a5c3a;font-style:italic">'+eur(tB)+' Bar · '+eur(tE)+' EC</div>'
+    +'</div></div>';
+
+  // Tagesverlauf
+  if(rC.length){
+    html+='<div style="background:white;border:1px solid #c9b07a;border-radius:2px;padding:10px 12px;margin-bottom:12px">'
+      +'<div style="font-family:Cinzel,serif;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#7a5c3a;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #e8d9b5">Tagesverlauf '+activeYear+' <span style="font-weight:400;letter-spacing:0;font-family:Georgia,serif;font-style:italic;color:#a8865a"> ★ = bester Tag</span></div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:5px">'
+      +tageHtml+'</div></div>';
+  }
+
+  // Jahrestrend (nur wenn >1 Jahr)
+  if(trendData.length>1){
+    html+='<div style="background:white;border:1px solid #c9b07a;border-radius:2px;padding:10px 12px;margin-bottom:12px">'
+      +'<div style="font-family:Cinzel,serif;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#7a5c3a;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #e8d9b5">Jahrestrend – Gesamtumsatz</div>'
+      +trendHtml+'</div>';
+  }
+
+  // Tabelle
+  html+='<div style="background:white;border:1px solid #c9b07a;border-radius:2px;padding:10px 12px;margin-bottom:12px">'
+    +'<div style="font-family:Cinzel,serif;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#7a5c3a;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #e8d9b5">Einzeltage</div>'
+    +'<table style="width:100%;border-collapse:collapse">'
+    +'<thead><tr style="border-bottom:2px solid #c9b07a">'
+    +'<th style="padding:3px 6px;text-align:left;font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#7a5c3a;font-weight:400">Tag</th>'
+    +'<th style="padding:3px 6px;text-align:right;font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#7a5c3a;font-weight:400">Umsatz</th>'
+    +'<th style="padding:3px 6px;text-align:right;font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#7a5c3a;font-weight:400">Bar</th>'
+    +'<th style="padding:3px 6px;text-align:right;font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#7a5c3a;font-weight:400">EC</th>'
+    +'<th style="padding:3px 6px;text-align:right;font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#7a5c3a;font-weight:400">EC%</th>'
+    +'</tr></thead><tbody>'+tblRows+'</tbody></table></div>';
+
+  // Notizen aus aktuellem Jahr
+  if(curNotiz){
+    html+='<div style="background:rgba(139,105,20,.08);border:1px solid #8b6914;border-left:3px solid #8b6914;border-radius:2px;padding:10px 12px;margin-bottom:12px">'
+      +'<div style="font-family:Cinzel,serif;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#8b6914;margin-bottom:5px">📜 Notizen '+activeYear+'</div>'
+      +'<div style="font-family:Georgia,serif;font-style:italic;font-size:12px;line-height:1.6;white-space:pre-wrap">'+esc(curNotiz)+'</div>'
+      +'</div>';
+  }
+
+  // Footer
+  html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
+    +'Marktfahrer App · MPS Beerenweine · Erstellt am '+fmtDate(todayISO())
+    +'</div>';
+
+  // In Modal einfügen und öffnen
+  document.getElementById('pdf-content').innerHTML=html;
+  document.getElementById('modal-pdf').style.display='block';
+  document.getElementById('modal-pdf').scrollTop=0;
+}
+
+function closePdfModal(){
+  document.getElementById('modal-pdf').style.display='none';
+}
+
+function doPrint(){
+  // Für Druck: A4-Seite direkt drucken
+  var content=document.getElementById('pdf-page').innerHTML;
+  var win=window.open('','_blank','width=900,height=700');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">'
+    +'<title>'+document.title+'</title>'
+    +'<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">'
+    +'<style>@page{size:A4;margin:20mm 18mm}body{margin:0;padding:0;font-family:"Crimson Text",Georgia,serif;color:#2c1a0e}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}</style>'
+    +'</head><body>'+content+'</body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(function(){win.print();},600);
 }
 
 function exportBackup(){
