@@ -449,74 +449,63 @@ h1.print-title,.print-meta{display:none}
 <body>
 <div id="app">
 
-  <!-- ════ STARTSEITE: MARKTLISTE ════ -->
+  <!-- ════ STARTSEITE: MARKTLISTE + DATEN ════ -->
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">MPS Beerenweine · Marktchronik</div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v1.2</span></div>
     </div>
-    <div class="markt-grid" id="markt-grid"></div>
-  </div>
-
-  <!-- ════ DATEN / BACKUP ════ -->
-  <div class="screen" id="screen-daten">
-    <div class="page-hdr">
-      <h1>💾 Daten & Backup</h1>
-      <div class="sub">Datensicherung der Marktfahrer App</div>
+    <!-- Märkte-Ansicht -->
+    <div id="view-maerkte">
+      <div class="markt-grid" id="markt-grid"></div>
     </div>
-    <div class="content">
+    <!-- Daten-Ansicht -->
+    <div id="view-daten" style="display:none">
+      <div class="content">
 
-      <div id="backup-warning" style="display:none;background:rgba(139,26,26,.1);border:1px solid var(--cr);border-radius:3px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:var(--cr)">
-        ⚠ Letztes Backup ist mehr als 7 Tage alt – bitte jetzt sichern!
+        <div id="backup-warning" style="display:none;background:rgba(139,26,26,.1);border:1px solid var(--cr);border-radius:3px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:var(--cr)">
+          ⚠ Letztes Backup ist mehr als 7 Tage alt – bitte jetzt sichern!
+        </div>
+
+        <div class="sec">Backup erstellen</div>
+        <div class="card">
+          <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:12px;font-family:'IM Fell English',serif;font-style:italic">Alle Daten als JSON-Datei sichern. Empfehlung: in iCloud Drive ablegen.</p>
+          <div id="backup-info" style="font-size:0.78rem;color:var(--im);font-style:italic;margin-bottom:12px;font-family:'IM Fell English',serif"></div>
+          <button class="btn btn-green" onclick="exportBackup()">⬇ Backup speichern</button>
+        </div>
+
+        <div class="sec">Backup einspielen</div>
+        <div class="card">
+          <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:6px;font-family:'IM Fell English',serif;font-style:italic">JSON-Backup auswählen um alle Daten wiederherzustellen.</p>
+          <p style="font-size:0.8rem;color:var(--cr);font-style:italic;margin-bottom:12px">⚠ Bestehende Daten werden dabei überschrieben!</p>
+          <input type="file" id="import-file" accept=".json,application/json" style="font-size:0.85rem;padding:8px;width:100%;background:var(--p);border:1px solid var(--pd);border-radius:2px">
+        </div>
+
+        <div class="sec">Datenpflege</div>
+        <div class="card">
+          <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:12px;font-family:'IM Fell English',serif;font-style:italic">Bereinigt verwaiste EC-Buchungen die nach dem Löschen einer Schnellerfassung zurückgeblieben sind.</p>
+          <button class="btn btn-secondary" style="width:100%" onclick="manualCleanup()">🧹 Verwaiste EC-Buchungen bereinigen</button>
+        </div>
+
+        <div class="sec">Datenbestand</div>
+        <div class="card" id="data-stats"></div>
+
+        <div class="sec">App installieren</div>
+        <div class="info-box">
+          <strong>📱 Auf iPhone-Homescreen installieren</strong>
+          1. App in Safari öffnen<br>
+          2. Teilen-Symbol antippen (Pfeil nach oben)<br>
+          3. „Zum Home-Bildschirm" wählen<br>
+          4. Namen bestätigen → fertig!
+        </div>
+
+        <div class="sec">Alle Daten löschen</div>
+        <div class="card">
+          <p style="font-size:0.82rem;color:var(--im);line-height:1.5;margin-bottom:12px;font-family:'IM Fell English',serif;font-style:italic">Setzt die App vollständig zurück. Bitte vorher ein Backup erstellen!</p>
+          <button class="btn btn-danger" style="margin-top:0" onclick="clearAllData()">🗑 Alle Daten unwiderruflich löschen</button>
+        </div>
+
       </div>
-
-      <div class="sec">Backup erstellen</div>
-      <div class="card">
-        <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:12px;font-family:'IM Fell English',serif;font-style:italic">
-          Alle Märkte, Kassenzählungen, Buchungen und Chronik-Daten als JSON-Datei sichern. Empfehlung: in iCloud Drive ablegen.
-        </p>
-        <div id="backup-info" style="font-size:0.78rem;color:var(--im);font-style:italic;margin-bottom:12px;font-family:'IM Fell English',serif"></div>
-        <button class="btn btn-green" onclick="exportBackup()">⬇ Backup speichern</button>
-      </div>
-
-      <div class="sec">Backup einspielen</div>
-      <div class="card">
-        <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:6px;font-family:'IM Fell English',serif;font-style:italic">
-          JSON-Backup auswählen um alle Daten wiederherzustellen.
-        </p>
-        <p style="font-size:0.8rem;color:var(--cr);font-style:italic;margin-bottom:12px">
-          ⚠ Bestehende Daten werden dabei überschrieben!
-        </p>
-        <input type="file" id="import-file" accept=".json,application/json" style="font-size:0.85rem;padding:8px;width:100%;background:var(--p);border:1px solid var(--pd);border-radius:2px">
-      </div>
-
-      <div class="sec">Datenbestand</div>
-      <div class="card" id="data-stats">
-        <div style="font-size:0.85rem;color:var(--im);font-style:italic">Lade…</div>
-      </div>
-
-      <div class="sec">App installieren</div>
-      <div class="info-box">
-        <strong>📱 Auf iPhone-Homescreen installieren</strong>
-        1. App in Safari öffnen<br>
-        2. Teilen-Symbol antippen (Pfeil nach oben)<br>
-        3. „Zum Home-Bildschirm" wählen<br>
-        4. Namen bestätigen → fertig!<br><br>
-        Die App startet dann im Vollbild ohne Browser-Leiste.
-      </div>
-
-      <div class="sec">Datenpflege</div>
-      <div class="card">
-        <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:12px;font-family:'IM Fell English',serif;font-style:italic">Bereinigt verwaiste EC-Buchungen die nach dem Löschen einer Schnellerfassung zurückgeblieben sind.</p>
-        <button class="btn btn-secondary" style="width:100%;margin-bottom:0" onclick="manualCleanup()">🧹 Verwaiste EC-Buchungen bereinigen</button>
-      </div>
-
-      <div class="sec">Alle Daten löschen</div>
-      <div class="card">
-        <p style="font-size:0.82rem;color:var(--im);line-height:1.5;margin-bottom:12px;font-family:'IM Fell English',serif;font-style:italic">Setzt die App vollständig zurück. Bitte vorher ein Backup erstellen!</p>
-        <button class="btn btn-danger" style="margin-top:0" onclick="clearAllData()">🗑 Alle Daten unwiderruflich löschen</button>
-      </div>
-
     </div>
   </div>
 
@@ -948,7 +937,7 @@ h1.print-title,.print-meta{display:none}
     <h2>Neuer Markt</h2>
     <div class="modal-sub">Marktchronik anlegen</div>
     <div class="rd"></div>
-    <div class="field" style="margin-bottom:10px"><label>Marktname</label><input type="text" id="m-name" placeholder="z.B. Rastede MPS"></div>
+    <div class="field" style="margin-bottom:10px"><label>Marktname</label><input type="text" id="m-name" placeholder="z.B. Rastede"></div>
     <div class="field" style="margin-bottom:10px"><label>Region / Ort</label><input type="text" id="m-region-modal" placeholder="z.B. Niedersachsen"></div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="closeModal('modal-markt')">Abbrechen</button>
@@ -1195,9 +1184,6 @@ function showScreen(name){
     s.classList.remove('active');
     s.style.display='';
   });
-  // screen-daten separat steuern – standardmäßig ausblenden
-  var sd=el('screen-daten');
-  if(sd)sd.style.display='none';
   var s=el('screen-'+name);
   if(s){s.classList.add('active');s.style.display='block';}
   el('bottom-nav').style.display=name==='start'?'flex':'none';
@@ -1205,8 +1191,6 @@ function showScreen(name){
 
 function goBack(){
   activeMarktId=null;
-  var sd=el('screen-daten');
-  if(sd)sd.style.display='none';
   showScreen('start');
   showStartTab('maerkte');
 }
@@ -1214,17 +1198,10 @@ function goBack(){
 function showStartTab(tab){
   document.getElementById('nav-maerkte').classList.toggle('active', tab==='maerkte');
   document.getElementById('nav-daten').classList.toggle('active', tab==='daten');
-  var datenScreen=document.getElementById('screen-daten');
-  var startScreen=document.getElementById('screen-start');
-  if(tab==='daten'){
-    startScreen.style.display='none';
-    datenScreen.style.display='block';
-    renderDatenPage();
-  } else {
-    datenScreen.style.display='none';
-    startScreen.style.display='block';
-    renderMarktGrid();
-  }
+  document.getElementById('view-maerkte').style.display = tab==='maerkte' ? 'block' : 'none';
+  document.getElementById('view-daten').style.display   = tab==='daten'   ? 'block' : 'none';
+  if(tab==='daten') renderDatenPage();
+  else renderMarktGrid();
 }
 
 function openMarkt(id){
@@ -2375,7 +2352,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · MPS Beerenweine · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v1.2 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
@@ -2406,7 +2383,7 @@ function exportBackup(){
   var data={
     version:2,
     exportedAt:new Date().toISOString(),
-    appName:'Marktfahrer App',
+    appName:'Marktfahrer App v1.2',
     state:state
   };
   var json=JSON.stringify(data,null,2);
