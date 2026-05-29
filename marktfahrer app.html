@@ -505,6 +505,12 @@ h1.print-title,.print-meta{display:none}
         Die App startet dann im Vollbild ohne Browser-Leiste.
       </div>
 
+      <div class="sec">Datenpflege</div>
+      <div class="card">
+        <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:12px;font-family:'IM Fell English',serif;font-style:italic">Bereinigt verwaiste EC-Buchungen die nach dem Löschen einer Schnellerfassung zurückgeblieben sind.</p>
+        <button class="btn btn-secondary" style="width:100%;margin-bottom:0" onclick="manualCleanup()">🧹 Verwaiste EC-Buchungen bereinigen</button>
+      </div>
+
       <div class="sec">Alle Daten löschen</div>
       <div class="card">
         <p style="font-size:0.82rem;color:var(--im);line-height:1.5;margin-bottom:12px;font-family:'IM Fell English',serif;font-style:italic">Setzt die App vollständig zurück. Bitte vorher ein Backup erstellen!</p>
@@ -2485,6 +2491,19 @@ function renderDatenPage(){
       +'<span style="font-family:Cinzel,serif;font-weight:600;color:var(--ink)">'+r[1]+'</span>'
       +'</div>';
   }).join('');
+}
+
+function manualCleanup(){
+  var before=state.buchungen.length;
+  cleanOrphanedAutoEC(state);
+  var removed=before-state.buchungen.length;
+  if(removed>0){
+    saveData();
+    renderDatenPage();
+    toast('✓ '+removed+' verwaiste EC-Buchung(en) entfernt');
+  } else {
+    toast('Keine verwaisten Buchungen gefunden');
+  }
 }
 
 function clearAllData(){
