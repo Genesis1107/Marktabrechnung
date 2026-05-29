@@ -1106,6 +1106,21 @@ function saveData(){
   catch(e){toast('⚠ Speichern fehlgeschlagen')}
 }
 
+function cleanOrphanedAutoEC(d){
+  // Verwaiste autoEC-Buchungen entfernen (kein passender Schnell-Tagesabschluss)
+  var schnellKeys={};
+  d.kassungen.forEach(function(k){
+    if(k.modus==='schnell')schnellKeys[k.marktId+'_'+k.datum]=true;
+  });
+  var before=d.buchungen.length;
+  d.buchungen=d.buchungen.filter(function(b){
+    if(!b.autoEC)return true;
+    return schnellKeys[b.marktId+'_'+b.datum]===true;
+  });
+  var removed=before-d.buchungen.length;
+  if(removed>0)console.log('Bereinigt: '+removed+' verwaiste autoEC-Buchung(en)');
+}
+
 function loadData(){
   try{
     var raw=localStorage.getItem(LS_KEY);
@@ -1121,6 +1136,7 @@ function loadData(){
         if(typeof d.nextKasseId!=='number')d.nextKasseId=d.kassungen.length+1;
         if(typeof d.nextBuchId!=='number')d.nextBuchId=d.buchungen.length+1;
         migrateSaisons(d);
+        cleanOrphanedAutoEC(d);
         return d;
       }
     }
@@ -1614,8 +1630,17 @@ function cancelKasseEdit(){resetKasseForm();toast('Abgebrochen')}
 function deleteKasse(id){delKasseTarget=id;openModal('modal-del-kasse')}
 function confirmDelKasse(){
   if(delKasseTarget!==null){
+    // Datum der zu löschenden Zählung merken
+    var toDelete=state.kassungen.find(function(k){return k.id===delKasseTarget});
+    // Zählung löschen
     state.kassungen=state.kassungen.filter(function(k){return k.id!==delKasseTarget});
-    saveData(); renderKasseList(); delKasseTarget=null;
+    // Bei Schnellerfassung: zugehörige autoEC-Buchung mitlöschen
+    if(toDelete&&toDelete.modus==='schnell'){
+      state.buchungen=state.buchungen.filter(function(b){
+        return !(b.marktId===toDelete.marktId&&b.datum===toDelete.datum&&b.autoEC);
+      });
+    }
+    saveData(); renderKasseList(); renderBuchList(); delKasseTarget=null;
     toast('Zählung gelöscht');
   }
   closeModal('modal-del-kasse');
