@@ -256,54 +256,89 @@ body{
 .tr-tag.upd{background:rgba(184,134,11,.15);color:var(--go);border:1px solid rgba(184,134,11,.4)}
 
 /* ── DASHBOARD ── */
-.dash-header{text-align:center;margin-bottom:16px}
-.dash-crest{font-size:18px;letter-spacing:8px;margin-bottom:3px;color:var(--go)}
+.dash-header{text-align:center;margin-bottom:12px}
+.dash-crest{font-size:16px;letter-spacing:6px;margin-bottom:2px;color:var(--go)}
 .dash-title{font-family:'Cinzel',serif;font-size:20px;font-weight:900;letter-spacing:2px}
 .dash-sub{font-family:'IM Fell English',serif;font-style:italic;font-size:12px;color:var(--im);margin-top:2px}
 .dash-fahrer{font-family:'IM Fell English',serif;font-style:italic;font-size:12px;color:var(--im);margin-top:3px}
-.rd{border:none;height:3px;background:linear-gradient(to right,transparent,var(--bdr) 20%,var(--bdr) 80%,transparent);opacity:.5;margin:8px 0}
-.year-toggle{display:flex;gap:4px;justify-content:center;margin-bottom:14px;flex-wrap:wrap}
-.yb{padding:5px 16px;border-radius:2px;border:1px solid var(--pd);background:transparent;color:var(--im);cursor:pointer;font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;transition:all .2s}
+.rd{border:none;height:2px;background:linear-gradient(to right,transparent,var(--bdr) 20%,var(--bdr) 80%,transparent);opacity:.5;margin:8px 0}
+.year-toggle{display:flex;gap:4px;justify-content:center;margin-bottom:12px;flex-wrap:wrap}
+.yb{padding:5px 14px;border-radius:2px;border:1px solid var(--pd);background:transparent;color:var(--im);cursor:pointer;font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;transition:all .2s}
 .yb.active{background:var(--cr);color:var(--p);border-color:var(--cr)}
-.kpi-row{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
-.kpi-card{background:var(--p);border:1px solid var(--pd);border-top:3px solid var(--ca,var(--cr));border-radius:2px;padding:11px 12px;box-shadow:2px 2px 6px rgba(44,26,14,.07);position:relative}
-.kpi-card::after{content:attr(data-g);position:absolute;top:6px;right:8px;font-size:12px;opacity:.12}
-.kpi-l{font-family:'Cinzel',serif;font-size:0.62rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--im);margin-bottom:5px}
-.kpi-v{font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:var(--ink);line-height:1}
-.kpi-d{font-family:'Crimson Text',serif;font-style:italic;font-size:0.68rem;margin-top:3px;display:inline-block;padding:1px 5px;border-radius:2px}
+.hero-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.hero-card{background:var(--p);border:1px solid var(--pd);border-top:3px solid var(--ca,var(--cr));border-radius:2px;padding:12px;box-shadow:2px 2px 6px rgba(44,26,14,.07)}
+.hero-l{font-family:'Cinzel',serif;font-size:0.58rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--im);margin-bottom:4px}
+.hero-v{font-family:'Cinzel',serif;font-size:20px;font-weight:700;color:var(--ink);line-height:1}
+.hero-d{font-family:'Crimson Text',serif;font-style:italic;font-size:0.68rem;margin-top:4px;display:inline-block;padding:2px 6px;border-radius:2px}
 .dpos{background:rgba(45,80,22,.1);color:var(--fo)}.dneg{background:rgba(139,26,26,.1);color:var(--cr)}.dneu{background:rgba(122,92,58,.1);color:var(--im)}
-.dash-mid-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-.pay-bar{margin-bottom:9px}
-.pbl{display:flex;justify-content:space-between;font-family:'Cinzel',serif;font-size:0.62rem;text-transform:uppercase;letter-spacing:1px;color:var(--im);margin-bottom:3px}
-.pbl span:last-child{color:var(--ink);font-family:'Crimson Text',serif;font-size:11px;text-transform:none;letter-spacing:0}
-.pbt{height:5px;background:var(--p2);border:1px solid var(--pd);overflow:hidden}
-.pbf{height:100%}
-.kum-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.kum-l{font-family:'Cinzel',serif;font-size:0.62rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--im);margin-bottom:2px}
-.kum-v{font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:var(--ink)}
-.k-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.k-card{background:var(--p);border:1px solid var(--pd);border-top:3px solid var(--kc);border-radius:2px;padding:11px}
-.k-name{font-family:'Cinzel',serif;font-size:0.66rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--im);margin-bottom:5px}
-.k-umsatz{font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:var(--ink);line-height:1}
-.k-bw{height:3px;background:var(--p2);margin:5px 0;border:1px solid var(--pd)}
+.ec-hero{background:var(--p);border:1px solid var(--pd);border-top:3px solid var(--ib);border-radius:2px;padding:12px;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center}
+.ec-hero-left .ec-l{font-family:'Cinzel',serif;font-size:0.58rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--im);margin-bottom:3px}
+.ec-hero-left .ec-v{font-family:'Cinzel',serif;font-size:26px;font-weight:700;color:var(--ib)}
+.ec-hero-left .ec-d{font-family:'Crimson Text',serif;font-style:italic;font-size:0.68rem;margin-top:3px;display:inline-block;padding:2px 6px;border-radius:2px}
+.ec-bar-row{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.ec-bar-label{font-family:'Cinzel',serif;font-size:0.55rem;letter-spacing:1px;color:var(--im);min-width:22px}
+.ec-bar-wrap{flex:1;height:7px;background:var(--p2);border:1px solid var(--pd);border-radius:1px;overflow:hidden}
+.ec-bar-fill{height:100%;border-radius:1px;transition:width .4s}
+.ec-bar-pct{font-family:'Cinzel',serif;font-size:0.6rem;font-weight:600;color:var(--ink);min-width:30px;text-align:right}
+.tage-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:5px;margin-bottom:8px}
+.tag-card{background:var(--p);border:1px solid var(--pd);border-radius:2px;padding:6px 4px;text-align:center;position:relative;overflow:hidden}
+.tag-card.stark{border-top:3px solid var(--cr)}
+.tag-card.schwach{opacity:.7}
+.tag-bg{position:absolute;bottom:0;left:0;right:0;background:rgba(139,26,26,.06);transition:height .3s}
+.tag-wt{font-family:'Cinzel',serif;font-size:0.52rem;letter-spacing:1px;text-transform:uppercase;color:var(--im);margin-bottom:1px;position:relative}
+.tag-dt{font-size:9px;color:var(--if);margin-bottom:2px;position:relative}
+.tag-u{font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--ink);position:relative}
+.tag-ec{font-size:9px;color:var(--ib);position:relative}
+.trend-wrap{margin-bottom:8px}
+.trend-bar-row{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.trend-year{font-family:'Cinzel',serif;font-size:0.65rem;font-weight:600;color:var(--ink);min-width:34px}
+.trend-bar-outer{flex:1;height:22px;background:var(--p2);border:1px solid var(--pd);border-radius:1px;overflow:hidden;position:relative}
+.trend-bar-inner{height:100%;background:linear-gradient(to right,var(--cr),#a83232);border-radius:1px;transition:width .5s;display:flex;align-items:center;padding-left:6px;min-width:0}
+.trend-bar-inner.cur{background:linear-gradient(to right,#2d5016,#3d6b20)}
+.trend-bar-val{font-family:'Cinzel',serif;font-size:0.6rem;font-weight:700;color:var(--p);white-space:nowrap;overflow:hidden}
+.trend-bar-val.out{position:absolute;top:50%;transform:translateY(-50%);color:var(--ink);font-family:'Cinzel',serif;font-size:0.6rem;font-weight:600;left:calc(var(--bw) + 5px)}
+.trend-days{font-family:'Crimson Text',serif;font-size:0.68rem;color:var(--im);min-width:36px;text-align:right;flex-shrink:0}
+.k-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.k-card{background:var(--p);border:1px solid var(--pd);border-top:3px solid var(--kc);border-radius:2px;padding:10px}
+.k-name{font-family:'Cinzel',serif;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--im);margin-bottom:4px}
+.k-umsatz{font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:var(--ink);line-height:1}
+.k-bw{height:3px;background:var(--p2);margin:4px 0;border:1px solid var(--pd)}
 .k-bf{height:100%}
-.k-meta{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px}
-.km-l{font-family:'Cinzel',serif;font-size:0.6rem;text-transform:uppercase;letter-spacing:1px;color:var(--im)}
+.k-meta{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px}
+.km-l{font-family:'Cinzel',serif;font-size:0.55rem;text-transform:uppercase;letter-spacing:1px;color:var(--im)}
 .km-v{font-family:'Cinzel',serif;font-size:10px;font-weight:600;color:var(--ink)}
-.notiz-box{background:var(--p);border:1px solid var(--pd);border-left:3px solid var(--go);border-radius:2px;padding:14px 16px;margin-bottom:12px}
-.notiz-box-title{font-family:'Cinzel',serif;font-size:0.66rem;text-transform:uppercase;letter-spacing:2px;color:var(--go);margin-bottom:7px}
+.notiz-box{background:rgba(139,105,20,.08);border:1px solid var(--go);border-left:3px solid var(--go);border-radius:2px;padding:12px 14px;margin-bottom:10px}
+.notiz-box-title{font-family:'Cinzel',serif;font-size:0.64rem;text-transform:uppercase;letter-spacing:2px;color:var(--go);margin-bottom:6px}
 .notiz-box-text{font-family:'IM Fell English',serif;font-style:italic;font-size:13px;color:var(--ink);line-height:1.7;white-space:pre-wrap}
 .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 table{table-layout:fixed;width:100%}
-table{width:100%;border-collapse:collapse;font-family:'Crimson Text',serif;font-size:12px}
-thead th{padding:4px 6px;text-align:right;color:var(--im);font-size:0.6rem;font-family:'Cinzel',serif;font-weight:400;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid var(--pd)}
+thead th{padding:4px 6px;text-align:right;color:var(--im);font-size:0.58rem;font-family:'Cinzel',serif;font-weight:400;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid var(--pd)}
 thead th:first-child{text-align:left}
 tbody tr{border-bottom:1px solid var(--p2)}
-tbody td{padding:5px 6px;text-align:right}
-tbody td:first-child{text-align:left;color:var(--im);font-style:italic}
+tbody td{padding:5px 6px;text-align:right;font-size:0.82rem}
+tbody td:first-child{text-align:left;color:var(--im);font-style:italic;font-size:0.75rem}
 .thi{color:var(--ink);font-weight:600}.tpos{color:var(--fo)}
-.pdf-btn{width:100%;padding:12px;background:var(--cr);color:var(--p);border:1px solid var(--cr2);border-radius:2px;font-family:'Cinzel',serif;font-size:0.75rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-bottom:12px}
+.pdf-btn{width:100%;padding:11px;background:var(--cr);color:var(--p);border:1px solid var(--cr2);border-radius:2px;font-family:'Cinzel',serif;font-size:0.72rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-bottom:10px}
 .pdf-btn:active{background:var(--cr2)}
+h1.print-title,.print-meta{display:none}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  html,body{height:auto!important;overflow:visible!important}
+  #app{display:block!important;height:auto!important}
+  .screen{display:none!important}
+  #screen-detail{display:block!important}
+  .detail-hdr,.tab-bar,.bottom-nav,#toast,.tab-pane:not(.active),
+  .pdf-btn,.sync-bar,.btn-primary,.btn-green,.btn-danger,
+  .modal-overlay,#eintraege-count,#entry-list,.modus-toggle,
+  .sec~.card:has(#f-datum){display:none!important}
+  .content{padding:0!important;max-width:100%!important}
+  .card{break-inside:avoid;box-shadow:none!important;border:1px solid #ccc!important;margin-bottom:8px!important;background:white!important}
+  .hero-row,.tage-grid,.k-cards,.trend-wrap{break-inside:avoid}
+  .notiz-box{break-inside:avoid;border:1px solid #8b6914!important}
+  #tab-chronik{display:block!important}
+  h1.print-title{display:block!important;font-family:'Cinzel',serif;font-size:18px;text-align:center;margin-bottom:4px}
+  .print-meta{display:block!important;text-align:center;font-style:italic;font-size:11px;color:#7a5c3a;margin-bottom:10px}
+}
 
 /* ── PLANUNG / STATUS ── */
 .status-badge{display:inline-block;padding:3px 10px;border-radius:10px;font-family:'Cinzel',serif;font-size:0.6rem;font-weight:600;letter-spacing:1px;text-transform:uppercase}
@@ -749,46 +784,114 @@ tbody td:first-child{text-align:left;color:var(--im);font-style:italic}
 
       <!-- ── TAB: CHRONIK ── -->
       <div class="tab-pane" id="tab-chronik">
+
+        <!-- PRINT HEADER (nur im PDF sichtbar) -->
+        <h1 class="print-title" id="print-title">Marktchronik</h1>
+        <div class="print-meta" id="print-meta"></div>
+
         <div class="dash-header">
           <div class="dash-crest">⚔ ⚜ ⚔</div>
           <div class="dash-title" id="dash-name">–</div>
-          <div class="dash-sub">Marktchronik &amp; Kontobuch</div>
+          <div class="dash-sub" id="dash-sub-line">Marktchronik</div>
           <div class="dash-fahrer" id="dash-fahrer"></div>
           <div class="rd"></div>
         </div>
+
         <div class="year-toggle" id="year-toggle"></div>
         <button class="pdf-btn" onclick="exportPDF()">📜 Dashboard als PDF</button>
-        <div class="kpi-row">
-          <div class="kpi-card" data-g="⚖" style="--ca:var(--cr)"><div class="kpi-l">Tagesumsatz Ø</div><div class="kpi-v" id="k-u">–</div><div class="kpi-d dneu" id="d-u">–</div></div>
-          <div class="kpi-card" data-g="🪙" style="--ca:var(--go)"><div class="kpi-l">Bar Ø</div><div class="kpi-v" id="k-b">–</div><div class="kpi-d dneu" id="d-b">–</div></div>
-          <div class="kpi-card" data-g="📜" style="--ca:var(--ib)"><div class="kpi-l">EC Ø</div><div class="kpi-v" id="k-e">–</div><div class="kpi-d dneu" id="d-e">–</div></div>
-          <div class="kpi-card" data-g="⚖" style="--ca:var(--fo)"><div class="kpi-l">EC-Anteil Ø</div><div class="kpi-v" id="k-p">–</div><div class="kpi-d dneu" id="d-p">–</div></div>
+
+        <!-- BLOCK 1: Notizen prominent (Vorjahr-Hinweise) -->
+        <div class="notiz-box" id="dash-notiz-box" style="display:none">
+          <div class="notiz-box-title" id="dash-notiz-title">📜 Hinweise aus dem Vorjahr</div>
+          <div class="notiz-box-text" id="dash-notiz-text"></div>
         </div>
-        <div class="card"><div class="card-title">Tagesumsatz Verlauf</div><div id="lc-wrap" style="width:100%;min-height:160px"></div></div>
-        <div class="dash-mid-grid">
-          <div class="card" style="margin-bottom:0">
-            <div class="card-title">Zahlungsarten</div>
-            <div class="pay-bar"><div class="pbl"><span>Bar</span><span id="pb-b">–</span></div><div class="pbt"><div class="pbf" id="pf-b" style="background:var(--gl);width:0"></div></div></div>
-            <div class="pay-bar"><div class="pbl"><span>EC</span><span id="pb-e">–</span></div><div class="pbt"><div class="pbf" id="pf-e" style="background:var(--ib);width:0"></div></div></div>
-            <div id="dc-wrap" style="width:100%;min-height:90px;margin-top:6px"></div>
+
+        <!-- BLOCK 2: Hero KPIs -->
+        <div class="hero-row">
+          <div class="hero-card" style="--ca:var(--cr)">
+            <div class="hero-l">Gesamtumsatz</div>
+            <div class="hero-v" id="h-gesamt">–</div>
+            <div class="hero-d dneu" id="h-gesamt-d">–</div>
           </div>
-          <div class="card" style="margin-bottom:0">
-            <div class="card-title">Kumuliert <span id="ky" style="color:var(--cr);margin-left:4px"></span></div>
-            <div class="kum-grid">
-              <div><div class="kum-l">Umsatz</div><div class="kum-v" id="s-u">–</div></div>
-              <div><div class="kum-l">Bar</div><div class="kum-v" id="s-b">–</div></div>
-              <div><div class="kum-l">EC</div><div class="kum-v" id="s-e">–</div></div>
-              <div><div class="kum-l">Tage</div><div class="kum-v" id="s-c">–</div></div>
+          <div class="hero-card" style="--ca:var(--go)">
+            <div class="hero-l">Tagesumsatz Ø</div>
+            <div class="hero-v" id="h-avg">–</div>
+            <div class="hero-d dneu" id="h-avg-d">–</div>
+          </div>
+        </div>
+        <div class="hero-row">
+          <div class="hero-card" style="--ca:var(--im)">
+            <div class="hero-l">Markttage</div>
+            <div class="hero-v" id="h-tage">–</div>
+            <div class="hero-d dneu" id="h-tage-d" style="font-size:0.62rem"></div>
+          </div>
+          <div class="hero-card" style="--ca:var(--fo)">
+            <div class="hero-l">Bester Tag</div>
+            <div class="hero-v" id="h-best">–</div>
+            <div class="hero-d dneu" id="h-best-d" style="font-size:0.62rem"></div>
+          </div>
+        </div>
+
+        <!-- BLOCK 3: EC-Analyse -->
+        <div class="card">
+          <div class="card-title">EC-Anteil</div>
+          <div class="ec-hero">
+            <div class="ec-hero-left">
+              <div class="ec-l">EC-Anteil</div>
+              <div class="ec-v" id="ec-pct">–</div>
+              <div class="ec-d dneu" id="ec-pct-d">–</div>
+            </div>
+            <div class="ec-hero-right">
+              <div class="ec-bar-row">
+                <span class="ec-bar-label">Bar</span>
+                <div class="ec-bar-wrap"><div class="ec-bar-fill" id="ec-bar-bar" style="background:var(--gl);width:0"></div></div>
+                <span class="ec-bar-pct" id="ec-bar-pct">–</span>
+              </div>
+              <div class="ec-bar-row">
+                <span class="ec-bar-label">EC</span>
+                <div class="ec-bar-wrap"><div class="ec-bar-fill" id="ec-bar-ec" style="background:var(--ib);width:0"></div></div>
+                <span class="ec-bar-pct" id="ec-ec-pct">–</span>
+              </div>
+              <div style="margin-top:6px;font-size:0.72rem;color:var(--im);font-style:italic">
+                <span id="ec-bar-sum">–</span> Bar · <span id="ec-ec-sum">–</span> EC
+              </div>
             </div>
           </div>
         </div>
-        <div class="card"><div class="card-title">Kutschen</div><div class="k-cards" id="k-cards"></div></div>
-        <div class="card"><div class="card-title">Bar/EC pro Tag</div><div id="sc-wrap" style="width:100%;min-height:140px"></div></div>
-        <div class="notiz-box" id="dash-notiz-box" style="display:none">
-          <div class="notiz-box-title" id="dash-notiz-title">📜 Notizen</div>
-          <div class="notiz-box-text" id="dash-notiz-text"></div>
+
+        <!-- BLOCK 4: Tagesverlauf -->
+        <div class="card">
+          <div class="card-title">Tagesverlauf <span id="tage-year-label" style="color:var(--cr);margin-left:4px;font-size:0.62rem"></span></div>
+          <div class="tage-grid" id="tage-grid"></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:4px;font-size:0.65rem;color:var(--im)">
+            <span>★ = bester Tag</span>
+            <span style="display:inline-block;width:8px;height:8px;background:rgba(139,26,26,.06);border:1px solid var(--pd);border-radius:1px"></span>
+            <span>Balkenhöhe = rel. Umsatz</span>
+          </div>
         </div>
-        <div class="card"><div class="card-title">Einzeltage</div><div class="tbl-wrap"><table><thead><tr><th>Datum</th><th>Umsatz</th><th>Bar</th><th>EC</th><th>EC%</th></tr></thead><tbody id="tbl-body"></tbody></table></div></div>
+
+        <!-- BLOCK 5: Jahrestrend -->
+        <div class="card" id="trend-card">
+          <div class="card-title">Jahrestrend – Gesamtumsatz</div>
+          <div class="trend-wrap" id="trend-wrap"></div>
+        </div>
+
+        <!-- BLOCK 6: Kutschen (nur wenn >1) -->
+        <div class="card" id="k-card-wrap" style="display:none">
+          <div class="card-title">Kutschen</div>
+          <div class="k-cards" id="k-cards"></div>
+        </div>
+
+        <!-- BLOCK 7: Einzeltage -->
+        <div class="card">
+          <div class="card-title">Einzeltage</div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Tag</th><th>Umsatz</th><th>Bar</th><th>EC</th><th>EC%</th></tr></thead>
+              <tbody id="tbl-body"></tbody>
+            </table>
+          </div>
+        </div>
 
         <!-- Manuelle Eingabe -->
         <div class="sec">Eintrag manuell</div>
@@ -1809,13 +1912,16 @@ function renderChronik(){
   if(!ys.length){
     el('year-toggle').innerHTML='';
     el('tbl-body').innerHTML='<tr><td colspan="5" style="text-align:center;font-style:italic;color:var(--im);padding:16px">Noch keine Einträge</td></tr>';
-    clearCharts(); setKPIs(0,0,0,0,null,0,0,0,0);
+    el('tage-grid').innerHTML='<div class="empty-state">Noch keine Einträge.</div>';
+    el('trend-wrap').innerHTML='';
     el('eintraege-count').textContent='0 Einträge';
     el('entry-list').innerHTML='<div class="empty-state">Noch keine Einträge.</div>';
     return;
   }
   if(activeYear===null||ys.indexOf(activeYear)<0)activeYear=ys[0];
-  el('year-toggle').innerHTML=ys.map(function(y){return'<button class="yb'+(y===activeYear?' active':'')+'" onclick="setYear('+y+')">'+y+'</button>'}).join('');
+  el('year-toggle').innerHTML=ys.map(function(y){
+    return'<button class="yb'+(y===activeYear?' active':'')+'" onclick="setYear('+y+')">'+y+'</button>';
+  }).join('');
   renderDashYear(alle,ys);
   renderEintraege();
 }
@@ -1831,196 +1937,212 @@ function renderDashYear(alle,ys){
   var cur=alle.filter(function(e){return jahrOf(e)===activeYear});
   var m=findMarkt(activeMarktId);
   var saison=m?getSaison(m,activeYear):{fahrer:[],notiz:''};
-  el('dash-fahrer').textContent=(saison.fahrer&&saison.fahrer.length)?'⚔ '+saison.fahrer.join(' · '):'';
-  var nBox=el('dash-notiz-box');
-  if(saison.notiz&&saison.notiz.trim()){
-    el('dash-notiz-text').textContent=saison.notiz;
-    el('dash-notiz-title').textContent='📜 Notizen '+activeYear;
-    nBox.style.display='block';
-  } else nBox.style.display='none';
+
+  // Fahrer
+  el('dash-fahrer').textContent=(saison.fahrer&&saison.fahrer.length)?'\u2694 '+saison.fahrer.join(' \u00b7 '):'';
+
+  // Subline
+  var subEl=el('dash-sub-line');
+  if(subEl)subEl.textContent=activeYear+' \u00b7 Marktchronik';
+
+  // Notizen aus VORJAHR anzeigen (Planungsgrundlage)
   var prevY=null;
   for(var i=0;i<ys.length;i++){if(ys[i]<activeYear){prevY=ys[i];break}}
+  var nBox=el('dash-notiz-box');
+  var notizSrc=prevY?getSaison(m,prevY):null;
+  if(notizSrc&&notizSrc.notiz&&notizSrc.notiz.trim()){
+    el('dash-notiz-text').textContent=notizSrc.notiz;
+    el('dash-notiz-title').textContent='\uD83D\uDCDC Hinweise aus '+prevY;
+    nBox.style.display='block';
+  } else {
+    // Aktuelle Notizen zeigen wenn keine Vorjahresnotiz
+    var curNotiz=getSaison(m,activeYear);
+    if(curNotiz&&curNotiz.notiz&&curNotiz.notiz.trim()){
+      el('dash-notiz-text').textContent=curNotiz.notiz;
+      el('dash-notiz-title').textContent='\uD83D\uDCDC Notizen '+activeYear;
+      nBox.style.display='block';
+    } else {
+      nBox.style.display='none';
+    }
+  }
+
   var prev=prevY?alle.filter(function(e){return jahrOf(e)===prevY}):[];
   var rC=groupByDate(cur), rP=groupByDate(prev);
-  setKPIs(avg(rC.map(function(r){return r.umsatz})),avg(rC.map(function(r){return r.bar})),avg(rC.map(function(r){return r.ec})),avg(rC.map(function(r){return r.ecAnteil})),prevY,avg(rP.map(function(r){return r.umsatz})),avg(rP.map(function(r){return r.bar})),avg(rP.map(function(r){return r.ec})),avg(rP.map(function(r){return r.ecAnteil})));
+
+  // ── HERO KPIs ──
+  var totU=sm(rC.map(function(r){return r.umsatz}));
+  var avgU=rC.length?totU/rC.length:0;
+  var totUP=sm(rP.map(function(r){return r.umsatz}));
+  var avgUP=rP.length?totUP/rP.length:0;
+  var tage=rC.length;
+  var tageP=rP.length;
+
+  el('h-gesamt').textContent=eur(totU);
+  el('h-avg').textContent=eur(avgU);
+  el('h-tage').textContent=tage+(tage===1?' Tag':' Tage');
+
+  setHeroDelta('h-gesamt-d',totU,totUP,false,prevY);
+  setHeroDelta('h-avg-d',avgU,avgUP,false,prevY);
+
+  var tageD=el('h-tage-d');
+  if(prevY&&tageP){
+    var diff=tage-tageP;
+    tageD.textContent=(diff>0?'+':'')+diff+' ggü. '+prevY;
+    tageD.className='hero-d '+(diff>0?'dpos':diff<0?'dneg':'dneu');
+  } else {tageD.textContent='';tageD.className='hero-d dneu'}
+
+  var bestTag=rC.length?rC.reduce(function(a,b){return a.umsatz>b.umsatz?a:b}):null;
+  if(bestTag){
+    el('h-best').textContent=eur(bestTag.umsatz);
+    var wtBest=new Date(bestTag.rawDatum).getDay();
+    var WTS=['So','Mo','Di','Mi','Do','Fr','Sa'];
+    el('h-best-d').textContent=WTS[wtBest]+', '+bestTag.datum;
+    el('h-best-d').className='hero-d dneu';
+  } else {el('h-best').textContent='–';el('h-best-d').textContent=''}
+
+  // ── EC-ANALYSE ──
   var tB=sm(rC.map(function(r){return r.bar}));
   var tE=sm(rC.map(function(r){return r.ec}));
-  var tot=tB+tE;
-  el('pb-b').textContent=pct(tot>0?tB/tot*100:0);
-  el('pb-e').textContent=pct(tot>0?tE/tot*100:0);
-  el('pf-b').style.width=(tot>0?tB/tot*100:0)+'%';
-  el('pf-e').style.width=(tot>0?tE/tot*100:0)+'%';
-  el('ky').textContent=activeYear;
-  el('s-u').textContent=eur(tot);
-  el('s-b').textContent=eur(tB);
-  el('s-e').textContent=eur(tE);
-  el('s-c').textContent=rC.length+' Tage';
-  el('tbl-body').innerHTML=rC.map(function(r){return'<tr><td>'+r.datum+'</td><td class="thi">'+eur(r.umsatz)+'</td><td>'+eur(r.bar)+'</td><td>'+eur(r.ec)+'</td><td class="'+(r.ecAnteil>=50?'tpos':'')+'">'+ pct(r.ecAnteil)+'</td></tr>'}).join('');
-  var byK=groupByKutsche(cur);
-  var tU=sm(byK.map(function(k){return k.umsatz}))||1;
-  el('k-cards').innerHTML=byK.map(function(k,i){
-    var col=COLORS[i%COLORS.length];
-    return'<div class="k-card" style="--kc:'+col+'"><div class="k-name">'+esc(k.kutsche)+'</div><div class="k-umsatz">'+eur(k.umsatz)+'</div><div class="k-bw"><div class="k-bf" style="background:'+col+';width:'+Math.round(k.umsatz/tU*100)+'%"></div></div><div class="k-meta"><div><div class="km-l">Bar</div><div class="km-v">'+eur(k.bar)+'</div></div><div><div class="km-l">EC</div><div class="km-v">'+eur(k.ec)+'</div></div><div><div class="km-l">EC%</div><div class="km-v">'+pct(k.ecAnteil)+'</div></div><div><div class="km-l">Tage</div><div class="km-v">'+k.tage+'</div></div></div></div>';
-  }).join('');
-  renderSvgLine('lc-wrap',rC,rP,160);
-  renderSvgDonut('dc-wrap',tB,tE,90);
-  renderSvgStack('sc-wrap',rC,140);
-}
-
-function setKPIs(aU,aB,aE,aP,prevY,pU,pB,pE,pP){
-  el('k-u').textContent=eur(aU); el('k-b').textContent=eur(aB);
-  el('k-e').textContent=eur(aE); el('k-p').textContent=pct(aP);
-  setDelta('d-u',aU,pU,false,prevY); setDelta('d-b',aB,pB,false,prevY);
-  setDelta('d-e',aE,pE,false,prevY); setDelta('d-p',aP,pP,true,prevY);
-}
-function setDelta(id,c,p,isPP,py){
-  var e=el(id);
-  if(!p||!py){e.textContent='kein Vergleich';e.className='kpi-d dneu';return}
-  var d=isPP?c-p:(c-p)/p*100;
-  e.textContent=(d>=0?'▲ ':'▼ ')+Math.abs(d).toFixed(1)+(isPP?'pp':'%')+' ggü. '+py;
-  e.className='kpi-d '+(d>=0?'dpos':'dneg');
-}
-function clearCharts(){
-  ['lc-wrap','dc-wrap','sc-wrap'].forEach(function(id){var e=el(id);if(e)e.innerHTML=''});
-  el('k-cards').innerHTML='';
-}
-
-// ── CHRONIK: MANUELLE EINGABE ──
-function calcChronikTotal(){
-  var bar=parseFloat(el('f-bar').value)||0;
-  var ec=parseFloat(el('f-ec').value)||0;
-  var tot=bar+ec;
-  el('f-total').value=tot>0?eur(tot):'';
-}
-
-function addChronikEintrag(){
-  var datum=el('f-datum').value;
-  var kutsche=el('f-kutsche').value.trim()||'K1';
-  var bar=parseFloat(el('f-bar').value)||0;
-  var ec=parseFloat(el('f-ec').value)||0;
-  if(!datum){toast('⚠ Bitte Datum eingeben');return}
-  if(bar===0&&ec===0){toast('⚠ Bitte Bar oder EC eingeben');return}
-  state.eintraege.push({id:state.nextEintragId++,marktId:activeMarktId,datum:datum,kutsche:kutsche,bar:bar,ec:ec,jahr:parseInt(datum.split('-')[0],10)});
-  saveData();
-  el('f-bar').value=''; el('f-ec').value=''; el('f-total').value='';
-  el('chronik-sync').textContent='Gespeichert';
-  renderChronik();
-  toast('✓ Eintrag gespeichert');
-}
-
-function renderEintraege(){
-  var alle=state.eintraege.filter(function(e){return e.marktId===activeMarktId});
-  alle.sort(function(a,b){return a.datum<b.datum?1:(a.datum>b.datum?-1:b.id-a.id)});
-  el('eintraege-count').textContent=alle.length+' Einträge';
-  if(!alle.length){el('entry-list').innerHTML='<div class="empty-state">Noch keine Einträge.</div>';return}
-  el('entry-list').innerHTML=alle.map(function(e){
-    return'<div style="display:flex;align-items:center;background:var(--p);border:1px solid var(--pd);border-radius:2px;padding:8px 12px;margin-bottom:6px;gap:8px">'
-      +'<span style="font-family:Cinzel,serif;font-size:11px;color:var(--im);min-width:44px">'+fmtDate(e.datum)+'</span>'
-      +'<span style="font-family:Cinzel,serif;font-size:11px;color:var(--ink);font-weight:600;min-width:26px">'+esc(e.kutsche)+'</span>'
-      +'<div style="display:flex;gap:10px;flex:1;font-family:Cinzel,serif;font-size:11px;flex-wrap:wrap">'
-      +'<span style="color:var(--go)">B:'+eur(e.bar)+'</span>'
-      +'<span style="color:var(--ib)">EC:'+eur(e.ec)+'</span>'
-      +'<span style="color:var(--ink);font-weight:700;margin-left:auto">'+eur(e.bar+e.ec)+'</span>'
-      +'</div>'
-      +'<button style="background:none;border:none;cursor:pointer;color:var(--pd);font-size:14px;padding:2px 5px" onclick="askDelEintrag('+e.id+')">✕</button>'
-      +'</div>';
-  }).join('');
-}
-
-function askDelEintrag(id){delEintragTarget=id;openModal('modal-del-eintrag')}
-function confirmDelEintrag(){
-  if(delEintragTarget!==null){
-    state.eintraege=state.eintraege.filter(function(e){return e.id!==delEintragTarget});
-    saveData(); delEintragTarget=null; renderChronik();
-    toast('Eintrag gelöscht');
-  }
-  closeModal('modal-del-eintrag');
-}
-
-function exportPDF(){
-  if(typeof window.print==='function'){
-    var m=findMarkt(activeMarktId);
-    document.title=(m?m.name+' ':'')+' – Marktchronik '+activeYear;
-    window.print();
-  } else toast('PDF-Export: Bitte Drucken-Funktion des Browsers nutzen.');
-}
-
-// ════════════════════════════════════════════════════════
-//  SVG CHARTS
-// ════════════════════════════════════════════════════════
-function svgEur(v){return v>=1000?(v/1000).toFixed(1)+'k':Math.round(v)+'€'}
-function emptySvg(W,H){return'<svg width="'+W+'" height="'+H+'"><text x="50%" y="50%" text-anchor="middle" fill="#7a5c3a" font-family="Crimson Text" font-style="italic" font-size="13">Keine Daten</text></svg>'}
-
-function renderSvgLine(wrapId,rC,rP,H){
-  var wrap=el(wrapId);if(!wrap)return;
-  var W=wrap.offsetWidth||300;
-  var pad={l:46,r:10,t:10,b:26};
-  var w=W-pad.l-pad.r,h=H-pad.t-pad.b;
-  if(!rC.length){wrap.innerHTML=emptySvg(W,H);return}
-  var allV=rC.map(function(r){return r.umsatz}).concat(rP.map(function(r){return r.umsatz}));
-  var mx=Math.max.apply(null,allV.concat([1])),mn=0;
-  function sy(v){return pad.t+h-((v-mn)/(mx-mn))*h}
-  var xS=rC.length>1?w/(rC.length-1):w;
-  var out='<defs><linearGradient id="lg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8b1a1a" stop-opacity="0.18"/><stop offset="100%" stop-color="#8b1a1a" stop-opacity="0"/></linearGradient></defs>';
-  var i,gv,gy;
-  for(i=0;i<=4;i++){gv=mn+(mx-mn)*i/4;gy=pad.t+h-h*i/4;out+='<line x1="'+pad.l+'" y1="'+gy+'" x2="'+(pad.l+w)+'" y2="'+gy+'" stroke="rgba(122,92,58,.1)" stroke-width="0.5"/><text x="'+(pad.l-4)+'" y="'+(gy+4)+'" text-anchor="end" fill="#7a5c3a" font-family="Crimson Text" font-size="9">'+svgEur(gv)+'</text>'}
-  var step=Math.max(1,Math.ceil(rC.length/6));
-  rC.forEach(function(r,idx){if(idx%step===0||idx===rC.length-1){var x=pad.l+idx*xS;out+='<text x="'+x+'" y="'+(pad.t+h+16)+'" text-anchor="middle" fill="#7a5c3a" font-family="Crimson Text" font-size="9">'+r.datum+'</text>'}});
-  if(rP.length){var pvP=rP.slice(0,rC.length).map(function(r,idx){return(pad.l+idx*xS)+','+sy(r.umsatz)});out+='<polyline points="'+pvP.join(' ')+'" stroke="#c9b07a" stroke-width="1.5" stroke-dasharray="4,3" fill="none" opacity="0.7"/>'}
-  var pts=rC.map(function(r,idx){return{x:pad.l+idx*xS,y:sy(r.umsatz)}});
-  var area=pts.map(function(p,idx){return(idx===0?'M':'L')+p.x+','+p.y}).join(' ')+' L'+pts[pts.length-1].x+','+(pad.t+h)+' L'+pts[0].x+','+(pad.t+h)+' Z';
-  var line=pts.map(function(p,idx){return(idx===0?'M':'L')+p.x+','+p.y}).join(' ');
-  out+='<path d="'+area+'" fill="url(#lg1)"/><path d="'+line+'" stroke="#8b1a1a" stroke-width="2" fill="none"/>';
-  pts.forEach(function(p){out+='<circle cx="'+p.x+'" cy="'+p.y+'" r="3" fill="#8b1a1a"/>'});
-  out+='<line x1="'+pad.l+'" y1="'+pad.t+'" x2="'+pad.l+'" y2="'+(pad.t+h)+'" stroke="#c9b07a" stroke-width="0.5"/>';
-  wrap.innerHTML='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'">'+out+'</svg>';
-}
-
-function renderSvgDonut(wrapId,tB,tE,H){
-  var wrap=el(wrapId);if(!wrap)return;
-  var W=wrap.offsetWidth||200;
-  var cx=W/2,cy=H/2-6,r=30,iR=19;
   var tot=tB+tE||1;
-  var bA=(tB/tot)*Math.PI*2,eA=(tE/tot)*Math.PI*2;
-  function arc(start,end,color){
-    if(end-start<=0)return'';
-    if(end-start>=Math.PI*2-0.001)return'<circle cx="'+cx+'" cy="'+cy+'" r="'+((r+iR)/2)+'" fill="none" stroke="'+color+'" stroke-width="'+(r-iR)+'"/>';
-    var x1=cx+r*Math.cos(start-Math.PI/2),y1=cy+r*Math.sin(start-Math.PI/2);
-    var x2=cx+r*Math.cos(end-Math.PI/2),y2=cy+r*Math.sin(end-Math.PI/2);
-    var xi1=cx+iR*Math.cos(end-Math.PI/2),yi1=cy+iR*Math.sin(end-Math.PI/2);
-    var xi2=cx+iR*Math.cos(start-Math.PI/2),yi2=cy+iR*Math.sin(start-Math.PI/2);
-    var lg=(end-start)>Math.PI?1:0;
-    return'<path d="M'+x1+','+y1+' A'+r+','+r+' 0 '+lg+',1 '+x2+','+y2+' L'+xi1+','+yi1+' A'+iR+','+iR+' 0 '+lg+',0 '+xi2+','+yi2+' Z" fill="'+color+'"/>';
-  }
-  var out=arc(0,bA,'#c9950a')+arc(bA,bA+eA,'#1a2d4a');
-  var ly=H-5;
-  out+='<rect x="'+(cx-44)+'" y="'+(ly-7)+'" width="7" height="7" fill="#c9950a" rx="1"/><text x="'+(cx-33)+'" y="'+ly+'" fill="#7a5c3a" font-family="Crimson Text" font-size="9">Bar '+Math.round(tB/tot*100)+'%</text>';
-  out+='<rect x="'+(cx+16)+'" y="'+(ly-7)+'" width="7" height="7" fill="#1a2d4a" rx="1"/><text x="'+(cx+27)+'" y="'+ly+'" fill="#7a5c3a" font-family="Crimson Text" font-size="9">EC '+Math.round(tE/tot*100)+'%</text>';
-  wrap.innerHTML='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'">'+out+'</svg>';
+  var ecPct=tE/tot*100;
+  var tBP=sm(rP.map(function(r){return r.bar}));
+  var tEP=sm(rP.map(function(r){return r.ec}));
+  var totP=tBP+tEP||1;
+  var ecPctP=tEP/totP*100;
+
+  el('ec-pct').textContent=pct(ecPct);
+  setHeroDelta('ec-pct-d',ecPct,ecPctP,true,prevY);
+  el('ec-bar-bar').style.width=(tB/tot*100)+'%';
+  el('ec-bar-ec').style.width=ecPct+'%';
+  el('ec-bar-pct').textContent=pct(tB/tot*100);
+  el('ec-ec-pct').textContent=pct(ecPct);
+  el('ec-bar-sum').textContent=eur(tB);
+  el('ec-ec-sum').textContent=eur(tE);
+
+  // ── TAGESVERLAUF ──
+  el('tage-year-label').textContent=activeYear;
+  renderTageGrid(rC,rP,bestTag);
+
+  // ── JAHRESTREND ──
+  renderTrend(alle,ys);
+
+  // ── KUTSCHEN ──
+  var byK=groupByKutsche(cur);
+  var kWrap=el('k-card-wrap');
+  if(byK.length>1){
+    kWrap.style.display='block';
+    var tU=sm(byK.map(function(k){return k.umsatz}))||1;
+    el('k-cards').innerHTML=byK.map(function(k,i){
+      var col=COLORS[i%COLORS.length];
+      return'<div class="k-card" style="--kc:'+col+'">'
+        +'<div class="k-name">'+esc(k.kutsche)+'</div>'
+        +'<div class="k-umsatz">'+eur(k.umsatz)+'</div>'
+        +'<div class="k-bw"><div class="k-bf" style="background:'+col+';width:'+Math.round(k.umsatz/tU*100)+'%"></div></div>'
+        +'<div class="k-meta">'
+        +'<div><div class="km-l">Bar</div><div class="km-v">'+eur(k.bar)+'</div></div>'
+        +'<div><div class="km-l">EC</div><div class="km-v">'+eur(k.ec)+'</div></div>'
+        +'<div><div class="km-l">EC%</div><div class="km-v">'+pct(k.ecAnteil)+'</div></div>'
+        +'<div><div class="km-l">Tage</div><div class="km-v">'+k.tage+'</div></div>'
+        +'</div></div>';
+    }).join('');
+  } else {kWrap.style.display='none'}
+
+  // ── TABELLE ──
+  var maxU=rC.length?Math.max.apply(null,rC.map(function(r){return r.umsatz})):1;
+  var WTS2=['So','Mo','Di','Mi','Do','Fr','Sa'];
+  el('tbl-body').innerHTML=rC.map(function(r){
+    var wt=new Date(r.rawDatum).getDay();
+    var stark=r.umsatz===maxU;
+    return'<tr class="'+(stark?'tr-stark':'')+'">'
+      +'<td>'+WTS2[wt]+' '+r.datum+'</td>'
+      +'<td class="thi">'+eur(r.umsatz)+'</td>'
+      +'<td>'+eur(r.bar)+'</td>'
+      +'<td>'+eur(r.ec)+'</td>'
+      +'<td class="'+(r.ecAnteil>=50?'tpos':'')+'">'+pct(r.ecAnteil)+'</td></tr>';
+  }).join('');
+
+  // Print-Header
+  var pt=el('print-title');
+  var pm=el('print-meta');
+  if(pt)pt.textContent=(m?m.name:'')+' – '+activeYear;
+  if(pm)pm.textContent='Marktchronik · Saison '+activeYear+(saison.fahrer&&saison.fahrer.length?' · '+saison.fahrer.join(', '):'');
 }
 
-function renderSvgStack(wrapId,rC,H){
-  var wrap=el(wrapId);if(!wrap)return;
-  var W=wrap.offsetWidth||300;
-  var pad={l:46,r:8,t:18,b:26};
-  var w=W-pad.l-pad.r,h=H-pad.t-pad.b;
-  if(!rC.length){wrap.innerHTML=emptySvg(W,H);return}
-  var mx=Math.max.apply(null,rC.map(function(r){return r.bar+r.ec}).concat([1]));
-  var bW=Math.max(4,(w/rC.length)*0.7),gap=w/rC.length;
-  var out='<rect x="'+pad.l+'" y="3" width="7" height="7" fill="#c9950a" rx="1"/><text x="'+(pad.l+10)+'" y="10" fill="#7a5c3a" font-family="Crimson Text" font-size="9">Bar</text>';
-  out+='<rect x="'+(pad.l+32)+'" y="3" width="7" height="7" fill="#1a2d4a" rx="1"/><text x="'+(pad.l+43)+'" y="10" fill="#7a5c3a" font-family="Crimson Text" font-size="9">EC</text>';
-  var i,gv,gy;
-  for(i=0;i<=4;i++){gv=mx*i/4;gy=pad.t+h-h*i/4;out+='<line x1="'+pad.l+'" y1="'+gy+'" x2="'+(pad.l+w)+'" y2="'+gy+'" stroke="rgba(122,92,58,.1)" stroke-width="0.5"/><text x="'+(pad.l-4)+'" y="'+(gy+4)+'" text-anchor="end" fill="#7a5c3a" font-family="Crimson Text" font-size="9">'+svgEur(gv)+'</text>'}
-  var step=Math.max(1,Math.ceil(rC.length/8));
-  rC.forEach(function(r,idx){if(idx%step===0||idx===rC.length-1){var x=pad.l+idx*gap+gap/2;out+='<text x="'+x+'" y="'+(pad.t+h+16)+'" text-anchor="middle" fill="#7a5c3a" font-family="Crimson Text" font-size="9">'+r.datum+'</text>'}});
+function setHeroDelta(id,c,p,isPP,py){
+  var e=el(id);
+  if(!e)return;
+  if(!p||!py){e.textContent='kein Vorjahr';e.className='hero-d dneu';return}
+  var d=isPP?c-p:(c-p)/p*100;
+  e.textContent=(d>=0?'\u25B2 ':'\u25BC ')+Math.abs(d).toFixed(1)+(isPP?'pp':'%')+' ggü. '+py;
+  e.className='hero-d '+(d>=0?'dpos':'dneg');
+}
+
+// Kompatibilität für alte KPI-Refs
+function setKPIs(){}
+function setDelta(id,c,p,isPP,py){setHeroDelta(id,c,p,isPP,py)}
+function clearCharts(){
+  var ids=['tage-grid','trend-wrap','k-cards','tbl-body'];
+  ids.forEach(function(i){var e=el(i);if(e)e.innerHTML=''});
+}
+
+function renderTageGrid(rC,rP,bestTag){
+  var grid=el('tage-grid');
+  if(!rC.length){grid.innerHTML='<div class="empty-state">Keine Einträge.</div>';return}
+  var maxU=Math.max.apply(null,rC.map(function(r){return r.umsatz}));
+  var avgU=sm(rC.map(function(r){return r.umsatz}))/rC.length;
+  var WTS=['So','Mo','Di','Mi','Do','Fr','Sa'];
+  // Vorjahr-Map für gleiche Tages-Position
+  var html='';
   rC.forEach(function(r,idx){
-    var x=pad.l+idx*gap+(gap-bW)/2;
-    var hB=(r.bar/mx)*h,hE=(r.ec/mx)*h;
-    out+='<rect x="'+x+'" y="'+(pad.t+h-hB-hE)+'" width="'+bW+'" height="'+hE+'" fill="#1a2d4a" rx="1"/>';
-    out+='<rect x="'+x+'" y="'+(pad.t+h-hB)+'" width="'+bW+'" height="'+hB+'" fill="#c9950a" rx="1"/>';
+    var wt=new Date(r.rawDatum).getDay();
+    var rel=maxU>0?r.umsatz/maxU:0;
+    var isStark=r.umsatz===maxU;
+    var isSchwach=r.umsatz<avgU*0.7;
+    var cls='tag-card'+(isStark?' stark':isSchwach?' schwach':'');
+    // Vorjahr gleicher Index
+    var prevR=rP&&rP[idx];
+    var bgH=Math.round(rel*60); // max 60% Hintergrund
+    html+='<div class="'+cls+'">'
+      +'<div class="tag-bg" style="height:'+bgH+'%"></div>'
+      +'<div class="tag-wt">'+WTS[wt]+(isStark?' ★':'')+'</div>'
+      +'<div class="tag-dt">'+r.datum+'</div>'
+      +'<div class="tag-u">'+eur(r.umsatz)+'</div>'
+      +'<div class="tag-ec">EC '+pct(r.ecAnteil)+'</div>'
+      +(prevR?'<div style="font-size:8px;color:var(--if);margin-top:2px;position:relative">VJ:'+eur(prevR.umsatz)+'</div>':'')
+      +'</div>';
   });
-  out+='<line x1="'+pad.l+'" y1="'+pad.t+'" x2="'+pad.l+'" y2="'+(pad.t+h)+'" stroke="#c9b07a" stroke-width="0.5"/>';
-  wrap.innerHTML='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'">'+out+'</svg>';
+  grid.innerHTML=html;
+}
+
+function renderTrend(alle,ys){
+  var wrap=el('trend-wrap');
+  if(!wrap)return;
+  if(ys.length<2){wrap.innerHTML='<div class="empty-state" style="font-size:0.8rem">Mindestens 2 Saisons für Trendanzeige benötigt.</div>';return}
+  // Gesamtumsatz und Tage pro Jahr
+  var data=ys.slice().reverse().map(function(y){
+    var einY=alle.filter(function(e){return jahrOf(e)===y});
+    var rY=groupByDate(einY);
+    var tot=sm(rY.map(function(r){return r.umsatz}));
+    return{jahr:y,umsatz:tot,tage:rY.length,isCur:y===activeYear};
+  });
+  var maxU=Math.max.apply(null,data.map(function(d){return d.umsatz}))||1;
+  var html='';
+  data.forEach(function(d){
+    var pct=d.umsatz/maxU*100;
+    var barClass=d.isCur?'trend-bar-inner cur':'trend-bar-inner';
+    var valInside=pct>30;
+    html+='<div class="trend-bar-row">'
+      +'<span class="trend-year">'+d.jahr+'</span>'
+      +'<div class="trend-bar-outer" style="--bw:'+pct+'%">'
+      +'<div class="'+barClass+'" style="width:'+pct+'%">'
+      +(valInside?'<span class="trend-bar-val">'+eur(d.umsatz)+'</span>':'')
+      +'</div>'
+      +(!valInside?'<span class="trend-bar-val out" style="--bw:'+pct+'%">'+eur(d.umsatz)+'</span>':'')
+      +'</div>'
+      +'<span class="trend-days">'+d.tage+'T</span>'
+      +'</div>';
+  });
+  wrap.innerHTML=html;
 }
 
 // ════════════════════════════════════════════════════════
@@ -2033,6 +2155,23 @@ function closeModal(id){el(id).classList.remove('open')}
 //  BACKUP / RESTORE
 // ════════════════════════════════════════════════════════
 var LS_BACKUP_TS = 'mps_marktfahrer_backup_ts';
+
+function exportPDF(){
+  var m=findMarkt(activeMarktId);
+  document.title=(m?m.name:'Marktchronik')+' – '+activeYear;
+  document.querySelectorAll('.screen').forEach(function(s){
+    s.setAttribute('data-pd',s.style.display||'');
+    if(s.id!=='screen-detail')s.style.display='none';
+    else s.classList.add('active');
+  });
+  window.print();
+  setTimeout(function(){
+    document.querySelectorAll('.screen').forEach(function(s){
+      var prev=s.getAttribute('data-pd')||'';
+      s.style.display=prev;
+    });
+  },600);
+}
 
 function exportBackup(){
   var data={
@@ -2181,8 +2320,7 @@ document.addEventListener('DOMContentLoaded',function(){
   // Resize → Charts neu
   window.addEventListener('resize',function(){
     if(activeTab==='chronik'&&activeMarktId!==null){
-      var alle=state.eintraege.filter(function(e){return e.marktId===activeMarktId});
-      renderDashYear(alle,uniqueYears(alle));
+      renderChronik();
     }
   });
 
