@@ -369,6 +369,24 @@ tbody td:first-child{text-align:left;color:var(--im);font-style:italic}
 .sc-value{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700}
 .sum-card.ein .sc-value{color:var(--fo)}.sum-card.aus .sc-value{color:var(--cr)}
 
+/* ── EINGABEMODUS ── */
+.modus-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.modus-btn{padding:11px 8px;border:2px solid var(--pd);border-radius:3px;
+  background:rgba(255,255,255,.3);font-family:'Cinzel',serif;font-size:0.7rem;
+  font-weight:600;letter-spacing:1px;cursor:pointer;transition:all .2s;
+  color:var(--im);min-height:44px;text-transform:uppercase;text-align:center}
+.modus-btn.zaehlen.active{background:rgba(139,26,26,.12);border-color:var(--cr);color:var(--cr)}
+.modus-btn.schnell.active{background:rgba(45,80,22,.12);border-color:#2d5a27;color:var(--fo)}
+.schnell-box{background:rgba(45,80,22,.06);border:1px solid rgba(45,90,39,.25);
+  border-left:3px solid #2d5a27;border-radius:3px;padding:14px;margin-bottom:10px}
+.schnell-box .sc-title{font-family:'Cinzel',serif;font-size:0.66rem;letter-spacing:2px;
+  text-transform:uppercase;color:var(--fo);margin-bottom:10px}
+.schnell-total{background:rgba(255,255,255,.5);border:1px solid var(--pd);border-radius:3px;
+  padding:10px 12px;text-align:center;margin-top:10px}
+.schnell-total-label{font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--im);display:block;margin-bottom:3px}
+.schnell-total-val{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--fo)}
+
 /* ── STÜCKELUNG ── */
 .stueck-detail{margin-top:8px;padding:9px 11px;background:rgba(255,255,255,.3);border:1px solid var(--pd);border-radius:3px}
 .stueck-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;align-items:center;padding:3px 0;font-size:0.82rem;border-bottom:1px solid rgba(184,134,11,.12)}
@@ -531,10 +549,10 @@ tbody td:first-child{text-align:left;color:var(--im);font-style:italic}
       <div class="tab-pane" id="tab-kasse">
         <div class="sync-bar"><div class="sync-dot"></div><span id="kasse-sync">Bereit</span></div>
 
-        <!-- Zählungs-Typ -->
-        <div class="type-toggle">
-          <button class="type-btn ab active" id="btn-ab" onclick="setZaehlTyp('abschluss')">🏁 Tagesabschluss</button>
-          <button class="type-btn zw" id="btn-zw" onclick="setZaehlTyp('zwischen')">⏱ Zwischenzählung</button>
+        <!-- Eingabemodus -->
+        <div class="modus-toggle">
+          <button class="modus-btn zaehlen active" id="btn-zaehlen" onclick="setEingabeModus('zaehlen')">🪙 Geld zählen</button>
+          <button class="modus-btn schnell" id="btn-schnell" onclick="setEingabeModus('schnell')">⚡ Schnellerfassung</button>
         </div>
 
         <!-- Edit Banner Kasse -->
@@ -546,36 +564,69 @@ tbody td:first-child{text-align:left;color:var(--im);font-style:italic}
         <div class="card">
           <div class="form-row">
             <div class="field"><label>Datum</label><input type="date" id="k-datum"></div>
-            <div class="field"><label>Anfangsbestand (€)</label><input type="number" id="k-anfang" step="0.01" min="0" placeholder="0.00" inputmode="decimal" oninput="calcKasse()"></div>
+            <div class="field" id="k-typ-field">
+              <label>Typ</label>
+              <select id="k-typ-sel" onchange="setZaehlTypFromSel()">
+                <option value="abschluss">Tagesabschluss</option>
+                <option value="zwischen">Zwischenzählung</option>
+              </select>
+            </div>
           </div>
           <div class="field" style="margin-bottom:8px"><label>Notiz</label><input type="text" id="k-notiz" placeholder="optional"></div>
 
-          <div class="coin-section">
-            <div class="coin-section-title">🪙 Münzen</div>
-            <div class="coin-row"><span class="coin-denom">2,00 €</span><input type="number" id="m-200" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-m200">0,00 €</span></div>
-            <div class="coin-row"><span class="coin-denom">1,00 €</span><input type="number" id="m-100" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-m100">0,00 €</span></div>
-            <div class="coin-row"><span class="coin-denom">0,50 €</span><input type="number" id="m-050" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-m050">0,00 €</span></div>
-            <div class="coin-total-row"><span class="coin-total-label">Münzen gesamt</span><span class="coin-total-val" id="s-muenzen">0,00 €</span></div>
+          <!-- MODUS A: Geld zählen -->
+          <div id="modus-zaehlen">
+            <div class="field" style="margin-bottom:10px">
+              <label>Anfangsbestand (€)</label>
+              <input type="number" id="k-anfang" step="0.01" min="0" placeholder="0.00" inputmode="decimal" oninput="calcKasse()">
+            </div>
+            <div class="coin-section">
+              <div class="coin-section-title">🪙 Münzen</div>
+              <div class="coin-row"><span class="coin-denom">2,00 €</span><input type="number" id="m-200" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-m200">0,00 €</span></div>
+              <div class="coin-row"><span class="coin-denom">1,00 €</span><input type="number" id="m-100" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-m100">0,00 €</span></div>
+              <div class="coin-row"><span class="coin-denom">0,50 €</span><input type="number" id="m-050" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-m050">0,00 €</span></div>
+              <div class="coin-total-row"><span class="coin-total-label">Münzen gesamt</span><span class="coin-total-val" id="s-muenzen">0,00 €</span></div>
+            </div>
+            <div class="coin-section">
+              <div class="coin-section-title">💶 Scheine</div>
+              <div class="coin-row"><span class="coin-denom">500 €</span><input type="number" id="b-500" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b500">0,00 €</span></div>
+              <div class="coin-row"><span class="coin-denom">200 €</span><input type="number" id="b-200" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b200">0,00 €</span></div>
+              <div class="coin-row"><span class="coin-denom">100 €</span><input type="number" id="b-100" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b100">0,00 €</span></div>
+              <div class="coin-row"><span class="coin-denom">50 €</span><input type="number" id="b-050" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b050">0,00 €</span></div>
+              <div class="coin-row"><span class="coin-denom">20 €</span><input type="number" id="b-020" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b020">0,00 €</span></div>
+              <div class="coin-row"><span class="coin-denom">10 €</span><input type="number" id="b-010" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b010">0,00 €</span></div>
+              <div class="coin-row"><span class="coin-denom">5 €</span><input type="number" id="b-005" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b005">0,00 €</span></div>
+              <div class="coin-total-row"><span class="coin-total-label">Scheine gesamt</span><span class="coin-total-val" id="s-scheine">0,00 €</span></div>
+            </div>
+            <div class="result-grid">
+              <div class="result-box"><span class="rb-label">Ist-Bestand</span><span class="rb-value" id="k-ist">0,00 €</span></div>
+              <div class="result-box"><span class="rb-label">Anfang</span><span class="rb-value" id="k-soll">0,00 €</span></div>
+              <div class="result-box"><span class="rb-label">Differenz</span><span class="rb-value dz" id="k-diff">+0,00 €</span></div>
+            </div>
           </div>
 
-          <div class="coin-section">
-            <div class="coin-section-title">💶 Scheine</div>
-            <div class="coin-row"><span class="coin-denom">500 €</span><input type="number" id="b-500" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b500">0,00 €</span></div>
-            <div class="coin-row"><span class="coin-denom">200 €</span><input type="number" id="b-200" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b200">0,00 €</span></div>
-            <div class="coin-row"><span class="coin-denom">100 €</span><input type="number" id="b-100" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b100">0,00 €</span></div>
-            <div class="coin-row"><span class="coin-denom">50 €</span><input type="number" id="b-050" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b050">0,00 €</span></div>
-            <div class="coin-row"><span class="coin-denom">20 €</span><input type="number" id="b-020" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b020">0,00 €</span></div>
-            <div class="coin-row"><span class="coin-denom">10 €</span><input type="number" id="b-010" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b010">0,00 €</span></div>
-            <div class="coin-row"><span class="coin-denom">5 €</span><input type="number" id="b-005" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b005">0,00 €</span></div>
-            <div class="coin-total-row"><span class="coin-total-label">Scheine gesamt</span><span class="coin-total-val" id="s-scheine">0,00 €</span></div>
+          <!-- MODUS B: Schnellerfassung -->
+          <div id="modus-schnell" style="display:none">
+            <div class="schnell-box">
+              <div class="sc-title">⚡ Tageseinnahmen direkt eintragen</div>
+              <div class="form-row">
+                <div class="field">
+                  <label>Bar-Einnahmen (€)</label>
+                  <input type="number" id="s-bar" step="0.01" min="0" placeholder="0.00" inputmode="decimal" oninput="calcSchnell()">
+                </div>
+                <div class="field">
+                  <label>EC-Einnahmen (€)</label>
+                  <input type="number" id="s-ec" step="0.01" min="0" placeholder="0.00" inputmode="decimal" oninput="calcSchnell()">
+                </div>
+              </div>
+              <div class="schnell-total">
+                <span class="schnell-total-label">Tagesumsatz gesamt</span>
+                <span class="schnell-total-val" id="s-gesamt">0,00 €</span>
+              </div>
+            </div>
           </div>
 
-          <div class="result-grid">
-            <div class="result-box"><span class="rb-label">Ist-Bestand</span><span class="rb-value" id="k-ist">0,00 €</span></div>
-            <div class="result-box"><span class="rb-label">Anfang</span><span class="rb-value" id="k-soll">0,00 €</span></div>
-            <div class="result-box"><span class="rb-label">Differenz</span><span class="rb-value dz" id="k-diff">+0,00 €</span></div>
-          </div>
-          <button class="btn btn-primary" style="margin-top:12px" onclick="saveKasse()">🪙 Zählung speichern</button>
+          <button class="btn btn-primary" style="margin-top:12px" onclick="saveKasse()">💾 Speichern</button>
         </div>
 
         <div class="sec" id="kasse-list-title">Zählungen</div>
@@ -895,6 +946,7 @@ var activeTab = 'planung';
 var activeYear = null;
 var planungYear = null;
 var zaehlTyp = 'abschluss';
+var eingabeModus = 'zaehlen'; // 'zaehlen' oder 'schnell'
 var buchTyp  = 'einnahme';
 var editKasseId = null;
 var editBuchId  = null;
@@ -1280,10 +1332,32 @@ function renderKasse(){
   renderBuchList();
 }
 
+function setEingabeModus(m){
+  eingabeModus=m;
+  el('btn-zaehlen').classList.toggle('active',m==='zaehlen');
+  el('btn-schnell').classList.toggle('active',m==='schnell');
+  el('modus-zaehlen').style.display=m==='zaehlen'?'block':'none';
+  el('modus-schnell').style.display=m==='schnell'?'block':'none';
+  // Schnellerfassung ist immer Tagesabschluss
+  if(m==='schnell'){
+    zaehlTyp='abschluss';
+    el('k-typ-sel').value='abschluss';
+  }
+}
+
+function setZaehlTypFromSel(){
+  zaehlTyp=el('k-typ-sel').value;
+}
+
 function setZaehlTyp(t){
   zaehlTyp=t;
-  el('btn-ab').classList.toggle('active',t==='abschluss');
-  el('btn-zw').classList.toggle('active',t==='zwischen');
+  if(el('k-typ-sel'))el('k-typ-sel').value=t;
+}
+
+function calcSchnell(){
+  var bar=parseFloat(el('s-bar').value)||0;
+  var ec=parseFloat(el('s-ec').value)||0;
+  el('s-gesamt').textContent=fmt(bar+ec);
 }
 
 function calcKasse(){
@@ -1306,31 +1380,82 @@ function calcKasse(){
 function saveKasse(){
   var datum=el('k-datum').value;
   if(!datum){toast('⚠ Bitte Datum angeben');return}
-  // Duplikat-Check für Tagesabschlüsse
-  if(zaehlTyp==='abschluss'&&editKasseId===null){
-    var exists=state.kassungen.find(function(k){return k.marktId===activeMarktId&&k.datum===datum&&k.typ==='abschluss'});
-    if(exists){toast('⚠ Für diesen Tag existiert bereits ein Tagesabschluss');return}
+
+  var data;
+
+  if(eingabeModus==='schnell'){
+    // ── MODUS B: Schnellerfassung ──
+    var sBar=parseFloat(el('s-bar').value)||0;
+    var sEc=parseFloat(el('s-ec').value)||0;
+    if(sBar===0&&sEc===0){toast('⚠ Bitte Bar oder EC eintragen');return}
+    // Duplikat-Check
+    if(editKasseId===null){
+      var exists=state.kassungen.find(function(k){return k.marktId===activeMarktId&&k.datum===datum&&k.typ==='abschluss'});
+      if(exists){toast('⚠ Für diesen Tag existiert bereits ein Tagesabschluss');return}
+    }
+    // Schnellerfassung speichert bar als istBestand (anfang=0, diff=bar)
+    // EC wird als separate Buchung automatisch angelegt
+    data={
+      id:editKasseId!==null?editKasseId:state.nextKasseId++,
+      marktId:activeMarktId,typ:'abschluss',datum:datum,
+      modus:'schnell',
+      anfang:0,coins:{},bills:{},
+      muenzen:0,scheine:sBar,
+      istBestand:sBar,soll:0,diff:sBar,
+      notiz:el('k-notiz').value.trim()
+    };
+    // EC-Buchung automatisch anlegen wenn EC > 0
+    if(sEc>0){
+      // Prüfen ob bereits eine EC-Buchung für diesen Tag existiert
+      var ecExists=state.buchungen.find(function(b){
+        return b.marktId===activeMarktId&&b.datum===datum&&b.zahlung==='EC'&&b.typ==='einnahme'&&b.autoEC;
+      });
+      if(ecExists){
+        ecExists.betrag=sEc;
+      } else {
+        state.buchungen.push({
+          id:state.nextBuchId++,
+          marktId:activeMarktId,typ:'einnahme',datum:datum,
+          bezeichnung:'EC-Einnahmen',betrag:sEc,
+          zahlung:'EC',kategorie:'Umsatz',autoEC:true
+        });
+      }
+    } else {
+      // EC auf 0 gesetzt – evtl. alte autoEC-Buchung entfernen
+      state.buchungen=state.buchungen.filter(function(b){
+        return !(b.marktId===activeMarktId&&b.datum===datum&&b.autoEC&&editKasseId!==null);
+      });
+    }
+  } else {
+    // ── MODUS A: Geldzählung ──
+    zaehlTyp=el('k-typ-sel').value;
+    if(zaehlTyp==='abschluss'&&editKasseId===null){
+      var exists2=state.kassungen.find(function(k){return k.marktId===activeMarktId&&k.datum===datum&&k.typ==='abschluss'});
+      if(exists2){toast('⚠ Für diesen Tag existiert bereits ein Tagesabschluss');return}
+    }
+    var anfang=parseFloat(el('k-anfang').value)||0;
+    var coins={},muenzen=0;
+    COINS.forEach(function(c){var n=parseInt(el(c.id).value)||0;coins[c.id]=n;muenzen+=n*c.val});
+    var bills={},scheine=0;
+    BILLS.forEach(function(b){var n=parseInt(el(b.id).value)||0;bills[b.id]=n;scheine+=n*b.val});
+    var ist=muenzen+scheine;
+    data={
+      id:editKasseId!==null?editKasseId:state.nextKasseId++,
+      marktId:activeMarktId,typ:zaehlTyp,datum:datum,
+      modus:'zaehlen',
+      anfang:anfang,coins:coins,bills:bills,
+      muenzen:muenzen,scheine:scheine,
+      istBestand:ist,soll:anfang,diff:ist-anfang,
+      notiz:el('k-notiz').value.trim()
+    };
   }
-  var anfang=parseFloat(el('k-anfang').value)||0;
-  var coins={},muenzen=0;
-  COINS.forEach(function(c){var n=parseInt(el(c.id).value)||0;coins[c.id]=n;muenzen+=n*c.val});
-  var bills={},scheine=0;
-  BILLS.forEach(function(b){var n=parseInt(el(b.id).value)||0;bills[b.id]=n;scheine+=n*b.val});
-  var ist=muenzen+scheine;
-  var data={
-    id:editKasseId!==null?editKasseId:state.nextKasseId++,
-    marktId:activeMarktId,typ:zaehlTyp,datum:datum,
-    anfang:anfang,coins:coins,bills:bills,
-    muenzen:muenzen,scheine:scheine,
-    istBestand:ist,soll:anfang,diff:ist-anfang,
-    notiz:el('k-notiz').value.trim()
-  };
+
   if(editKasseId!==null){
     for(var i=0;i<state.kassungen.length;i++){if(state.kassungen[i].id===editKasseId){state.kassungen[i]=data;break}}
-    toast('✓ Zählung aktualisiert');
+    toast('✓ Gespeichert');
   } else {
     state.kassungen.push(data);
-    toast('✓ Zählung gespeichert');
+    toast('✓ Gespeichert');
   }
   saveData(); resetKasseForm(); renderKasseList();
 }
@@ -1339,27 +1464,42 @@ function resetKasseForm(){
   editKasseId=null;
   el('kasse-edit-banner').classList.remove('show');
   el('k-datum').value=todayISO();
-  el('k-anfang').value='';
   el('k-notiz').value='';
+  el('k-anfang').value='';
   COINS.forEach(function(c){el(c.id).value=0});
   BILLS.forEach(function(b){el(b.id).value=0});
-  setZaehlTyp('abschluss'); calcKasse();
+  el('s-bar').value=''; el('s-ec').value='';
+  el('s-gesamt').textContent='0,00 €';
+  setZaehlTyp('abschluss');
+  // Modus beibehalten – nicht zurücksetzen
+  calcKasse();
 }
 
 function editKasse(id){
   var k=state.kassungen.find(function(x){return x.id===id});
   if(!k)return;
   editKasseId=id;
-  setZaehlTyp(k.typ||'abschluss');
   el('k-datum').value=k.datum;
-  el('k-anfang').value=k.anfang;
   el('k-notiz').value=k.notiz||'';
-  var coins=k.coins||{};
-  COINS.forEach(function(c){el(c.id).value=coins[c.id]||0});
-  var bills=k.bills||{};
-  BILLS.forEach(function(b){el(b.id).value=bills[b.id]||0});
-  calcKasse();
-  el('kasse-eb-info').textContent=(k.typ==='zwischen'?'Zwischenzählung':'Tagesabschluss')+' · '+fmtDate(k.datum);
+  if(k.modus==='schnell'){
+    setEingabeModus('schnell');
+    el('s-bar').value=k.istBestand||'';
+    // EC aus autoEC-Buchung laden
+    var ecBuch=state.buchungen.find(function(b){return b.marktId===activeMarktId&&b.datum===k.datum&&b.autoEC});
+    el('s-ec').value=ecBuch?ecBuch.betrag:'';
+    calcSchnell();
+  } else {
+    setEingabeModus('zaehlen');
+    setZaehlTyp(k.typ||'abschluss');
+    el('k-anfang').value=k.anfang;
+    var coins=k.coins||{};
+    COINS.forEach(function(c){el(c.id).value=coins[c.id]||0});
+    var bills=k.bills||{};
+    BILLS.forEach(function(b){el(b.id).value=bills[b.id]||0});
+    calcKasse();
+  }
+  var typLabel=k.modus==='schnell'?'Schnellerfassung':(k.typ==='zwischen'?'Zwischenzählung':'Tagesabschluss');
+  el('kasse-eb-info').textContent=typLabel+' · '+fmtDate(k.datum);
   el('kasse-edit-banner').classList.add('show');
   window.scrollTo(0,0); toast('Bearbeitungsmodus');
 }
@@ -1383,24 +1523,33 @@ function renderKasseList(){
   if(!marktKassungen.length){el('kasse-list').innerHTML='<div class="empty-state">Noch keine Zählungen vorhanden.</div>';return}
   var html='';
   marktKassungen.forEach(function(k){
+    var isSchnell=k.modus==='schnell';
     var typ=k.typ||'abschluss';
     var isZw=typ==='zwischen';
-    var diffCls=k.diff>0.005?'dp':k.diff<-0.005?'dn':'dz';
-    var diffTxt=(k.diff>=0?'+':'')+fmt(k.diff);
+    var typLabel=isSchnell?'Schnellerfassung':(isZw?'Zwischenzählung':'Tagesabschluss');
+    var typCls=isSchnell?'ab':(isZw?'zw':'ab');
+    var barEin=k.istBestand-k.anfang;
+    // EC aus autoEC-Buchung
+    var ecBuch=state.buchungen.find(function(b){return b.marktId===activeMarktId&&b.datum===k.datum&&b.autoEC});
+    var ecEin=ecBuch?ecBuch.betrag:0;
+    var umsatz=barEin+ecEin;
     html+='<div class="kasse-card'+(isZw?' zw':'')+'">'
       +'<div class="kc-hdr"><div style="flex:1;min-width:0">'
       +'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">'
       +'<span class="kc-title">'+fmtDate(k.datum)+'</span>'
-      +'<span class="kc-badge '+(isZw?'zw':'ab')+'">'+(isZw?'Zwischenzählung':'Tagesabschluss')+'</span>'
+      +'<span class="kc-badge '+typCls+'">'+typLabel+'</span>'
       +'</div>'
       +(k.notiz?'<div class="kc-meta">'+esc(k.notiz)+'</div>':'')
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:4px">'
-      +'<span class="kc-diff '+diffCls+'">'+diffTxt+'</span>'
+      +'<span class="kc-diff dp">'+fmt(umsatz)+'</span>'
       +'<button class="icon-btn" onclick="editKasse('+k.id+')" title="Bearbeiten">✏️</button>'
       +'<button class="icon-btn" onclick="deleteKasse('+k.id+')" title="Löschen">✕</button>'
       +'</div></div>'
-      +'<div class="kc-meta">Anfang: '+fmt(k.anfang)+' · Ist: '+fmt(k.istBestand)+'</div>'
+      +(isSchnell
+        ?'<div class="kc-meta">🪙 Bar: '+fmt(barEin)+(ecEin>0?' · 💳 EC: '+fmt(ecEin):'')+'</div>'
+        :'<div class="kc-meta">Anfang: '+fmt(k.anfang)+' · Ist: '+fmt(k.istBestand)+'</div>'
+      )
       +'</div>';
   });
   el('kasse-list').innerHTML=html;
@@ -1546,7 +1695,13 @@ function calcAbschluss(){
   if(!fTage.length){tHtml='<div class="empty-state">Keine Tagesabschlüsse vorhanden.</div>'}
   else fTage.forEach(function(k){
     var bar=k.istBestand-k.anfang;
-    tHtml+='<div class="ab-tag-card"><span class="ab-tag-datum">'+fmtDate(k.datum)+'</span><span class="ab-tag-bar">'+fmt(bar)+'</span><div class="ab-tag-meta">Ist: '+fmt(k.istBestand)+' − Anfang: '+fmt(k.anfang)+(k.notiz?' · '+esc(k.notiz):'')+'</div></div>';
+    var isSchnell=k.modus==='schnell';
+    var ecBuch=state.buchungen.find(function(b){return b.marktId===activeMarktId&&b.datum===k.datum&&b.autoEC});
+    var ecEin=ecBuch?ecBuch.betrag:0;
+    var metaTxt=isSchnell
+      ?('⚡ Schnell · Bar: '+fmt(bar)+(ecEin>0?' · EC: '+fmt(ecEin):''))
+      :('Ist: '+fmt(k.istBestand)+' − Anfang: '+fmt(k.anfang));
+    tHtml+='<div class="ab-tag-card"><span class="ab-tag-datum">'+fmtDate(k.datum)+'</span><span class="ab-tag-bar">'+fmt(bar+ecEin)+'</span><div class="ab-tag-meta">'+metaTxt+(k.notiz?' · '+esc(k.notiz):'')+'</div></div>';
   });
   el('ab-tage-list').innerHTML=tHtml;
 
@@ -1600,6 +1755,7 @@ function renderTransferPreview(){
   var fTage=state.kassungen.filter(function(k){return k.marktId===activeMarktId&&k.typ==='abschluss'&&k.datum.indexOf(jahr)===0});
   var fBuch=state.buchungen.filter(function(b){return b.marktId===activeMarktId&&b.datum.indexOf(jahr)===0});
   var ecByDate={};
+  // EC aus allen Buchungen inkl. autoEC (Schnellerfassung)
   fBuch.forEach(function(b){if(b.typ==='einnahme'&&b.zahlung!=='Bar')ecByDate[b.datum]=(ecByDate[b.datum]||0)+b.betrag});
   var vorhandene={};
   state.eintraege.forEach(function(e){if(e.marktId===activeMarktId&&String(e.datum).indexOf(jahr)===0&&e.kutsche===kutsche)vorhandene[e.datum]=e});
@@ -1626,6 +1782,7 @@ function doTransfer(){
   var neu=0,updated=0;
   fTage.forEach(function(k){
     var bar=k.istBestand-k.anfang;
+    // EC: aus autoEC-Buchung (Schnellerfassung) ODER normaler Buchung
     var ec=ecByDate[k.datum]||0;
     var jahrNum=parseInt(k.datum.split('-')[0],10);
     var existing=state.eintraege.find(function(e){return e.marktId===activeMarktId&&e.datum===k.datum&&e.kutsche===kutsche});
@@ -2002,6 +2159,13 @@ document.addEventListener('DOMContentLoaded',function(){
   // Coin-Inputs
   COINS.forEach(function(c){setupCoinInput(c.id)});
   BILLS.forEach(function(b){setupCoinInput(b.id)});
+
+  // Schnellerfassung-Inputs
+  ['s-bar','s-ec'].forEach(function(id){
+    var inp=el(id);
+    if(!inp)return;
+    inp.addEventListener('focus',function(){setTimeout(function(){try{inp.select()}catch(e){}},0)});
+  });
 
   // k-anfang
   var anfangInp=el('k-anfang');
