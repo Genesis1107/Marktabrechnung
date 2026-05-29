@@ -18,12 +18,13 @@
   --safe-bottom:env(safe-area-inset-bottom,0px);
   --nav-h:62px;
 }
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;min-width:0}
+html,body{height:100%;overflow:hidden;width:100%;max-width:100vw}
 body{
   background:var(--dark);
   font-family:'Crimson Text',serif;
   color:var(--ink);
+  overflow-x:hidden;
 }
 
 /* ── TOAST ── */
@@ -41,7 +42,7 @@ body{
 
 /* ── SCREENS ── */
 #app{display:flex;flex-direction:column;height:100%;height:100dvh}
-.screen{display:none;flex:1;overflow-y:auto;background:var(--p2);
+.screen{display:none;flex:1;overflow-y:auto;overflow-x:hidden;background:var(--p2);width:100%;max-width:100vw;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
 }
 .screen.active{display:block}
@@ -81,7 +82,7 @@ body{
 .page-hdr .sub{font-size:0.75rem;color:rgba(245,233,201,0.6);margin-top:2px;font-style:italic;font-family:'IM Fell English',serif}
 
 /* ── CONTENT ── */
-.content{padding:16px 16px calc(20px + var(--nav-h) + var(--safe-bottom));max-width:640px;margin:0 auto}
+.content{padding:14px 12px calc(20px + var(--nav-h) + var(--safe-bottom));max-width:640px;margin:0 auto;width:100%;overflow-x:hidden}
 
 /* ── SECTION TITLE ── */
 .sec{font-family:'Cinzel',serif;font-size:0.68rem;text-transform:uppercase;letter-spacing:2.5px;color:var(--im);display:flex;align-items:center;gap:10px;margin:18px 0 10px}
@@ -94,7 +95,8 @@ body{
 .card-title::after{content:'';flex:1;height:1px;background:linear-gradient(to right,var(--pd),transparent)}
 
 /* ── MARKT-GRID ── */
-.markt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;padding:16px;padding-bottom:calc(16px + var(--nav-h) + var(--safe-bottom))}
+.markt-grid{display:grid;grid-template-columns:1fr;gap:12px;padding:14px;padding-bottom:calc(14px + var(--nav-h) + var(--safe-bottom));width:100%}
+@media(min-width:560px){.markt-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}}
 .markt-card{
   background:var(--p);border:1px solid var(--pd);
   border-top:3px solid var(--cc,var(--cr));
@@ -131,18 +133,18 @@ body{
 .detail-hdr-sub{font-family:'IM Fell English',serif;font-style:italic;font-size:0.72rem;color:rgba(245,233,201,0.55)}
 .tab-bar{display:flex;gap:2px;padding:0 2px}
 .tab-btn{
-  flex:1;padding:9px 4px;background:none;border:none;
-  font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:1.5px;text-transform:uppercase;
+  flex:1;padding:8px 2px;background:none;border:none;
+  font-family:'Cinzel',serif;font-size:0.56rem;letter-spacing:0.8px;text-transform:uppercase;
   color:rgba(245,233,201,0.5);cursor:pointer;border-bottom:2px solid transparent;
-  transition:color .2s,border-color .2s;min-height:40px;
+  transition:color .2s,border-color .2s;min-height:40px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .tab-btn.active{color:var(--gl);border-bottom-color:var(--gl)}
 .tab-pane{display:none}
 .tab-pane.active{display:block}
 
 /* ── FORMS ── */
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.form-row.triple{grid-template-columns:1fr 1fr 1fr}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.form-row.triple{grid-template-columns:1fr 1fr 1fr;gap:6px}
 .form-row.solo{grid-template-columns:1fr}
 .field{display:flex;flex-direction:column;gap:4px}
 .field label{font-family:'Cinzel',serif;font-size:0.66rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--im)}
@@ -206,19 +208,19 @@ body{
 /* ── COIN ROWS ── */
 .coin-section{background:rgba(255,255,255,.28);border:1px solid var(--pd);border-radius:3px;padding:12px;margin:8px 0}
 .coin-section-title{font-family:'Cinzel',serif;font-size:0.66rem;font-weight:600;letter-spacing:2px;color:var(--im);text-transform:uppercase;margin-bottom:10px}
-.coin-row{display:grid;grid-template-columns:80px 1fr 88px;align-items:center;gap:8px;margin-bottom:7px}
-.coin-denom{font-family:'Cinzel',serif;font-weight:600;font-size:0.9rem;color:var(--ink)}
-.coin-row input{text-align:right;font-size:1rem;padding:9px 10px}
-.coin-sub{font-family:'Cinzel',serif;font-weight:600;font-size:0.85rem;color:#2d5a27;text-align:right}
-.coin-total-row{display:grid;grid-template-columns:80px 1fr 88px;align-items:center;gap:8px;border-top:1px solid var(--pd);padding-top:7px;margin-top:3px}
+.coin-row{display:grid;grid-template-columns:72px 1fr auto;align-items:center;gap:6px;margin-bottom:6px}
+.coin-denom{font-family:'Cinzel',serif;font-weight:600;font-size:0.88rem;color:var(--ink);white-space:nowrap}
+.coin-row input{text-align:right;font-size:1rem;padding:8px 8px;width:100%;min-width:0}
+.coin-sub{font-family:'Cinzel',serif;font-weight:600;font-size:0.82rem;color:#2d5a27;text-align:right;white-space:nowrap;min-width:72px}
+.coin-total-row{display:grid;grid-template-columns:72px 1fr auto;align-items:center;gap:6px;border-top:1px solid var(--pd);padding-top:6px;margin-top:3px}
 .coin-total-label{font-family:'Cinzel',serif;font-size:0.62rem;font-weight:600;letter-spacing:1px;color:var(--im);text-transform:uppercase;grid-column:1/3}
 .coin-total-val{font-family:'Cinzel',serif;font-weight:700;font-size:0.95rem;color:var(--fo);text-align:right}
 
 /* ── RESULT BOXES ── */
-.result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
-.result-box{background:rgba(255,255,255,.4);border:1px solid var(--pd);border-radius:3px;padding:9px;text-align:center}
-.rb-label{font-family:'Cinzel',serif;font-size:0.55rem;letter-spacing:1.5px;color:var(--im);text-transform:uppercase;display:block;margin-bottom:3px}
-.rb-value{font-family:'Cinzel',serif;font-size:1rem;font-weight:700}
+.result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:12px 0}
+.result-box{background:rgba(255,255,255,.4);border:1px solid var(--pd);border-radius:3px;padding:8px 6px;text-align:center}
+.rb-label{font-family:'Cinzel',serif;font-size:0.5rem;letter-spacing:1px;color:var(--im);text-transform:uppercase;display:block;margin-bottom:3px}
+.rb-value{font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700}
 
 /* ── ABSCHLUSS ── */
 .ab-row{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:1px solid rgba(184,134,11,.15);font-size:0.88rem;gap:8px}
@@ -291,7 +293,8 @@ body{
 .notiz-box{background:var(--p);border:1px solid var(--pd);border-left:3px solid var(--go);border-radius:2px;padding:14px 16px;margin-bottom:12px}
 .notiz-box-title{font-family:'Cinzel',serif;font-size:0.66rem;text-transform:uppercase;letter-spacing:2px;color:var(--go);margin-bottom:7px}
 .notiz-box-text{font-family:'IM Fell English',serif;font-style:italic;font-size:13px;color:var(--ink);line-height:1.7;white-space:pre-wrap}
-.tbl-wrap{overflow-x:auto}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{table-layout:fixed;width:100%}
 table{width:100%;border-collapse:collapse;font-family:'Crimson Text',serif;font-size:12px}
 thead th{padding:4px 6px;text-align:right;color:var(--im);font-size:0.6rem;font-family:'Cinzel',serif;font-weight:400;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid var(--pd)}
 thead th:first-child{text-align:left}
@@ -402,6 +405,62 @@ tbody td:first-child{text-align:left;color:var(--im);font-style:italic}
     <div class="markt-grid" id="markt-grid"></div>
   </div>
 
+  <!-- ════ DATEN / BACKUP ════ -->
+  <div class="screen" id="screen-daten">
+    <div class="page-hdr">
+      <h1>💾 Daten & Backup</h1>
+      <div class="sub">Datensicherung der Marktfahrer App</div>
+    </div>
+    <div class="content">
+
+      <div id="backup-warning" style="display:none;background:rgba(139,26,26,.1);border:1px solid var(--cr);border-radius:3px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:var(--cr)">
+        ⚠ Letztes Backup ist mehr als 7 Tage alt – bitte jetzt sichern!
+      </div>
+
+      <div class="sec">Backup erstellen</div>
+      <div class="card">
+        <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:12px;font-family:'IM Fell English',serif;font-style:italic">
+          Alle Märkte, Kassenzählungen, Buchungen und Chronik-Daten als JSON-Datei sichern. Empfehlung: in iCloud Drive ablegen.
+        </p>
+        <div id="backup-info" style="font-size:0.78rem;color:var(--im);font-style:italic;margin-bottom:12px;font-family:'IM Fell English',serif"></div>
+        <button class="btn btn-green" onclick="exportBackup()">⬇ Backup speichern</button>
+      </div>
+
+      <div class="sec">Backup einspielen</div>
+      <div class="card">
+        <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:6px;font-family:'IM Fell English',serif;font-style:italic">
+          JSON-Backup auswählen um alle Daten wiederherzustellen.
+        </p>
+        <p style="font-size:0.8rem;color:var(--cr);font-style:italic;margin-bottom:12px">
+          ⚠ Bestehende Daten werden dabei überschrieben!
+        </p>
+        <input type="file" id="import-file" accept=".json,application/json" style="font-size:0.85rem;padding:8px;width:100%;background:var(--p);border:1px solid var(--pd);border-radius:2px">
+      </div>
+
+      <div class="sec">Datenbestand</div>
+      <div class="card" id="data-stats">
+        <div style="font-size:0.85rem;color:var(--im);font-style:italic">Lade…</div>
+      </div>
+
+      <div class="sec">App installieren</div>
+      <div class="info-box">
+        <strong>📱 Auf iPhone-Homescreen installieren</strong>
+        1. App in Safari öffnen<br>
+        2. Teilen-Symbol antippen (Pfeil nach oben)<br>
+        3. „Zum Home-Bildschirm" wählen<br>
+        4. Namen bestätigen → fertig!<br><br>
+        Die App startet dann im Vollbild ohne Browser-Leiste.
+      </div>
+
+      <div class="sec">Alle Daten löschen</div>
+      <div class="card">
+        <p style="font-size:0.82rem;color:var(--im);line-height:1.5;margin-bottom:12px;font-family:'IM Fell English',serif;font-style:italic">Setzt die App vollständig zurück. Bitte vorher ein Backup erstellen!</p>
+        <button class="btn btn-danger" style="margin-top:0" onclick="clearAllData()">🗑 Alle Daten unwiderruflich löschen</button>
+      </div>
+
+    </div>
+  </div>
+
   <!-- ════ MARKT DETAIL ════ -->
   <div class="screen" id="screen-detail">
     <div class="detail-hdr">
@@ -496,11 +555,6 @@ tbody td:first-child{text-align:left;color:var(--im);font-style:italic}
             <div class="coin-row"><span class="coin-denom">2,00 €</span><input type="number" id="m-200" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-m200">0,00 €</span></div>
             <div class="coin-row"><span class="coin-denom">1,00 €</span><input type="number" id="m-100" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-m100">0,00 €</span></div>
             <div class="coin-row"><span class="coin-denom">0,50 €</span><input type="number" id="m-050" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-m050">0,00 €</span></div>
-            <div class="coin-row"><span class="coin-denom">0,20 €</span><input type="number" id="m-020" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-m020">0,00 €</span></div>
-            <div class="coin-row"><span class="coin-denom">0,10 €</span><input type="number" id="m-010" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-m010">0,00 €</span></div>
-            <div class="coin-row"><span class="coin-denom">0,05 €</span><input type="number" id="m-005" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-m005">0,00 €</span></div>
-            <div class="coin-row"><span class="coin-denom">0,02 €</span><input type="number" id="m-002" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-m002">0,00 €</span></div>
-            <div class="coin-row"><span class="coin-denom">0,01 €</span><input type="number" id="m-001" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-m001">0,00 €</span></div>
             <div class="coin-total-row"><span class="coin-total-label">Münzen gesamt</span><span class="coin-total-val" id="s-muenzen">0,00 €</span></div>
           </div>
 
@@ -712,13 +766,13 @@ tbody td:first-child{text-align:left;color:var(--im);font-style:italic}
 
 <!-- Bottom Nav (nur auf Startseite sichtbar) -->
 <nav class="bottom-nav" id="bottom-nav">
-  <button class="nav-btn active" onclick="goBack()">
+  <button class="nav-btn active" id="nav-maerkte" onclick="showStartTab('maerkte')">
     <span class="ni">🏰</span>
     <span class="nl">Märkte</span>
   </button>
-  <button class="nav-btn" onclick="openNewMarktModal()">
-    <span class="ni">＋</span>
-    <span class="nl">Neu</span>
+  <button class="nav-btn" id="nav-daten" onclick="showStartTab('daten')">
+    <span class="ni">💾</span>
+    <span class="nl">Daten</span>
   </button>
 </nav>
 
@@ -818,10 +872,9 @@ var CHECKLISTE = {
 };
 
 var COINS = [
-  {id:'m-200',sid:'s-m200',val:2},   {id:'m-100',sid:'s-m100',val:1},
-  {id:'m-050',sid:'s-m050',val:0.5}, {id:'m-020',sid:'s-m020',val:0.2},
-  {id:'m-010',sid:'s-m010',val:0.1}, {id:'m-005',sid:'s-m005',val:0.05},
-  {id:'m-002',sid:'s-m002',val:0.02},{id:'m-001',sid:'s-m001',val:0.01}
+  {id:'m-200',sid:'s-m200',val:2},
+  {id:'m-100',sid:'s-m100',val:1},
+  {id:'m-050',sid:'s-m050',val:0.5}
 ];
 var BILLS = [
   {id:'b-500',sid:'s-b500',val:500},{id:'b-200',sid:'s-b200',val:200},
@@ -920,31 +973,8 @@ function loadData(){
 }
 
 function migrateFromOldApps(){
-  var result={maerkte:[],eintraege:[],kassungen:[],buchungen:[],nextMarktId:1,nextEintragId:1,nextKasseId:1,nextBuchId:1};
-  // Marktchronik
-  try{
-    var chronikRaw=localStorage.getItem('mps_marktchronik_v1');
-    if(chronikRaw){
-      var c=JSON.parse(chronikRaw);
-      if(c&&Array.isArray(c.maerkte)){
-        result.maerkte=c.maerkte.slice();
-        result.eintraege=(c.eintraege||[]).slice();
-        result.nextMarktId=c.nextMarktId||result.maerkte.length+1;
-        result.nextEintragId=c.nextEintragId||result.eintraege.length+1;
-      }
-    }
-  }catch(e){}
-  // Kassendaten
-  try{
-    var kassRaw=localStorage.getItem('markt-kassungen');
-    var buchRaw=localStorage.getItem('markt-buchungen');
-    if(kassRaw){result.kassungen=JSON.parse(kassRaw)||[]}
-    if(buchRaw){result.buchungen=JSON.parse(buchRaw)||[]}
-    result.nextKasseId=result.kassungen.length+1;
-    result.nextBuchId=result.buchungen.length+1;
-  }catch(e){}
-  migrateSaisons(result);
-  return result;
+  // Sauberer Neustart – keine Migration alter Daten
+  return {maerkte:[],eintraege:[],kassungen:[],buchungen:[],nextMarktId:1,nextEintragId:1,nextKasseId:1,nextBuchId:1};
 }
 
 function migrateSaisons(d){
@@ -991,7 +1021,26 @@ function showScreen(name){
 function goBack(){
   activeMarktId=null;
   showScreen('start');
-  renderMarktGrid();
+  showStartTab('maerkte');
+}
+
+function showStartTab(tab){
+  // Start-Tabs: maerkte oder daten
+  document.getElementById('nav-maerkte').classList.toggle('active', tab==='maerkte');
+  document.getElementById('nav-daten').classList.toggle('active', tab==='daten');
+  var marktGrid=document.getElementById('markt-grid');
+  var datenScreen=document.getElementById('screen-daten');
+  var startScreen=document.getElementById('screen-start');
+  if(tab==='daten'){
+    startScreen.style.display='none';
+    datenScreen.classList.add('active');
+    startScreen.classList.remove('active');
+    renderDatenPage();
+  } else {
+    datenScreen.classList.remove('active');
+    startScreen.classList.add('active');
+    renderMarktGrid();
+  }
 }
 
 function openMarkt(id){
@@ -1824,6 +1873,116 @@ function openModal(id){el(id).classList.add('open')}
 function closeModal(id){el(id).classList.remove('open')}
 
 // ════════════════════════════════════════════════════════
+//  BACKUP / RESTORE
+// ════════════════════════════════════════════════════════
+var LS_BACKUP_TS = 'mps_marktfahrer_backup_ts';
+
+function exportBackup(){
+  var data={
+    version:2,
+    exportedAt:new Date().toISOString(),
+    appName:'Marktfahrer App',
+    state:state
+  };
+  var json=JSON.stringify(data,null,2);
+  var blob=new Blob([json],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var dateStr=new Date().toISOString().slice(0,10);
+  var a=document.createElement('a');
+  a.href=url; a.download='Marktfahrer_Backup_'+dateStr+'.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url)},1000);
+  try{localStorage.setItem(LS_BACKUP_TS,new Date().toISOString())}catch(e){}
+  renderDatenPage();
+  toast('✓ Backup gespeichert');
+}
+
+function importBackup(event){
+  var file=event.target.files[0];
+  if(!file)return;
+  if(!confirm('Alle aktuellen Daten werden überschrieben. Fortfahren?')){event.target.value='';return}
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var data=JSON.parse(e.target.result);
+      var imported=null;
+      // Version 2: {version, state}
+      if(data&&data.state&&Array.isArray(data.state.maerkte)){
+        imported=data.state;
+      }
+      // Direktes State-Objekt
+      else if(data&&Array.isArray(data.maerkte)){
+        imported=data;
+      }
+      if(!imported)throw new Error('Unbekanntes Backup-Format');
+      if(!Array.isArray(imported.eintraege))imported.eintraege=[];
+      if(!Array.isArray(imported.kassungen))imported.kassungen=[];
+      if(!Array.isArray(imported.buchungen))imported.buchungen=[];
+      if(typeof imported.nextMarktId!=='number')imported.nextMarktId=imported.maerkte.length+1;
+      if(typeof imported.nextEintragId!=='number')imported.nextEintragId=imported.eintraege.length+1;
+      if(typeof imported.nextKasseId!=='number')imported.nextKasseId=imported.kassungen.length+1;
+      if(typeof imported.nextBuchId!=='number')imported.nextBuchId=imported.buchungen.length+1;
+      state=imported;
+      migrateSaisons(state);
+      saveData();
+      renderDatenPage();
+      toast('✓ '+state.maerkte.length+' Märkte, '+state.eintraege.length+' Einträge geladen');
+    }catch(err){
+      toast('⚠ Import fehlgeschlagen: '+err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value='';
+}
+
+function renderDatenPage(){
+  // Backup-Warnung
+  var warning=document.getElementById('backup-warning');
+  var infoEl=document.getElementById('backup-info');
+  var lastTs=null;
+  try{lastTs=localStorage.getItem(LS_BACKUP_TS)}catch(e){}
+  if(lastTs){
+    var d=new Date(lastTs);
+    var days=(Date.now()-d.getTime())/86400000;
+    if(infoEl)infoEl.textContent='Letztes Backup: '+fmtDate(d.toISOString().slice(0,10))+' um '+d.toTimeString().slice(0,5)+' Uhr';
+    if(warning)warning.style.display=days>7?'block':'none';
+  } else {
+    if(infoEl)infoEl.textContent='Noch kein Backup erstellt.';
+    if(warning)warning.style.display='none';
+  }
+  // Datenbestand
+  var stats=document.getElementById('data-stats');
+  if(!stats)return;
+  var abschl=state.kassungen.filter(function(k){return k.typ==='abschluss'}).length;
+  var zwischen=state.kassungen.filter(function(k){return k.typ==='zwischen'}).length;
+  var ein=state.buchungen.filter(function(b){return b.typ==='einnahme'}).length;
+  var aus=state.buchungen.filter(function(b){return b.typ==='ausgabe'}).length;
+  var rows=[
+    ['Märkte',state.maerkte.length],
+    ['Chronik-Einträge',state.eintraege.length],
+    ['Tagesabschlüsse',abschl],
+    ['Zwischenzählungen',zwischen],
+    ['Einnahmen-Buchungen',ein],
+    ['Ausgaben-Buchungen',aus]
+  ];
+  stats.innerHTML=rows.map(function(r){
+    return'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(201,176,122,.2);font-size:0.88rem">'
+      +'<span style="color:var(--im)">'+r[0]+'</span>'
+      +'<span style="font-family:Cinzel,serif;font-weight:600;color:var(--ink)">'+r[1]+'</span>'
+      +'</div>';
+  }).join('');
+}
+
+function clearAllData(){
+  if(!confirm('Wirklich ALLE Daten löschen? Das kann nicht rückgängig gemacht werden!'))return;
+  if(!confirm('Letzte Warnung – wirklich alles löschen?'))return;
+  state={maerkte:[],eintraege:[],kassungen:[],buchungen:[],nextMarktId:1,nextEintragId:1,nextKasseId:1,nextBuchId:1};
+  saveData();
+  renderDatenPage();
+  toast('Alle Daten gelöscht');
+}
+
+// ════════════════════════════════════════════════════════
 //  COIN INPUT SETUP
 // ════════════════════════════════════════════════════════
 function setupCoinInput(id){
@@ -1862,6 +2021,10 @@ document.addEventListener('DOMContentLoaded',function(){
       renderDashYear(alle,uniqueYears(alle));
     }
   });
+
+  // Import-File
+  var importFile=document.getElementById('import-file');
+  if(importFile)importFile.addEventListener('change',importBackup);
 
   renderMarktGrid();
 });
