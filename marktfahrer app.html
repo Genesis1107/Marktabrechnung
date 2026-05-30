@@ -51,12 +51,13 @@ body{
 
 /* ── BOTTOM NAV ── */
 .bottom-nav{
-  flex-shrink:0;
+  position:fixed;
+  left:0;right:0;bottom:0;
   height:calc(var(--nav-h) + var(--safe-bottom));
   padding-bottom:var(--safe-bottom);
   background:var(--dark);
   border-top:2px solid var(--bdr);
-  display:flex;z-index:100;
+  display:flex;z-index:200;
   box-shadow:0 -4px 20px rgba(0,0,0,0.5);
 }
 .nav-btn{
@@ -453,7 +454,7 @@ h1.print-title,.print-meta{display:none}
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v1.2</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v1.3</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -461,7 +462,7 @@ h1.print-title,.print-meta{display:none}
     </div>
     <!-- Daten-Ansicht -->
     <div id="view-daten" style="display:none">
-      <div class="content">
+      <div class="content" style="padding-bottom:calc(30px + var(--nav-h) + var(--safe-bottom))">
 
         <div id="backup-warning" style="display:none;background:rgba(139,26,26,.1);border:1px solid var(--cr);border-radius:3px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:var(--cr)">
           ⚠ Letztes Backup ist mehr als 7 Tage alt – bitte jetzt sichern!
@@ -894,6 +895,19 @@ h1.print-title,.print-meta{display:none}
     </div><!-- /content -->
   </div><!-- /screen-detail -->
 
+
+  <!-- Bottom Nav (nur auf Startseite sichtbar) -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="nav-btn active" id="nav-maerkte" onclick="showStartTab('maerkte')">
+      <span class="ni">🏰</span>
+      <span class="nl">Märkte</span>
+    </button>
+    <button class="nav-btn" id="nav-daten" onclick="showStartTab('daten')">
+      <span class="ni">💾</span>
+      <span class="nl">Daten</span>
+    </button>
+  </nav>
+
 </div><!-- /app -->
 
 <!-- PDF-VORSCHAU MODAL -->
@@ -915,17 +929,6 @@ h1.print-title,.print-meta{display:none}
   </div>
 </div>
 
-<!-- Bottom Nav (nur auf Startseite sichtbar) -->
-<nav class="bottom-nav" id="bottom-nav">
-  <button class="nav-btn active" id="nav-maerkte" onclick="showStartTab('maerkte')">
-    <span class="ni">🏰</span>
-    <span class="nl">Märkte</span>
-  </button>
-  <button class="nav-btn" id="nav-daten" onclick="showStartTab('daten')">
-    <span class="ni">💾</span>
-    <span class="nl">Daten</span>
-  </button>
-</nav>
 
 <!-- Toast -->
 <div id="toast"></div>
@@ -1196,12 +1199,16 @@ function goBack(){
 }
 
 function showStartTab(tab){
-  document.getElementById('nav-maerkte').classList.toggle('active', tab==='maerkte');
-  document.getElementById('nav-daten').classList.toggle('active', tab==='daten');
-  document.getElementById('view-maerkte').style.display = tab==='maerkte' ? 'block' : 'none';
-  document.getElementById('view-daten').style.display   = tab==='daten'   ? 'block' : 'none';
-  if(tab==='daten') renderDatenPage();
-  else renderMarktGrid();
+  var navM=document.getElementById('nav-maerkte');
+  var navD=document.getElementById('nav-daten');
+  var viewM=document.getElementById('view-maerkte');
+  var viewD=document.getElementById('view-daten');
+  if(navM)navM.classList.toggle('active', tab==='maerkte');
+  if(navD)navD.classList.toggle('active', tab==='daten');
+  if(viewM)viewM.style.display = tab==='maerkte' ? 'block' : 'none';
+  if(viewD)viewD.style.display = tab==='daten' ? 'block' : 'none';
+  if(tab==='daten'){renderDatenPage();}
+  else{renderMarktGrid();}
 }
 
 function openMarkt(id){
@@ -2352,7 +2359,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v1.2 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v1.3 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
@@ -2383,7 +2390,7 @@ function exportBackup(){
   var data={
     version:2,
     exportedAt:new Date().toISOString(),
-    appName:'Marktfahrer App v1.2',
+    appName:'Marktfahrer App v1.3',
     state:state
   };
   var json=JSON.stringify(data,null,2);
@@ -2547,7 +2554,8 @@ document.addEventListener('DOMContentLoaded',function(){
   var importFile=document.getElementById('import-file');
   if(importFile)importFile.addEventListener('change',importBackup);
 
-  renderMarktGrid();
+  // Saubere Initialisierung der Startseite
+  showStartTab('maerkte');
 });
 </script>
 </body>
