@@ -454,7 +454,7 @@ h1.print-title,.print-meta{display:none}
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v1.3</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v1.5</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -480,6 +480,14 @@ h1.print-title,.print-meta{display:none}
           <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:6px;font-family:'IM Fell English',serif;font-style:italic">JSON-Backup auswählen um alle Daten wiederherzustellen.</p>
           <p style="font-size:0.8rem;color:var(--cr);font-style:italic;margin-bottom:12px">⚠ Bestehende Daten werden dabei überschrieben!</p>
           <input type="file" id="import-file" accept=".json,application/json" style="font-size:0.85rem;padding:8px;width:100%;background:var(--p);border:1px solid var(--pd);border-radius:2px">
+        </div>
+
+        <div class="sec">Produktkatalog</div>
+        <div class="card">
+          <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:12px;font-family:'IM Fell English',serif;font-style:italic">Produkte und Preise für die Bestellfunktion verwalten.</p>
+          <div id="katalog-stats" style="font-size:0.82rem;color:var(--im);margin-bottom:12px"></div>
+          <button class="btn btn-secondary" style="width:100%;margin-bottom:8px" onclick="openKatalog()">📖 Katalog öffnen & bearbeiten</button>
+          <button class="btn btn-secondary" style="width:100%" onclick="resetKatalog()">↺ Katalog auf Standard zurücksetzen</button>
         </div>
 
         <div class="sec">Datenpflege</div>
@@ -522,6 +530,7 @@ h1.print-title,.print-meta{display:none}
       </div>
       <div class="tab-bar">
         <button class="tab-btn active" data-tab="planung" onclick="switchTab('planung')">📋 Planung</button>
+        <button class="tab-btn" data-tab="bestellung" onclick="switchTab('bestellung')">📦 Bestellung</button>
         <button class="tab-btn" data-tab="kasse" onclick="switchTab('kasse')">🪙 Kasse</button>
         <button class="tab-btn" data-tab="abschluss" onclick="switchTab('abschluss')">🏁 Abschluss</button>
         <button class="tab-btn" data-tab="chronik" onclick="switchTab('chronik')">⚜ Chronik</button>
@@ -573,6 +582,89 @@ h1.print-title,.print-meta{display:none}
             <label>Notizen für die Folgeplanung</label>
             <textarea id="p-notiz" placeholder="Hinweise, Besonderheiten, Empfehlungen für nächstes Jahr…" oninput="savePlanungNotiz()"></textarea>
           </div>
+        </div>
+      </div>
+
+      <!-- ── TAB: BESTELLUNG ── -->
+      <div class="tab-pane" id="tab-bestellung">
+        <div class="sec">Bestelldaten</div>
+        <div class="card">
+          <div class="form-row">
+            <div class="field"><label>Saison</label><select id="b-saison-sel" onchange="onBestellSaisonChange()"></select></div>
+            <div class="field"><label>Lager</label>
+              <select id="b-lager" onchange="saveBestellung()">
+                <option value="">— wählen —</option>
+                <option value="Süd">Süd (Schöllkrippen)</option>
+                <option value="Nord">Nord (Minden)</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Fahrzeug</label>
+            <select id="b-fahrzeug" onchange="saveBestellung();renderBestellSummen()">
+              <option value="solo">Iveco Solo (max. 1.000 kg)</option>
+              <option value="anhaenger">Iveco + Anhänger (5 Paletten)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Vorjahresvorschlag -->
+        <div id="b-vorschlag-box" style="display:none">
+          <div class="info-box" style="background:rgba(45,80,22,.08);border-color:#2d5a27">
+            <strong>💡 Vorschlag aus dem Vorjahr</strong>
+            <span id="b-vorschlag-text"></span><br>
+            <button class="btn btn-secondary" style="width:100%;margin-top:8px" onclick="uebernehmeVorjahr()">Als Basis übernehmen</button>
+          </div>
+        </div>
+
+        <!-- Live-Summen -->
+        <div class="sec">Übersicht</div>
+        <div class="card" id="b-summen-card">
+          <div class="hero-row">
+            <div class="hero-card" style="--ca:var(--cr)">
+              <div class="hero-l">Umsatz (Verkaufswert)</div>
+              <div class="hero-v" id="b-sum-umsatz">0 €</div>
+            </div>
+            <div class="hero-card" style="--ca:var(--go)">
+              <div class="hero-l">Positionen</div>
+              <div class="hero-v" id="b-sum-pos">0</div>
+            </div>
+          </div>
+          <div class="hero-row">
+            <div class="hero-card" style="--ca:var(--im)">
+              <div class="hero-l">Kisten</div>
+              <div class="hero-v" id="b-sum-kisten">0</div>
+            </div>
+            <div class="hero-card" style="--ca:var(--fo)">
+              <div class="hero-l">Gewicht</div>
+              <div class="hero-v" id="b-sum-gewicht">0 kg</div>
+            </div>
+          </div>
+          <!-- Auslastung -->
+          <div style="margin-top:6px">
+            <div style="display:flex;justify-content:space-between;font-family:'Cinzel',serif;font-size:0.62rem;text-transform:uppercase;letter-spacing:1px;color:var(--im);margin-bottom:4px">
+              <span id="b-last-label">Auslastung</span>
+              <span id="b-last-wert">0 %</span>
+            </div>
+            <div style="height:10px;background:var(--p2);border:1px solid var(--pd);border-radius:2px;overflow:hidden">
+              <div id="b-last-bar" style="height:100%;width:0;background:var(--fo);transition:width .4s"></div>
+            </div>
+            <div id="b-last-hinweis" style="font-size:0.75rem;font-style:italic;margin-top:5px;color:var(--im)"></div>
+          </div>
+        </div>
+
+        <!-- Produkt hinzufügen -->
+        <button class="btn btn-green" style="width:100%;margin-bottom:14px" onclick="openBestellAdd()">+ Produkt hinzufügen</button>
+
+        <!-- Laufende Bestellung -->
+        <div class="sec">Bestellung <span id="b-pos-count" style="color:var(--cr);margin-left:4px;font-size:0.62rem"></span></div>
+        <div id="b-positionen"></div>
+
+        <!-- Export -->
+        <div class="sec">Export</div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="bestellPDF()">📄 Als PDF</button>
+          <button class="btn btn-primary" style="flex:1" onclick="bestellMail()">📧 Per Mail</button>
         </div>
       </div>
 
@@ -910,6 +1002,97 @@ h1.print-title,.print-meta{display:none}
 
 </div><!-- /app -->
 
+<!-- KATALOG-SCREEN -->
+<div id="screen-katalog" style="display:none;position:fixed;inset:0;z-index:400;background:var(--p2);overflow-y:auto">
+  <div class="detail-hdr" style="position:sticky;top:0;z-index:10">
+    <div class="detail-hdr-top">
+      <button class="back-btn" onclick="closeKatalog()">← Zurück</button>
+      <div><div class="detail-hdr-name">📖 Produktkatalog</div>
+      <div class="detail-hdr-sub" id="katalog-count-sub">–</div></div>
+    </div>
+  </div>
+  <div class="content" style="padding-bottom:40px">
+    <div class="info-box">
+      <strong>Hinweis</strong>
+      Preise werden pro Produkt und Größe gepflegt. Tippe ein Produkt an um Preise zu bearbeiten.
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>Kategorie filtern</label>
+      <select id="kat-filter" onchange="renderKatalogListe()"></select>
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <input type="text" id="kat-suche" placeholder="🔍 Produkt suchen…" oninput="renderKatalogListe()" style="width:100%">
+    </div>
+    <button class="btn btn-green" style="width:100%;margin-bottom:14px" onclick="openProduktNeu()">+ Neues Produkt</button>
+    <div id="katalog-liste"></div>
+  </div>
+</div>
+
+<!-- PRODUKT-EDIT MODAL -->
+<div class="modal-overlay" id="modal-produkt">
+  <div class="modal" style="max-height:90vh;overflow-y:auto">
+    <button class="modal-close" onclick="closeModal('modal-produkt')">✕</button>
+    <h2 id="produkt-modal-title">Produkt bearbeiten</h2>
+    <div class="modal-sub" id="produkt-modal-sub"></div>
+    <div class="rd"></div>
+    <div class="field" style="margin-bottom:10px"><label>Name</label><input type="text" id="pe-name"></div>
+    <div class="form-row">
+      <div class="field"><label>Kategorie</label><input type="text" id="pe-kategorie"></div>
+      <div class="field"><label>Artikelnr.</label><input type="text" id="pe-artnr"></div>
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <label>Größentyp</label>
+      <select id="pe-sizetype" onchange="onSizetypeChange()">
+        <option value="wein">Wein/Met (7 Größen)</option>
+        <option value="plus">Hochprozentig/Plus (7 Größen)</option>
+        <option value="schnaps">Schnaps (0,04/0,2/0,5)</option>
+        <option value="absinth">Absinth (0,04/0,2/0,5)</option>
+        <option value="kehlenschneider">Kehlenschneider (0,04/0,2)</option>
+        <option value="stueck">Stückzahl</option>
+      </select>
+    </div>
+    <div class="sec" style="margin-top:8px">Preise je Größe</div>
+    <div id="pe-preise"></div>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-secondary" onclick="deleteProdukt()">🗑 Löschen</button>
+      <button class="btn btn-primary" style="flex:1" onclick="saveProdukt()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- BESTELL-PRODUKT-MODAL -->
+<div class="modal-overlay" id="modal-bestell-add">
+  <div class="modal" style="max-height:90vh;overflow-y:auto">
+    <button class="modal-close" onclick="closeModal('modal-bestell-add')">✕</button>
+    <h2>Produkt hinzufügen</h2>
+    <div class="modal-sub">Kategorie und Mengen wählen</div>
+    <div class="rd"></div>
+    <div class="field" style="margin-bottom:10px">
+      <label>Kategorie</label>
+      <select id="ba-kategorie" onchange="renderBaProdukte()"></select>
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <input type="text" id="ba-suche" placeholder="🔍 Produkt suchen…" oninput="renderBaProdukte()">
+    </div>
+    <div id="ba-produkt-liste" style="max-height:50vh;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- BESTELL-MENGEN-MODAL -->
+<div class="modal-overlay" id="modal-bestell-mengen">
+  <div class="modal" style="max-height:90vh;overflow-y:auto">
+    <button class="modal-close" onclick="closeModal('modal-bestell-mengen')">✕</button>
+    <h2 id="bm-title">Mengen</h2>
+    <div class="modal-sub" id="bm-sub"></div>
+    <div class="rd"></div>
+    <div id="bm-felder"></div>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-secondary" onclick="backToBaProdukte()">← Zurück</button>
+      <button class="btn btn-primary" style="flex:1" onclick="addBestellPosition()">Hinzufügen</button>
+    </div>
+  </div>
+</div>
+
 <!-- PDF-VORSCHAU MODAL -->
 <div id="modal-pdf" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(30,18,8,.92);overflow-y:auto;padding:16px">
   <div style="max-width:794px;margin:0 auto">
@@ -1000,6 +1183,8 @@ h1.print-title,.print-meta{display:none}
 //  KONSTANTEN
 // ════════════════════════════════════════════════════════
 var LS_KEY = 'mps_marktfahrer_v1';
+var LS_KATALOG = 'mps_marktfahrer_katalog_v1';
+var DEFAULT_KATALOG = [{"id":1,"name":"Aroniabeerwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010020","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":2,"name":"Blaubeerwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010030","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":3,"name":"Bratapfelwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010040","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":4,"name":"Brombeerwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010050","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":5,"name":"Cannabis Pflaumenwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010060","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":6,"name":"Cannabis Südfruchtwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010070","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":7,"name":"Cannabis Wildapfelwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1012820","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":8,"name":"Hanf Kirschwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1020420","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":9,"name":"Hanf Wildrosenwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1012830","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":10,"name":"Elfentau","kategorie":"Wein","sizetype":"wein","artikelnr":"1080100","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":11,"name":"Erdbeerwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010220","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":12,"name":"Feengold","kategorie":"Wein","sizetype":"wein","artikelnr":"1080110","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":13,"name":"Gewürzwein/Hypocras","kategorie":"Wein","sizetype":"wein","artikelnr":"1010230","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":14,"name":"Granatapfelwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1012850","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":15,"name":"Hexengalle","kategorie":"Wein","sizetype":"wein","artikelnr":"1080440","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":16,"name":"Himbeerwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010120","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":17,"name":"Holunderbeerwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010130","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":18,"name":"Holunderblütenwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010140","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":19,"name":"Ingwer-Chili-Wein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010150","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":20,"name":"Ingwerwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1012040","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":21,"name":"Johannisbeerwein (rot)","kategorie":"Wein","sizetype":"wein","artikelnr":"1010160","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":22,"name":"Johannisbeerwein (schwarz)","kategorie":"Wein","sizetype":"wein","artikelnr":"1010170","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":23,"name":"Kirschwein (süß)","kategorie":"Wein","sizetype":"wein","artikelnr":"1010190","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":24,"name":"Kirschwein (trocken)","kategorie":"Wein","sizetype":"wein","artikelnr":"1012440","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":25,"name":"Koboldfeuer","kategorie":"Wein","sizetype":"wein","artikelnr":"1010210","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":26,"name":"Moosbeerenwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010240","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":27,"name":"Pfirsichwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010250","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":28,"name":"Pflaumenwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010260","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":29,"name":"Quittenwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010270","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":30,"name":"Samthauch","kategorie":"Wein","sizetype":"wein","artikelnr":"1080280","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":31,"name":"Schlehenwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010300","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":32,"name":"Wildapfelwein","kategorie":"Wein","sizetype":"wein","artikelnr":"1010330","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":33,"name":"Drachenglut","kategorie":"Met","sizetype":"wein","artikelnr":"1080080","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":34,"name":"Druidenwurz (Kräutermet)","kategorie":"Met","sizetype":"wein","artikelnr":"1020500","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":35,"name":"Honig Ananas","kategorie":"Met","sizetype":"wein","artikelnr":"1020340","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":36,"name":"Honig Apfel","kategorie":"Met","sizetype":"wein","artikelnr":"1020350","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":37,"name":"Honig Blaubeere","kategorie":"Met","sizetype":"wein","artikelnr":"1020370","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":38,"name":"Honig Bratapfel","kategorie":"Met","sizetype":"wein","artikelnr":"1021720","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":39,"name":"Honig Brombeere","kategorie":"Met","sizetype":"wein","artikelnr":"1020390","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":40,"name":"Honig Cassis","kategorie":"Met","sizetype":"wein","artikelnr":"1022250","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":41,"name":"Honig Chili (Gewürz scharf)","kategorie":"Met","sizetype":"wein","artikelnr":"1020630","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":42,"name":"Honig Erdbeere","kategorie":"Met","sizetype":"wein","artikelnr":"1020400","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":43,"name":"Honig Gewürz (mild)","kategorie":"Met","sizetype":"wein","artikelnr":"1020410","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":44,"name":"Honig Granatapfel","kategorie":"Met","sizetype":"wein","artikelnr":"1020490","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":45,"name":"Honig Hanf","kategorie":"Met","sizetype":"wein","artikelnr":"1020430","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":46,"name":"Honig Himbeere","kategorie":"Met","sizetype":"wein","artikelnr":"1020450","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":47,"name":"Honig Holunder","kategorie":"Met","sizetype":"wein","artikelnr":"1022150","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":48,"name":"Honig Holunderblüte","kategorie":"Met","sizetype":"wein","artikelnr":"1021280","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":49,"name":"Honig Kaktus","kategorie":"Met","sizetype":"wein","artikelnr":"1020460","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":50,"name":"Honig Karamell","kategorie":"Met","sizetype":"wein","artikelnr":"1020700","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":51,"name":"Honig Kirsche","kategorie":"Met","sizetype":"wein","artikelnr":"1020480","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":52,"name":"Honig Kirsche leicht","kategorie":"Met","sizetype":"wein","artikelnr":"1022840","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":53,"name":"Honig Vanille","kategorie":"Met","sizetype":"wein","artikelnr":"1020640","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":54,"name":"Honig Waldbeer","kategorie":"Met","sizetype":"wein","artikelnr":"1020660","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":55,"name":"Honig Waldmeister","kategorie":"Met","sizetype":"wein","artikelnr":"1020680","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":56,"name":"Honig Walnuss","kategorie":"Met","sizetype":"wein","artikelnr":"1020690","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":57,"name":"Honig Wildrose","kategorie":"Met","sizetype":"wein","artikelnr":"1020700","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":58,"name":"Lindenblütenmet","kategorie":"Met","sizetype":"wein","artikelnr":"1021900","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":59,"name":"Met (halbtrocken)","kategorie":"Met","sizetype":"wein","artikelnr":"1020540","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":60,"name":"Met (lieblich)","kategorie":"Met","sizetype":"wein","artikelnr":"1020520","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":61,"name":"Met (süß)","kategorie":"Met","sizetype":"wein","artikelnr":"1020550","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":62,"name":"Met (trocken)","kategorie":"Met","sizetype":"wein","artikelnr":"1020530","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":63,"name":"Vanaheimr Met (mit Kamille)","kategorie":"Met","sizetype":"wein","artikelnr":"1020620","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":64,"name":"Vonig (Veganer Honigwein)","kategorie":"Met","sizetype":"wein","artikelnr":"1092030","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":65,"name":"Waldläufer Met","kategorie":"Met","sizetype":"wein","artikelnr":"1020670","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":66,"name":"Zauber","kategorie":"Met","sizetype":"wein","artikelnr":"1080320","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":67,"name":"Göttertrank","kategorie":"Hochprozentiges","sizetype":"plus","artikelnr":"1032860","groessen":[{"key":"0_2","label":"0,2","preis":7,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":7,"proKiste":40},{"key":"0_5","label":"0,5","preis":12,"proKiste":24},{"key":"0_75","label":"0,75","preis":15,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":21,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":15,"proKiste":0},{"key":"1_5","label":"1,5","preis":35,"proKiste":5}]},{"id":68,"name":"Honig Whisky","kategorie":"Hochprozentiges","sizetype":"plus","artikelnr":"1101840","groessen":[{"key":"0_2","label":"0,2","preis":7,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":7,"proKiste":40},{"key":"0_5","label":"0,5","preis":12,"proKiste":24},{"key":"0_75","label":"0,75","preis":15,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":21,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":15,"proKiste":0},{"key":"1_5","label":"1,5","preis":35,"proKiste":5}]},{"id":69,"name":"Kirsche Rum","kategorie":"Hochprozentiges","sizetype":"plus","artikelnr":"1100510","groessen":[{"key":"0_2","label":"0,2","preis":7,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":7,"proKiste":40},{"key":"0_5","label":"0,5","preis":12,"proKiste":24},{"key":"0_75","label":"0,75","preis":15,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":21,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":15,"proKiste":0},{"key":"1_5","label":"1,5","preis":35,"proKiste":5}]},{"id":70,"name":"Königsmet","kategorie":"Hochprozentiges","sizetype":"plus","artikelnr":"1100490","groessen":[{"key":"0_2","label":"0,2","preis":7,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":7,"proKiste":40},{"key":"0_5","label":"0,5","preis":12,"proKiste":24},{"key":"0_75","label":"0,75","preis":15,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":21,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":15,"proKiste":0},{"key":"1_5","label":"1,5","preis":35,"proKiste":5}]},{"id":71,"name":"Skaldenmet Saltatio Mortis","kategorie":"Hochprozentiges","sizetype":"plus","artikelnr":"","groessen":[{"key":"0_2","label":"0,2","preis":7,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":7,"proKiste":40},{"key":"0_5","label":"0,5","preis":12,"proKiste":24},{"key":"0_75","label":"0,75","preis":15,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":21,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":15,"proKiste":0},{"key":"1_5","label":"1,5","preis":35,"proKiste":5}]},{"id":72,"name":"Met alkoholfrei","kategorie":"Alkoholfreies","sizetype":"wein","artikelnr":"654322","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":73,"name":"Drachenglut alkoholfrei","kategorie":"Alkoholfreies","sizetype":"wein","artikelnr":"654321","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":74,"name":"Bratapfelwein alkoholfrei","kategorie":"Alkoholfreies","sizetype":"wein","artikelnr":"654323","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":75,"name":"Elfentau Bionade","kategorie":"Alkoholfreies","sizetype":"wein","artikelnr":"100170001","groessen":[{"key":"0_2","label":"0,2","preis":6,"proKiste":50},{"key":"0_25b","label":"0,25 Bord","preis":6,"proKiste":40},{"key":"0_5","label":"0,5","preis":9,"proKiste":24},{"key":"0_75","label":"0,75","preis":13,"proKiste":21},{"key":"1_0t","label":"1,0 Ton","preis":18,"proKiste":14},{"key":"1_0e","label":"1,0 Euro","preis":9,"proKiste":0},{"key":"1_5","label":"1,5","preis":28,"proKiste":5}]},{"id":76,"name":"Absinth, Blau (blaue Fee)","kategorie":"Schnaps/Likör","sizetype":"absinth","artikelnr":"1031930","groessen":[{"key":"0_04","label":"0,04","preis":9,"proKiste":0},{"key":"0_2","label":"0,2","preis":18,"proKiste":50},{"key":"0_5","label":"0,5","preis":36,"proKiste":24}]},{"id":77,"name":"Absinth, Grün (grüne Fee)","kategorie":"Schnaps/Likör","sizetype":"absinth","artikelnr":"1030710","groessen":[{"key":"0_04","label":"0,04","preis":9,"proKiste":0},{"key":"0_2","label":"0,2","preis":18,"proKiste":50},{"key":"0_5","label":"0,5","preis":36,"proKiste":24}]},{"id":78,"name":"Absinth, Schwarz (schwarze Witwe)","kategorie":"Schnaps/Likör","sizetype":"absinth","artikelnr":"1030730","groessen":[{"key":"0_04","label":"0,04","preis":9,"proKiste":0},{"key":"0_2","label":"0,2","preis":18,"proKiste":50},{"key":"0_5","label":"0,5","preis":36,"proKiste":24}]},{"id":79,"name":"Alte Marille","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1031850","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":80,"name":"Amarena Sahne","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1032200","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":81,"name":"Cappuccino Sahne","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1032640","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":82,"name":"Coconut Rum","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1031910","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":83,"name":"Dattelcreme","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1031960","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":84,"name":"Erdbeer Sahne","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1031800","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":85,"name":"Haselnuss Sahne","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1032170","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":86,"name":"Haselnussbrand","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1030810","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":87,"name":"Heidelbeer Likör mit Vanille und Zimt","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1032000","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":88,"name":"Honig Whisky","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1031830","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":89,"name":"Honigschnaps","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1030820","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":90,"name":"Ingwer-Zitrone","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"103202","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":91,"name":"Kehlenschneider","kategorie":"Schnaps/Likör","sizetype":"kehlenschneider","artikelnr":"1030750","groessen":[{"key":"0_04","label":"0,04","preis":9,"proKiste":0},{"key":"0_2","label":"0,2","preis":28,"proKiste":50}]},{"id":92,"name":"Kräuterschnaps (Druidenfeuer)","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1030760","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":93,"name":"Marillen Likör","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1031860","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":94,"name":"Marula Sahne","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1032300","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":95,"name":"Melonenlikör","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1032870","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":96,"name":"Pistazien Sahne","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1032880","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":97,"name":"Schlehenlikör","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1031810","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":98,"name":"Schoko Sahne","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1032650","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":99,"name":"Vanillekipferl Sahne","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1030830","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":100,"name":"Waldmeister Sahne","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1032160","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":101,"name":"Walnuss Cognac","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1031820","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":102,"name":"Williams Birne mit Honig","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1031330","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":103,"name":"Kaffee-Tequila Likör","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1031880","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":104,"name":"Süßes Glück - Kastanienlikör","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1031840","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":105,"name":"Yellow Fire (Mango Habanero)","kategorie":"Schnaps/Likör","sizetype":"schnaps","artikelnr":"1032890","groessen":[{"key":"0_04","label":"0,04","preis":8,"proKiste":0},{"key":"0_2","label":"0,2","preis":12,"proKiste":50},{"key":"0_5","label":"0,5","preis":28,"proKiste":24}]},{"id":106,"name":"Gin 1832 0,5 Liter","kategorie":"Gin/Rum","sizetype":"stueck","artikelnr":"103311011","groessen":[{"key":"stk","label":"Stück","preis":40,"proKiste":0}]},{"id":107,"name":"Gin Waldbeer 0,5 Liter","kategorie":"Gin/Rum","sizetype":"stueck","artikelnr":"103332","groessen":[{"key":"stk","label":"Stück","preis":35,"proKiste":0}]},{"id":108,"name":"Gin Honig 0,5 Liter","kategorie":"Gin/Rum","sizetype":"stueck","artikelnr":"103333","groessen":[{"key":"stk","label":"Stück","preis":35,"proKiste":0}]},{"id":109,"name":"Barbados Rum 0,5 Liter","kategorie":"Gin/Rum","sizetype":"stueck","artikelnr":"103301011","groessen":[{"key":"stk","label":"Stück","preis":40,"proKiste":0}]},{"id":110,"name":"Dominikanischer Rum 0,5 Liter","kategorie":"Gin/Rum","sizetype":"stueck","artikelnr":"103281011","groessen":[{"key":"stk","label":"Stück","preis":40,"proKiste":0}]},{"id":111,"name":"Karibischer Rum 0,5 Liter","kategorie":"Gin/Rum","sizetype":"stueck","artikelnr":"103271","groessen":[{"key":"stk","label":"Stück","preis":45,"proKiste":0}]},{"id":112,"name":"Rittermet 0,25 Bordeaux","kategorie":"Rittermet","sizetype":"stueck","artikelnr":"","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":113,"name":"Rittertrunk alkoholfrei 0,25 Bordeaux","kategorie":"Rittermet","sizetype":"stueck","artikelnr":"","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":114,"name":"Flaschenhalter für 0,2 Elixier","kategorie":"Flaschenhalter","sizetype":"stueck","artikelnr":"999334073","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":115,"name":"Flaschenhalter für 0,5 Elixier","kategorie":"Flaschenhalter","sizetype":"stueck","artikelnr":"999333073","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":116,"name":"Absinthglas Absinthe","kategorie":"Geschirr/Glas","sizetype":"stueck","artikelnr":"999338071","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":117,"name":"Absinthglas Lyonnais","kategorie":"Geschirr/Glas","sizetype":"stueck","artikelnr":"999339071","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":118,"name":"Absinthlöffel","kategorie":"Geschirr/Glas","sizetype":"stueck","artikelnr":"999340071","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":119,"name":"Brennkopf + Docht","kategorie":"Geschirr/Glas","sizetype":"stueck","artikelnr":"999341070","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":120,"name":"Tonbecher 0,02","kategorie":"Geschirr/Glas","sizetype":"stueck","artikelnr":"999344070","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":121,"name":"Tonbecher 0,04","kategorie":"Geschirr/Glas","sizetype":"stueck","artikelnr":"999342070","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":122,"name":"Tonbecher 0,25 ohne Druck","kategorie":"Geschirr/Glas","sizetype":"stueck","artikelnr":"999343070","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":123,"name":"Tonbecher 0,25 mit Logo","kategorie":"Geschirr/Glas","sizetype":"stueck","artikelnr":"999319070","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":124,"name":"Tonbecher 0,25 mit Burg","kategorie":"Geschirr/Glas","sizetype":"stueck","artikelnr":"999345070","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":125,"name":"Holzgriffkorken","kategorie":"Korkenzieher","sizetype":"stueck","artikelnr":"999346077","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":126,"name":"Holzgriffkorken für 0,2 Ton","kategorie":"Korkenzieher","sizetype":"stueck","artikelnr":"999347077","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":127,"name":"Kellnermesser","kategorie":"Korkenzieher","sizetype":"stueck","artikelnr":"999206002","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":128,"name":"Granatapfel-Secco 0,75","kategorie":"Secco","sizetype":"stueck","artikelnr":"107352030","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":129,"name":"Granatapfel-Secco 0,2","kategorie":"Secco","sizetype":"stueck","artikelnr":"107352039","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":130,"name":"Heidelbeer-Secco 0,75","kategorie":"Secco","sizetype":"stueck","artikelnr":"107134030","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":131,"name":"Heidelbeer-Secco 0,2","kategorie":"Secco","sizetype":"stueck","artikelnr":"107134039","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":132,"name":"Kirsch-Secco 0,75","kategorie":"Secco","sizetype":"stueck","artikelnr":"107135030","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":133,"name":"Kirsch-Secco 0,2","kategorie":"Secco","sizetype":"stueck","artikelnr":"107135039","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":134,"name":"Met-Secco 0,75","kategorie":"Secco","sizetype":"stueck","artikelnr":"107136030","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":135,"name":"Met-Secco 0,2","kategorie":"Secco","sizetype":"stueck","artikelnr":"107136039","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":136,"name":"Himbeer-Secco 0,75","kategorie":"Secco","sizetype":"stueck","artikelnr":"107137030","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]},{"id":137,"name":"Himbeer-Secco 0,2","kategorie":"Secco","sizetype":"stueck","artikelnr":"107137039","groessen":[{"key":"stk","label":"Stück","preis":0,"proKiste":0}]}];
 var COLORS = ['#8b1a1a','#2d5016','#1a2d4a','#8b6914','#5a2d6e','#4a3020','#6e4a1a'];
 var GLYPHS = ['\u2694','\uD83C\uDFF0','\u269C','\uD83D\uDDE1','\uD83D\uDEE1','\uD83D\uDD31','\u2691'];
 var FAHRER = ['Andy','Loki','Karo','Matthias','Jochen','Laurin','Frenk'];
@@ -1151,6 +1336,7 @@ function migrateFromOldApps(){
 function migrateSaisons(d){
   d.maerkte.forEach(function(m){
     if(!m.saisons||typeof m.saisons!=='object')m.saisons={};
+    if(!m.bestellungen||typeof m.bestellungen!=='object')m.bestellungen={};
     if(!m.planung)m.planung={status:'interessent',region:'',dauer:'',kmMinden:'',kmSk:'',veranstalter:'',datumVon:'',datumBis:'',checklist:{}};
     var jahre={};
     d.eintraege.forEach(function(e){if(e.marktId===m.id)jahre[String(e.jahr||String(e.datum).split('-')[0])]=true});
@@ -1175,6 +1361,31 @@ function getSaison(m,jahr){
   if(!Array.isArray(m.saisons[key].fahrer))m.saisons[key].fahrer=[];
   if(typeof m.saisons[key].notiz!=='string')m.saisons[key].notiz='';
   return m.saisons[key];
+}
+
+var katalog = [];
+
+function loadKatalog(){
+  try{
+    var raw=localStorage.getItem(LS_KATALOG);
+    if(raw){
+      var k=JSON.parse(raw);
+      if(Array.isArray(k)&&k.length)return k;
+    }
+  }catch(e){}
+  // Default-Katalog tief kopieren
+  return JSON.parse(JSON.stringify(DEFAULT_KATALOG));
+}
+
+function saveKatalog(){
+  try{localStorage.setItem(LS_KATALOG,JSON.stringify(katalog))}
+  catch(e){toast('⚠ Katalog speichern fehlgeschlagen')}
+}
+
+function katalogKategorien(){
+  var cats=[];
+  katalog.forEach(function(p){if(cats.indexOf(p.kategorie)<0)cats.push(p.kategorie)});
+  return cats;
 }
 
 function findMarkt(id){for(var i=0;i<state.maerkte.length;i++)if(state.maerkte[i].id===id)return state.maerkte[i];return null}
@@ -1227,6 +1438,7 @@ function switchTab(name){
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-tab')===name)});
   document.querySelectorAll('.tab-pane').forEach(function(p){p.classList.toggle('active',p.id==='tab-'+name)});
   if(name==='planung')renderPlanung();
+  if(name==='bestellung')renderBestellung();
   if(name==='kasse')renderKasse();
   if(name==='abschluss')renderAbschluss();
   if(name==='chronik')renderChronik();
@@ -1282,7 +1494,7 @@ function createMarkt(){
   var idx=state.maerkte.length%COLORS.length;
   state.maerkte.push({
     id:state.nextMarktId++,name:name,region:region,
-    saisons:{},color:COLORS[idx],glyph:GLYPHS[idx],
+    saisons:{},bestellungen:{},color:COLORS[idx],glyph:GLYPHS[idx],
     createdAt:new Date().toISOString(),
     planung:{status:'interessent',region:region,dauer:'',kmMinden:'',kmSk:'',veranstalter:'',datumVon:'',datumBis:'',checklist:{}}
   });
@@ -2359,7 +2571,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v1.3 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v1.5 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
@@ -2390,8 +2602,9 @@ function exportBackup(){
   var data={
     version:2,
     exportedAt:new Date().toISOString(),
-    appName:'Marktfahrer App v1.3',
-    state:state
+    appName:'Marktfahrer App',
+    state:state,
+    katalog:katalog
   };
   var json=JSON.stringify(data,null,2);
   var blob=new Blob([json],{type:'application/json'});
@@ -2434,6 +2647,11 @@ function importBackup(event){
       state=imported;
       migrateSaisons(state);
       saveData();
+      // Katalog mit importieren falls vorhanden
+      if(data.katalog&&Array.isArray(data.katalog)&&data.katalog.length){
+        katalog=data.katalog;
+        saveKatalog();
+      }
       renderDatenPage();
       toast('✓ '+state.maerkte.length+' Märkte, '+state.eintraege.length+' Einträge geladen');
     }catch(err){
@@ -2445,6 +2663,7 @@ function importBackup(event){
 }
 
 function renderDatenPage(){
+  renderKatalogStats();
   // Backup-Warnung
   var warning=document.getElementById('backup-warning');
   var infoEl=document.getElementById('backup-info');
@@ -2505,6 +2724,531 @@ function clearAllData(){
 }
 
 // ════════════════════════════════════════════════════════
+//  BESTELLUNG
+// ════════════════════════════════════════════════════════
+var GEWICHT_PRO_KISTE=30;
+var bestellSaison=null;
+var baSelectedProdukt=null;
+
+function getBestellung(m,jahr){
+  if(!m.bestellungen)m.bestellungen={};
+  var key=String(jahr);
+  if(!m.bestellungen[key])m.bestellungen[key]={lager:'',fahrzeug:'solo',positionen:[]};
+  var b=m.bestellungen[key];
+  if(!Array.isArray(b.positionen))b.positionen=[];
+  if(typeof b.lager!=='string')b.lager='';
+  if(!b.fahrzeug)b.fahrzeug='solo';
+  return b;
+}
+
+function renderBestellung(){
+  var m=findMarkt(activeMarktId);
+  if(!m)return;
+  // Saison-Dropdown
+  var alle=state.eintraege.filter(function(e){return e.marktId===activeMarktId});
+  var ys=uniqueYears(alle);
+  var cy=new Date().getFullYear();
+  if(ys.indexOf(cy)<0)ys.push(cy);
+  if(ys.indexOf(cy+1)<0)ys.push(cy+1); // nächstes Jahr für Vorausplanung
+  ys.sort(function(a,b){return b-a});
+  if(!bestellSaison||ys.indexOf(bestellSaison)<0)bestellSaison=cy;
+  el('b-saison-sel').innerHTML=ys.map(function(y){return'<option value="'+y+'"'+(y===bestellSaison?' selected':'')+'>'+y+'</option>'}).join('');
+
+  var b=getBestellung(m,bestellSaison);
+  el('b-lager').value=b.lager||'';
+  el('b-fahrzeug').value=b.fahrzeug||'solo';
+
+  renderBestellPositionen();
+  renderBestellSummen();
+  renderVorschlag();
+}
+
+function onBestellSaisonChange(){
+  bestellSaison=parseInt(el('b-saison-sel').value,10);
+  renderBestellung();
+}
+
+function saveBestellung(){
+  var m=findMarkt(activeMarktId);
+  if(!m)return;
+  var b=getBestellung(m,bestellSaison);
+  b.lager=el('b-lager').value;
+  b.fahrzeug=el('b-fahrzeug').value;
+  saveData();
+}
+
+// Berechnung pro Position
+function calcPosition(pos){
+  var prod=katalog.find(function(p){return p.id===pos.produktId});
+  if(!prod)return{umsatz:0,kisten:0,gewicht:0};
+  var umsatz=0,kisten=0;
+  prod.groessen.forEach(function(g){
+    var menge=pos.mengen[g.key]||0;
+    if(menge>0){
+      umsatz+=menge*g.preis;
+      if(g.proKiste>0)kisten+=menge/g.proKiste;
+    }
+  });
+  return{umsatz:umsatz,kisten:kisten,gewicht:kisten*GEWICHT_PRO_KISTE};
+}
+
+function renderBestellSummen(){
+  var m=findMarkt(activeMarktId);
+  if(!m)return;
+  var b=getBestellung(m,bestellSaison);
+  var umsatz=0,kisten=0;
+  b.positionen.forEach(function(pos){
+    var calc=calcPosition(pos);
+    umsatz+=calc.umsatz;kisten+=calc.kisten;
+  });
+  var gewicht=kisten*GEWICHT_PRO_KISTE;
+  var paletten=kisten/20;
+  el('b-sum-umsatz').textContent=eur(umsatz);
+  el('b-sum-pos').textContent=b.positionen.length;
+  el('b-sum-kisten').textContent=(Math.round(kisten*10)/10);
+  el('b-sum-gewicht').textContent=Math.round(gewicht)+' kg';
+
+  // Auslastung
+  var fahrzeug=el('b-fahrzeug').value;
+  var maxGewicht, maxLabel;
+  if(fahrzeug==='anhaenger'){
+    maxGewicht=5*20*GEWICHT_PRO_KISTE; // 5 Paletten * 20 Kisten * 30kg = 3000kg
+    maxLabel='Anhänger (5 Paletten / '+maxGewicht+' kg)';
+  } else {
+    maxGewicht=1000;
+    maxLabel='Iveco Solo (1.000 kg)';
+  }
+  var prozent=maxGewicht>0?gewicht/maxGewicht*100:0;
+  el('b-last-label').textContent=maxLabel;
+  el('b-last-wert').textContent=Math.round(prozent)+' %';
+  var bar=el('b-last-bar');
+  bar.style.width=Math.min(100,prozent)+'%';
+  var hinweis=el('b-last-hinweis');
+  if(prozent>100){
+    bar.style.background='var(--cr)';
+    if(fahrzeug==='solo'){
+      hinweis.textContent='⚠ Überladen! Anhänger nötig oder Menge reduzieren ('+Math.round(gewicht)+' / '+maxGewicht+' kg).';
+    } else {
+      hinweis.textContent='⚠ Überladen! Auch mit Anhänger zu viel ('+Math.round(gewicht)+' / '+maxGewicht+' kg).';
+    }
+    hinweis.style.color='var(--cr)';
+  } else if(prozent>85){
+    bar.style.background='var(--go)';
+    hinweis.textContent='Fast voll – '+Math.round(paletten*10)/10+' Paletten.';
+    hinweis.style.color='var(--go)';
+  } else {
+    bar.style.background='var(--fo)';
+    hinweis.textContent=Math.round(paletten*10)/10+' Paletten · noch '+Math.round(maxGewicht-gewicht)+' kg frei.';
+    hinweis.style.color='var(--im)';
+  }
+}
+
+function renderBestellPositionen(){
+  var m=findMarkt(activeMarktId);
+  if(!m)return;
+  var b=getBestellung(m,bestellSaison);
+  el('b-pos-count').textContent=b.positionen.length?b.positionen.length+' Positionen':'';
+  if(!b.positionen.length){
+    el('b-positionen').innerHTML='<div class="empty-state">Noch keine Positionen. Tippe auf „Produkt hinzufügen".</div>';
+    return;
+  }
+  var html='';
+  b.positionen.forEach(function(pos,idx){
+    var prod=katalog.find(function(p){return p.id===pos.produktId});
+    if(!prod){return}
+    var calc=calcPosition(pos);
+    var mengenTxt=prod.groessen.filter(function(g){return(pos.mengen[g.key]||0)>0})
+      .map(function(g){return g.label+': '+pos.mengen[g.key]}).join(' · ');
+    html+='<div style="background:var(--p);border:1px solid var(--pd);border-radius:2px;padding:11px 13px;margin-bottom:7px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-family:Cinzel,serif;font-size:0.9rem;font-weight:600;color:var(--ink)">'+esc(prod.name)+'</div>'
+      +'<div style="font-size:0.78rem;color:var(--im);margin-top:3px">'+mengenTxt+'</div>'
+      +'</div>'
+      +'<div style="text-align:right;white-space:nowrap">'
+      +'<div style="font-family:Cinzel,serif;font-size:0.9rem;font-weight:700;color:var(--cr)">'+eur(calc.umsatz)+'</div>'
+      +'<div style="font-size:0.7rem;color:var(--im)">'+(Math.round(calc.kisten*10)/10)+' Kisten</div>'
+      +'</div></div>'
+      +'<div style="display:flex;gap:5px;justify-content:flex-end;margin-top:6px">'
+      +'<button class="icon-btn" onclick="editBestellPosition('+idx+')">✏️</button>'
+      +'<button class="icon-btn" onclick="deleteBestellPosition('+idx+')">✕</button>'
+      +'</div></div>';
+  });
+  el('b-positionen').innerHTML=html;
+}
+
+// Produkt-Auswahl Modal
+function openBestellAdd(){
+  baSelectedProdukt=null;
+  var sel=el('ba-kategorie');
+  var cats=katalogKategorien();
+  sel.innerHTML='<option value="">Alle Kategorien</option>'+cats.map(function(ct){return'<option value="'+esc(ct)+'">'+esc(ct)+'</option>'}).join('');
+  el('ba-suche').value='';
+  renderBaProdukte();
+  openModal('modal-bestell-add');
+}
+
+function renderBaProdukte(){
+  var filter=el('ba-kategorie').value;
+  var suche=(el('ba-suche').value||'').toLowerCase();
+  var liste=katalog.filter(function(p){
+    if(filter&&p.kategorie!==filter)return false;
+    if(suche&&p.name.toLowerCase().indexOf(suche)<0)return false;
+    return true;
+  });
+  if(!liste.length){el('ba-produkt-liste').innerHTML='<div class="empty-state">Keine Produkte.</div>';return}
+  var html='';
+  liste.forEach(function(p){
+    html+='<div onclick="selectBaProdukt('+p.id+')" style="background:var(--p);border:1px solid var(--pd);border-radius:2px;padding:9px 12px;margin-bottom:5px;cursor:pointer">'
+      +'<div style="font-family:Cinzel,serif;font-size:0.85rem;font-weight:600;color:var(--ink)">'+esc(p.name)+'</div>'
+      +'<div style="font-size:0.72rem;color:var(--im)">'+esc(p.kategorie)+'</div>'
+      +'</div>';
+  });
+  el('ba-produkt-liste').innerHTML=html;
+}
+
+function selectBaProdukt(id){
+  var prod=katalog.find(function(p){return p.id===id});
+  if(!prod)return;
+  baSelectedProdukt=id;
+  // Prüfen ob Produkt schon in Bestellung – dann Mengen vorbelegen
+  var m=findMarkt(activeMarktId);
+  var b=getBestellung(m,bestellSaison);
+  var existing=b.positionen.find(function(pos){return pos.produktId===id});
+  el('bm-title').textContent=prod.name;
+  el('bm-sub').textContent=prod.kategorie+(existing?' · bereits in Bestellung':'');
+  var html='';
+  prod.groessen.forEach(function(g){
+    var menge=existing?(existing.mengen[g.key]||0):0;
+    var preisInfo=g.preis>0?g.preis+'€':'–';
+    var kisteInfo=g.proKiste>0?' · '+g.proKiste+'/Kiste':'';
+    html+='<div style="display:grid;grid-template-columns:1fr 80px;gap:8px;align-items:center;margin-bottom:7px">'
+      +'<label style="font-family:Cinzel,serif;font-size:0.82rem;color:var(--ink)">'+g.label+' <span style="color:var(--im);font-size:0.7rem">('+preisInfo+kisteInfo+')</span></label>'
+      +'<input type="number" id="bm-'+g.key+'" value="'+(menge||'')+'" min="0" inputmode="numeric" placeholder="0" style="text-align:right">'
+      +'</div>';
+  });
+  el('bm-felder').innerHTML=html;
+  closeModal('modal-bestell-add');
+  openModal('modal-bestell-mengen');
+}
+
+function backToBaProdukte(){
+  closeModal('modal-bestell-mengen');
+  openModal('modal-bestell-add');
+}
+
+function addBestellPosition(){
+  var prod=katalog.find(function(p){return p.id===baSelectedProdukt});
+  if(!prod)return;
+  var mengen={};
+  var hatMenge=false;
+  prod.groessen.forEach(function(g){
+    var v=parseInt(el('bm-'+g.key).value)||0;
+    if(v>0){mengen[g.key]=v;hatMenge=true;}
+  });
+  if(!hatMenge){toast('⚠ Bitte mindestens eine Menge eingeben');return}
+  var m=findMarkt(activeMarktId);
+  var b=getBestellung(m,bestellSaison);
+  // Existierende Position aktualisieren oder neue anlegen
+  var existing=b.positionen.find(function(pos){return pos.produktId===baSelectedProdukt});
+  if(existing){
+    existing.mengen=mengen;
+    toast('✓ Menge aktualisiert');
+  } else {
+    b.positionen.push({produktId:baSelectedProdukt,mengen:mengen});
+    toast('✓ Hinzugefügt');
+  }
+  saveData();
+  closeModal('modal-bestell-mengen');
+  renderBestellPositionen();
+  renderBestellSummen();
+}
+
+function editBestellPosition(idx){
+  var m=findMarkt(activeMarktId);
+  var b=getBestellung(m,bestellSaison);
+  var pos=b.positionen[idx];
+  if(!pos)return;
+  selectBaProdukt(pos.produktId);
+}
+
+function deleteBestellPosition(idx){
+  var m=findMarkt(activeMarktId);
+  var b=getBestellung(m,bestellSaison);
+  if(!confirm('Position löschen?'))return;
+  b.positionen.splice(idx,1);
+  saveData();
+  renderBestellPositionen();
+  renderBestellSummen();
+  toast('Position gelöscht');
+}
+
+// Vorjahresvorschlag
+function renderVorschlag(){
+  var m=findMarkt(activeMarktId);
+  var box=el('b-vorschlag-box');
+  var vorjahr=bestellSaison-1;
+  var vb=m.bestellungen&&m.bestellungen[String(vorjahr)];
+  var aktuell=getBestellung(m,bestellSaison);
+  // Vorschlag nur zeigen wenn Vorjahr Daten hat UND aktuelle Bestellung leer ist
+  if(vb&&vb.positionen&&vb.positionen.length&&aktuell.positionen.length===0){
+    box.style.display='block';
+    var umsatz=0;
+    vb.positionen.forEach(function(pos){umsatz+=calcPosition(pos).umsatz});
+    el('b-vorschlag-text').textContent=' '+vorjahr+': '+vb.positionen.length+' Positionen, '+eur(umsatz)+' Umsatz.';
+  } else {
+    box.style.display='none';
+  }
+}
+
+function uebernehmeVorjahr(){
+  var m=findMarkt(activeMarktId);
+  var vorjahr=bestellSaison-1;
+  var vb=m.bestellungen&&m.bestellungen[String(vorjahr)];
+  if(!vb||!vb.positionen)return;
+  var b=getBestellung(m,bestellSaison);
+  // Tiefe Kopie der Positionen
+  b.positionen=JSON.parse(JSON.stringify(vb.positionen));
+  saveData();
+  renderBestellPositionen();
+  renderBestellSummen();
+  renderVorschlag();
+  toast('✓ '+b.positionen.length+' Positionen übernommen');
+}
+
+// Export
+function bestellTextZusammenfassung(){
+  var m=findMarkt(activeMarktId);
+  var b=getBestellung(m,bestellSaison);
+  var lines=[];
+  lines.push('Bestellung '+m.name+' '+bestellSaison);
+  if(b.lager)lines.push('Lager: Beerenweine '+b.lager);
+  lines.push('');
+  var umsatz=0,kisten=0;
+  b.positionen.forEach(function(pos){
+    var prod=katalog.find(function(p){return p.id===pos.produktId});
+    if(!prod)return;
+    var calc=calcPosition(pos);
+    umsatz+=calc.umsatz;kisten+=calc.kisten;
+    var mengen=prod.groessen.filter(function(g){return(pos.mengen[g.key]||0)>0})
+      .map(function(g){return g.label+': '+pos.mengen[g.key]}).join(', ');
+    lines.push(prod.name+' ('+mengen+')'+(prod.artikelnr?' [Art. '+prod.artikelnr+']':''));
+  });
+  lines.push('');
+  lines.push('Summe: '+Math.round(kisten*10)/10+' Kisten, '+Math.round(kisten*GEWICHT_PRO_KISTE)+' kg, Verkaufswert '+eur(umsatz));
+  return lines.join('\n');
+}
+
+function bestellMail(){
+  var m=findMarkt(activeMarktId);
+  var b=getBestellung(m,bestellSaison);
+  if(!b.positionen.length){toast('⚠ Bestellung ist leer');return}
+  var betreff='Bestellung '+m.name+' '+bestellSaison;
+  var body=bestellTextZusammenfassung();
+  var mailto='mailto:?subject='+encodeURIComponent(betreff)+'&body='+encodeURIComponent(body);
+  window.location.href=mailto;
+}
+
+function bestellPDF(){
+  var m=findMarkt(activeMarktId);
+  var b=getBestellung(m,bestellSaison);
+  if(!b.positionen.length){toast('⚠ Bestellung ist leer');return}
+  var umsatz=0,kisten=0;
+  var rows='';
+  b.positionen.forEach(function(pos){
+    var prod=katalog.find(function(p){return p.id===pos.produktId});
+    if(!prod)return;
+    var calc=calcPosition(pos);
+    umsatz+=calc.umsatz;kisten+=calc.kisten;
+    var mengen=prod.groessen.filter(function(g){return(pos.mengen[g.key]||0)>0})
+      .map(function(g){return g.label+':'+pos.mengen[g.key]}).join(', ');
+    rows+='<tr style="border-bottom:1px solid #f0e4cc">'
+      +'<td style="padding:4px 6px;font-size:11px">'+esc(prod.name)+'</td>'
+      +'<td style="padding:4px 6px;font-size:10px;color:#7a5c3a">'+esc(mengen)+'</td>'
+      +'<td style="padding:4px 6px;font-size:10px;text-align:right">'+(prod.artikelnr||'')+'</td>'
+      +'<td style="padding:4px 6px;font-size:11px;text-align:right;font-family:Cinzel,serif">'+eur(calc.umsatz)+'</td>'
+      +'</tr>';
+  });
+  var gewicht=Math.round(kisten*GEWICHT_PRO_KISTE);
+  var html='<div style="text-align:center;border-bottom:2px solid #8b6914;padding-bottom:12px;margin-bottom:16px">'
+    +'<div style="font-size:14px;letter-spacing:6px;color:#8b6914">⚔ ⚜ ⚔</div>'
+    +'<div style="font-family:Cinzel,serif;font-size:20px;font-weight:900">Bestellung</div>'
+    +'<div style="font-family:Georgia,serif;font-style:italic;font-size:12px;color:#7a5c3a;margin-top:3px">'+esc(m.name)+' · Saison '+bestellSaison+(b.lager?' · Beerenweine '+b.lager:'')+'</div>'
+    +'</div>'
+    +'<table style="width:100%;border-collapse:collapse;margin-bottom:14px">'
+    +'<thead><tr style="border-bottom:2px solid #c9b07a">'
+    +'<th style="padding:4px 6px;text-align:left;font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#7a5c3a">Produkt</th>'
+    +'<th style="padding:4px 6px;text-align:left;font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#7a5c3a">Mengen</th>'
+    +'<th style="padding:4px 6px;text-align:right;font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#7a5c3a">Art.Nr</th>'
+    +'<th style="padding:4px 6px;text-align:right;font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#7a5c3a">Wert</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div style="background:rgba(139,105,20,.08);border:1px solid #8b6914;border-radius:2px;padding:10px 14px;font-family:Cinzel,serif;font-size:12px">'
+    +'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Positionen:</span><strong>'+b.positionen.length+'</strong></div>'
+    +'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Kisten:</span><strong>'+(Math.round(kisten*10)/10)+'</strong></div>'
+    +'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Gewicht:</span><strong>'+gewicht+' kg</strong></div>'
+    +'<div style="display:flex;justify-content:space-between"><span>Verkaufswert:</span><strong style="color:#8b1a1a">'+eur(umsatz)+'</strong></div>'
+    +'</div>'
+    +'<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">Marktfahrer App · Beerenweine · '+fmtDate(todayISO())+'</div>';
+
+  document.getElementById('pdf-content').innerHTML=html;
+  document.getElementById('modal-pdf').style.display='block';
+  document.getElementById('modal-pdf').scrollTop=0;
+  document.title='Bestellung '+m.name+' '+bestellSaison;
+}
+
+// ════════════════════════════════════════════════════════
+//  KATALOG-VERWALTUNG
+// ════════════════════════════════════════════════════════
+var SIZE_TEMPLATES = {
+  wein:[{key:"0_2",label:"0,2",proKiste:50},{key:"0_25b",label:"0,25 Bord",proKiste:40},{key:"0_5",label:"0,5",proKiste:24},{key:"0_75",label:"0,75",proKiste:21},{key:"1_0t",label:"1,0 Ton",proKiste:14},{key:"1_0e",label:"1,0 Euro",proKiste:0},{key:"1_5",label:"1,5",proKiste:5}],
+  plus:[{key:"0_2",label:"0,2",proKiste:50},{key:"0_25b",label:"0,25 Bord",proKiste:40},{key:"0_5",label:"0,5",proKiste:24},{key:"0_75",label:"0,75",proKiste:21},{key:"1_0t",label:"1,0 Ton",proKiste:14},{key:"1_0e",label:"1,0 Euro",proKiste:0},{key:"1_5",label:"1,5",proKiste:5}],
+  schnaps:[{key:"0_04",label:"0,04",proKiste:0},{key:"0_2",label:"0,2",proKiste:50},{key:"0_5",label:"0,5",proKiste:24}],
+  absinth:[{key:"0_04",label:"0,04",proKiste:0},{key:"0_2",label:"0,2",proKiste:50},{key:"0_5",label:"0,5",proKiste:24}],
+  kehlenschneider:[{key:"0_04",label:"0,04",proKiste:0},{key:"0_2",label:"0,2",proKiste:50}],
+  stueck:[{key:"stk",label:"Stück",proKiste:0}]
+};
+var editProduktId=null;
+
+function renderKatalogStats(){
+  var el1=el('katalog-stats');
+  if(el1)el1.textContent=katalog.length+' Produkte in '+katalogKategorien().length+' Kategorien';
+}
+
+function openKatalog(){
+  el('screen-katalog').style.display='block';
+  // Kategorie-Filter füllen
+  var sel=el('kat-filter');
+  var cats=katalogKategorien();
+  sel.innerHTML='<option value="">Alle Kategorien</option>'+cats.map(function(ct){return'<option value="'+esc(ct)+'">'+esc(ct)+'</option>'}).join('');
+  el('kat-suche').value='';
+  el('katalog-count-sub').textContent=katalog.length+' Produkte';
+  renderKatalogListe();
+}
+function closeKatalog(){el('screen-katalog').style.display='none';renderKatalogStats();}
+
+function renderKatalogListe(){
+  var filter=el('kat-filter').value;
+  var suche=(el('kat-suche').value||'').toLowerCase();
+  var liste=katalog.filter(function(p){
+    if(filter&&p.kategorie!==filter)return false;
+    if(suche&&p.name.toLowerCase().indexOf(suche)<0)return false;
+    return true;
+  });
+  if(!liste.length){el('katalog-liste').innerHTML='<div class="empty-state">Keine Produkte gefunden.</div>';return}
+  // Nach Kategorie gruppieren
+  var byCat={};
+  liste.forEach(function(p){if(!byCat[p.kategorie])byCat[p.kategorie]=[];byCat[p.kategorie].push(p)});
+  var html='';
+  Object.keys(byCat).forEach(function(cat){
+    html+='<div class="sec">'+esc(cat)+' ('+byCat[cat].length+')</div>';
+    byCat[cat].forEach(function(p){
+      var preise=p.groessen.filter(function(g){return g.preis>0}).map(function(g){return g.label+' '+g.preis+'€'}).join(' · ');
+      html+='<div onclick="openProdukt('+p.id+')" style="background:var(--p);border:1px solid var(--pd);border-radius:2px;padding:10px 12px;margin-bottom:6px;cursor:pointer">'
+        +'<div style="font-family:Cinzel,serif;font-size:0.9rem;font-weight:600;color:var(--ink)">'+esc(p.name)+'</div>'
+        +'<div style="font-size:0.75rem;color:var(--im);margin-top:3px">'+(preise||'keine Preise')+'</div>'
+        +'</div>';
+    });
+  });
+  el('katalog-liste').innerHTML=html;
+}
+
+function openProdukt(id){
+  var p=katalog.find(function(x){return x.id===id});
+  if(!p)return;
+  editProduktId=id;
+  el('produkt-modal-title').textContent='Produkt bearbeiten';
+  el('produkt-modal-sub').textContent=p.name;
+  el('pe-name').value=p.name;
+  el('pe-kategorie').value=p.kategorie;
+  el('pe-artnr').value=p.artikelnr||'';
+  el('pe-sizetype').value=p.sizetype;
+  renderPreisFelder(p.sizetype,p.groessen);
+  openModal('modal-produkt');
+}
+
+function openProduktNeu(){
+  editProduktId=null;
+  el('produkt-modal-title').textContent='Neues Produkt';
+  el('produkt-modal-sub').textContent='';
+  el('pe-name').value='';
+  el('pe-kategorie').value=el('kat-filter').value||'';
+  el('pe-artnr').value='';
+  el('pe-sizetype').value='wein';
+  renderPreisFelder('wein',null);
+  openModal('modal-produkt');
+}
+
+function onSizetypeChange(){
+  renderPreisFelder(el('pe-sizetype').value,null);
+}
+
+function renderPreisFelder(sizetype,existing){
+  var tmpl=SIZE_TEMPLATES[sizetype]||[];
+  var html='';
+  tmpl.forEach(function(s){
+    var preis=0;
+    if(existing){
+      var found=existing.find(function(g){return g.key===s.key});
+      if(found)preis=found.preis;
+    }
+    html+='<div style="display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:center;margin-bottom:6px">'
+      +'<label style="font-family:Cinzel,serif;font-size:0.8rem;color:var(--ink)">'+s.label+(s.proKiste>0?' <span style="color:var(--im);font-size:0.7rem">('+s.proKiste+'/Kiste)</span>':'')+'</label>'
+      +'<input type="number" id="pe-preis-'+s.key+'" value="'+preis+'" min="0" step="0.5" inputmode="decimal" style="text-align:right">'
+      +'</div>';
+  });
+  el('pe-preise').innerHTML=html;
+}
+
+function saveProdukt(){
+  var name=el('pe-name').value.trim();
+  if(!name){toast('⚠ Bitte Namen eingeben');return}
+  var sizetype=el('pe-sizetype').value;
+  var tmpl=SIZE_TEMPLATES[sizetype]||[];
+  var groessen=tmpl.map(function(s){
+    var v=parseFloat(el('pe-preis-'+s.key).value)||0;
+    return{key:s.key,label:s.label,preis:v,proKiste:s.proKiste};
+  });
+  var data={
+    name:name,
+    kategorie:el('pe-kategorie').value.trim()||'Sonstiges',
+    artikelnr:el('pe-artnr').value.trim(),
+    sizetype:sizetype,
+    groessen:groessen
+  };
+  if(editProduktId!==null){
+    for(var i=0;i<katalog.length;i++){if(katalog[i].id===editProduktId){data.id=editProduktId;katalog[i]=data;break}}
+    toast('✓ Produkt aktualisiert');
+  } else {
+    var maxId=katalog.reduce(function(m,p){return Math.max(m,p.id)},0);
+    data.id=maxId+1;
+    katalog.push(data);
+    toast('✓ Produkt hinzugefügt');
+  }
+  saveKatalog();
+  closeModal('modal-produkt');
+  renderKatalogListe();
+  el('katalog-count-sub').textContent=katalog.length+' Produkte';
+}
+
+function deleteProdukt(){
+  if(editProduktId===null){closeModal('modal-produkt');return}
+  if(!confirm('Produkt wirklich löschen?'))return;
+  katalog=katalog.filter(function(p){return p.id!==editProduktId});
+  saveKatalog();
+  closeModal('modal-produkt');
+  renderKatalogListe();
+  toast('Produkt gelöscht');
+}
+
+function resetKatalog(){
+  if(!confirm('Katalog auf Standard zurücksetzen? Alle eigenen Änderungen gehen verloren.'))return;
+  katalog=JSON.parse(JSON.stringify(DEFAULT_KATALOG));
+  saveKatalog();
+  renderKatalogStats();
+  toast('Katalog zurückgesetzt');
+}
+
+// ════════════════════════════════════════════════════════
 //  COIN INPUT SETUP
 // ════════════════════════════════════════════════════════
 function setupCoinInput(id){
@@ -2520,6 +3264,7 @@ function setupCoinInput(id){
 // ════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded',function(){
   state=loadData();
+  katalog=loadKatalog();
 
   // Coin-Inputs
   COINS.forEach(function(c){setupCoinInput(c.id)});
