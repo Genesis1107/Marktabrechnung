@@ -454,7 +454,7 @@ h1.print-title,.print-meta{display:none}
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v1.5</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v1.7</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -480,6 +480,12 @@ h1.print-title,.print-meta{display:none}
           <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:6px;font-family:'IM Fell English',serif;font-style:italic">JSON-Backup auswählen um alle Daten wiederherzustellen.</p>
           <p style="font-size:0.8rem;color:var(--cr);font-style:italic;margin-bottom:12px">⚠ Bestehende Daten werden dabei überschrieben!</p>
           <input type="file" id="import-file" accept=".json,application/json" style="font-size:0.85rem;padding:8px;width:100%;background:var(--p);border:1px solid var(--pd);border-radius:2px">
+        </div>
+
+        <div class="sec">Stundenerfassung</div>
+        <div class="card">
+          <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:12px;font-family:'IM Fell English',serif;font-style:italic">Geleistete Stunden je Mitarbeiter und Tag nachträglich erfassen.</p>
+          <button class="btn btn-secondary" style="width:100%" onclick="openStunden()">⏱ Stunden erfassen</button>
         </div>
 
         <div class="sec">Produktkatalog</div>
@@ -947,6 +953,24 @@ h1.print-title,.print-meta{display:none}
           </div>
         </div>
 
+        <!-- BLOCK 3b: Stunden & Effizienz -->
+        <div class="card" id="stunden-block" style="display:none">
+          <div class="card-title">Arbeitsstunden & Effizienz</div>
+          <div class="hero-row" style="margin-bottom:8px">
+            <div class="hero-card" style="--ca:var(--fo)">
+              <div class="hero-l">Umsatz / Stunde</div>
+              <div class="hero-v" id="dash-ups">–</div>
+              <div class="hero-d dneu" id="dash-ups-d"></div>
+            </div>
+            <div class="hero-card" style="--ca:var(--im)">
+              <div class="hero-l">Gesamtstunden</div>
+              <div class="hero-v" id="dash-stunden">–</div>
+              <div class="hero-d dneu" id="dash-stunden-d"></div>
+            </div>
+          </div>
+          <div id="dash-stunden-ma"></div>
+        </div>
+
         <!-- BLOCK 4: Tagesverlauf -->
         <div class="card">
           <div class="card-title">Tagesverlauf <span id="tage-year-label" style="color:var(--cr);margin-left:4px;font-size:0.62rem"></span></div>
@@ -1001,6 +1025,58 @@ h1.print-title,.print-meta{display:none}
   </nav>
 
 </div><!-- /app -->
+
+<!-- STUNDEN-SCREEN -->
+<div id="screen-stunden" style="display:none;position:fixed;inset:0;z-index:400;background:var(--p2);overflow-y:auto">
+  <div class="detail-hdr" style="position:sticky;top:0;z-index:10">
+    <div class="detail-hdr-top">
+      <button class="back-btn" onclick="closeStunden()">← Zurück</button>
+      <div><div class="detail-hdr-name">⏱ Stundenerfassung</div>
+      <div class="detail-hdr-sub" id="stunden-sub">–</div></div>
+    </div>
+  </div>
+  <div class="content" style="padding-bottom:40px">
+    <div class="form-row">
+      <div class="field"><label>Markt</label><select id="st-markt" onchange="onStundenMarktChange()"></select></div>
+      <div class="field"><label>Saison</label><select id="st-saison" onchange="renderStundenTage()"></select></div>
+    </div>
+    <div id="st-summary" class="card" style="display:none">
+      <div class="hero-row">
+        <div class="hero-card" style="--ca:var(--cr)">
+          <div class="hero-l">Gesamtstunden</div>
+          <div class="hero-v" id="st-gesamt">0</div>
+        </div>
+        <div class="hero-card" style="--ca:var(--fo)">
+          <div class="hero-l">Umsatz / Stunde</div>
+          <div class="hero-v" id="st-ups">–</div>
+        </div>
+      </div>
+    </div>
+    <div id="st-tage"></div>
+  </div>
+</div>
+
+<!-- STUNDEN-EINTRAG-MODAL -->
+<div class="modal-overlay" id="modal-stunden-add">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-stunden-add')">✕</button>
+    <h2>Stunden eintragen</h2>
+    <div class="modal-sub" id="sa-datum-label"></div>
+    <div class="rd"></div>
+    <div class="field" style="margin-bottom:10px">
+      <label>Mitarbeiter</label>
+      <select id="sa-mitarbeiter"></select>
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <label>Stunden (dezimal, z.B. 8,5)</label>
+      <input type="number" id="sa-stunden" min="0" step="0.25" inputmode="decimal" placeholder="0">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('modal-stunden-add')">Abbrechen</button>
+      <button class="btn btn-primary" style="flex:1" onclick="saveStundenEintrag()">Speichern</button>
+    </div>
+  </div>
+</div>
 
 <!-- KATALOG-SCREEN -->
 <div id="screen-katalog" style="display:none;position:fixed;inset:0;z-index:400;background:var(--p2);overflow-y:auto">
@@ -1337,6 +1413,7 @@ function migrateSaisons(d){
   d.maerkte.forEach(function(m){
     if(!m.saisons||typeof m.saisons!=='object')m.saisons={};
     if(!m.bestellungen||typeof m.bestellungen!=='object')m.bestellungen={};
+    if(!m.stunden||typeof m.stunden!=='object')m.stunden={};
     if(!m.planung)m.planung={status:'interessent',region:'',dauer:'',kmMinden:'',kmSk:'',veranstalter:'',datumVon:'',datumBis:'',checklist:{}};
     var jahre={};
     d.eintraege.forEach(function(e){if(e.marktId===m.id)jahre[String(e.jahr||String(e.datum).split('-')[0])]=true});
@@ -2259,6 +2336,9 @@ function renderDashYear(alle,ys){
   el('ec-bar-sum').textContent=eur(tB);
   el('ec-ec-sum').textContent=eur(tE);
 
+  // ── STUNDEN & EFFIZIENZ ──
+  renderStundenKennzahlen(m,cur,prev,prevY,totU,totUP);
+
   // ── TAGESVERLAUF ──
   el('tage-year-label').textContent=activeYear;
   renderTageGrid(rC,rP,bestTag);
@@ -2352,6 +2432,48 @@ function renderTageGrid(rC,rP,bestTag){
       +'</div>';
   });
   grid.innerHTML=html;
+}
+
+function renderStundenKennzahlen(m,cur,prev,prevY,totU,totUP){
+  var block=el('stunden-block');
+  if(!block)return;
+  var stundenListe=(m.stunden&&m.stunden[String(activeYear)])||[];
+  if(!stundenListe.length){block.style.display='none';return}
+  block.style.display='block';
+
+  var gesamt=stundenListe.reduce(function(s,e){return s+e.stunden},0);
+  var ups=gesamt>0?totU/gesamt:0;
+  el('dash-ups').textContent=gesamt>0?eur(ups)+'/h':'–';
+  el('dash-stunden').textContent=(Math.round(gesamt*10)/10)+' Std';
+
+  // Vorjahresvergleich
+  var stundenVj=(prevY&&m.stunden&&m.stunden[String(prevY)])||[];
+  var gesamtVj=stundenVj.reduce(function(s,e){return s+e.stunden},0);
+  var upsVj=gesamtVj>0?totUP/gesamtVj:0;
+  setHeroDelta('dash-ups-d',ups,upsVj,false,gesamtVj>0?prevY:null);
+  var sd=el('dash-stunden-d');
+  if(gesamtVj>0){
+    var diff=gesamt-gesamtVj;
+    sd.textContent=(diff>=0?'+':'')+(Math.round(diff*10)/10)+' Std ggü. '+prevY;
+    sd.className='hero-d '+(diff<=0?'dpos':'dneg');
+  } else {sd.textContent='';sd.className='hero-d dneu'}
+
+  // Stunden pro Mitarbeiter
+  var byMa={};
+  stundenListe.forEach(function(e){byMa[e.mitarbeiter]=(byMa[e.mitarbeiter]||0)+e.stunden});
+  var maArr=Object.keys(byMa).map(function(name){return{name:name,std:byMa[name]}}).sort(function(a,b){return b.std-a.std});
+  var maxStd=maArr.length?maArr[0].std:1;
+  var html='<div style="font-family:Cinzel,serif;font-size:0.62rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--im);margin-bottom:8px;padding-top:4px;border-top:1px solid var(--p2)">Stunden je Mitarbeiter</div>';
+  maArr.forEach(function(ma){
+    var pct=maxStd>0?ma.std/maxStd*100:0;
+    html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">'
+      +'<span style="font-family:Cinzel,serif;font-size:0.72rem;color:var(--ink);min-width:70px">'+esc(ma.name)+'</span>'
+      +'<div style="flex:1;height:14px;background:var(--p2);border:1px solid var(--pd);border-radius:1px;overflow:hidden">'
+      +'<div style="height:100%;width:'+pct+'%;background:var(--fo)"></div></div>'
+      +'<span style="font-family:Cinzel,serif;font-size:0.72rem;color:var(--im);min-width:48px;text-align:right">'+(Math.round(ma.std*10)/10)+' h</span>'
+      +'</div>';
+  });
+  el('dash-stunden-ma').innerHTML=html;
 }
 
 function renderTrend(alle,ys){
@@ -2534,6 +2656,24 @@ function exportPDF(){
     +'<div style="font-size:10px;color:#7a5c3a;font-style:italic">'+eur(tB)+' Bar · '+eur(tE)+' EC</div>'
     +'</div></div>';
 
+  // Stunden & Effizienz
+  var stundenListe=(m.stunden&&m.stunden[String(activeYear)])||[];
+  if(stundenListe.length){
+    var gesamtStd=stundenListe.reduce(function(s,e){return s+e.stunden},0);
+    var upsVal=gesamtStd>0?totU/gesamtStd:0;
+    var byMaPdf={};
+    stundenListe.forEach(function(e){byMaPdf[e.mitarbeiter]=(byMaPdf[e.mitarbeiter]||0)+e.stunden});
+    var maRows=Object.keys(byMaPdf).sort(function(a,b){return byMaPdf[b]-byMaPdf[a]}).map(function(name){
+      return'<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:11px"><span style="color:#7a5c3a">'+esc(name)+'</span><span style="font-family:Cinzel,serif">'+(Math.round(byMaPdf[name]*10)/10)+' h</span></div>';
+    }).join('');
+    html+='<div style="background:white;border:1px solid #c9b07a;border-radius:2px;padding:10px 12px;margin-bottom:12px">'
+      +'<div style="font-family:Cinzel,serif;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#7a5c3a;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #e8d9b5">Arbeitsstunden & Effizienz</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
+      +'<div style="text-align:center;padding:6px;background:rgba(45,80,22,.06);border-radius:2px"><div style="font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;color:#7a5c3a">Umsatz/Stunde</div><div style="font-family:Cinzel,serif;font-size:16px;font-weight:700;color:#2d5016">'+eur(upsVal)+'/h</div></div>'
+      +'<div style="text-align:center;padding:6px;background:rgba(122,92,58,.06);border-radius:2px"><div style="font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;color:#7a5c3a">Gesamtstunden</div><div style="font-family:Cinzel,serif;font-size:16px;font-weight:700">'+(Math.round(gesamtStd*10)/10)+' h</div></div>'
+      +'</div>'+maRows+'</div>';
+  }
+
   // Tagesverlauf
   if(rC.length){
     html+='<div style="background:white;border:1px solid #c9b07a;border-radius:2px;padding:10px 12px;margin-bottom:12px">'
@@ -2571,7 +2711,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v1.5 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v1.7 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
@@ -2721,6 +2861,160 @@ function clearAllData(){
   saveData();
   renderDatenPage();
   toast('Alle Daten gelöscht');
+}
+
+// ════════════════════════════════════════════════════════
+//  STUNDENERFASSUNG
+// ════════════════════════════════════════════════════════
+var stundenMarktId=null;
+var stundenSaison=null;
+var stundenAddDatum=null;
+
+// Datenstruktur: m.stunden[jahr] = [{datum, mitarbeiter, stunden}]
+function addDays(iso,days){
+  var p=iso.split('-');
+  var d=new Date(parseInt(p[0],10),parseInt(p[1],10)-1,parseInt(p[2],10));
+  d.setDate(d.getDate()+days);
+  var mm=('0'+(d.getMonth()+1)).slice(-2),dd=('0'+d.getDate()).slice(-2);
+  return d.getFullYear()+'-'+mm+'-'+dd;
+}
+
+function getStunden(m,jahr){
+  if(!m.stunden)m.stunden={};
+  var key=String(jahr);
+  if(!Array.isArray(m.stunden[key]))m.stunden[key]=[];
+  return m.stunden[key];
+}
+
+function openStunden(){
+  el('screen-stunden').style.display='block';
+  var sel=el('st-markt');
+  if(!state.maerkte.length){
+    sel.innerHTML='<option value="">Keine Märkte</option>';
+    el('st-tage').innerHTML='<div class="empty-state">Erst Märkte anlegen.</div>';
+    return;
+  }
+  sel.innerHTML=state.maerkte.map(function(m){return'<option value="'+m.id+'">'+esc(m.name)+'</option>'}).join('');
+  stundenMarktId=state.maerkte[0].id;
+  sel.value=stundenMarktId;
+  onStundenMarktChange();
+}
+function closeStunden(){el('screen-stunden').style.display='none';}
+
+function onStundenMarktChange(){
+  stundenMarktId=parseInt(el('st-markt').value,10);
+  var m=findMarkt(stundenMarktId);
+  if(!m)return;
+  // Saisons aus Einträgen + aktuelles/nächstes Jahr
+  var alle=state.eintraege.filter(function(e){return e.marktId===stundenMarktId});
+  var ys=uniqueYears(alle);
+  var cy=new Date().getFullYear();
+  if(ys.indexOf(cy)<0)ys.push(cy);
+  ys.sort(function(a,b){return b-a});
+  if(!stundenSaison||ys.indexOf(stundenSaison)<0)stundenSaison=ys[0];
+  el('st-saison').innerHTML=ys.map(function(y){return'<option value="'+y+'"'+(y===stundenSaison?' selected':'')+'>'+y+'</option>'}).join('');
+  renderStundenTage();
+}
+
+function renderStundenTage(){
+  stundenSaison=parseInt(el('st-saison').value,10);
+  var m=findMarkt(stundenMarktId);
+  if(!m)return;
+  el('stunden-sub').textContent=m.name+' · '+stundenSaison;
+
+  // Markttage aus Chronik-Einträgen dieser Saison
+  var eintraege=state.eintraege.filter(function(e){return e.marktId===stundenMarktId&&jahrOf(e)===stundenSaison});
+  var tageSet={};
+  eintraege.forEach(function(e){tageSet[e.datum]=true});
+  var markttage=Object.keys(tageSet).sort();
+
+  // Auf-/Abbautag ergänzen: 1 Tag vor erstem, 1 Tag nach letztem Markttag
+  var tage=markttage.slice();
+  var sondertage={};
+  if(markttage.length){
+    var vorTag=addDays(markttage[0],-1);
+    var nachTag=addDays(markttage[markttage.length-1],1);
+    sondertage[vorTag]='Anreise & Aufbau';
+    sondertage[nachTag]='Abbau & Abreise';
+    tage.unshift(vorTag);
+    tage.push(nachTag);
+  }
+
+  var stunden=getStunden(m,stundenSaison);
+
+  // Summary
+  var gesamt=stunden.reduce(function(s,e){return s+e.stunden},0);
+  var umsatz=0;
+  groupByDate(eintraege).forEach(function(r){umsatz+=r.umsatz});
+  el('st-summary').style.display=stunden.length?'block':'none';
+  el('st-gesamt').textContent=(Math.round(gesamt*10)/10)+' Std';
+  el('st-ups').textContent=gesamt>0?eur(umsatz/gesamt)+'/h':'–';
+
+  if(!tage.length){
+    el('st-tage').innerHTML='<div class="empty-state">Keine Markttage in dieser Saison. Erst Umsätze in der Kasse erfassen und in die Chronik übertragen.</div>';
+    return;
+  }
+
+  var html='';
+  tage.forEach(function(datum){
+    var tagStunden=stunden.filter(function(s){return s.datum===datum});
+    var tagSum=tagStunden.reduce(function(s,e){return s+e.stunden},0);
+    var sonderLabel=sondertage[datum];
+    html+='<div class="card" style="margin-bottom:10px'+(sonderLabel?';border-left:3px solid var(--go)':'')+'">';
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      +'<div><div style="font-family:Cinzel,serif;font-size:0.85rem;font-weight:700;color:var(--ink)">'+fmtDate(datum)+'</div>'
+      +(sonderLabel?'<div style="font-family:IM Fell English,serif;font-style:italic;font-size:0.72rem;color:var(--go)">'+sonderLabel+'</div>':'')
+      +'</div>'
+      +'<div style="font-family:Cinzel,serif;font-size:0.8rem;color:var(--fo)">'+(Math.round(tagSum*10)/10)+' Std</div>'
+      +'</div>';
+    if(tagStunden.length){
+      tagStunden.forEach(function(s,i){
+        var globalIdx=stunden.indexOf(s);
+        html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(201,176,122,.2)">'
+          +'<span style="font-size:0.85rem;color:var(--ink)">'+esc(s.mitarbeiter)+'</span>'
+          +'<div style="display:flex;align-items:center;gap:8px">'
+          +'<span style="font-family:Cinzel,serif;font-size:0.82rem;color:var(--im)">'+(Math.round(s.stunden*10)/10)+' h</span>'
+          +'<button class="icon-btn" onclick="deleteStundenEintrag('+globalIdx+')">✕</button>'
+          +'</div></div>';
+      });
+    }
+    html+='<button class="btn btn-secondary" style="width:100%;margin-top:8px" onclick="openStundenAdd(\''+datum+'\')">+ Mitarbeiter</button>';
+    html+='</div>';
+  });
+  el('st-tage').innerHTML=html;
+}
+
+function openStundenAdd(datum){
+  stundenAddDatum=datum;
+  el('sa-datum-label').textContent=fmtDate(datum);
+  // Mitarbeiterliste + Aushilfe
+  var opts=FAHRER.map(function(f){return'<option value="'+f+'">'+f+'</option>'}).join('');
+  opts+='<option value="Aushilfe">Aushilfe</option>';
+  el('sa-mitarbeiter').innerHTML=opts;
+  el('sa-stunden').value='';
+  openModal('modal-stunden-add');
+}
+
+function saveStundenEintrag(){
+  var mitarbeiter=el('sa-mitarbeiter').value;
+  var stundenWert=parseFloat(el('sa-stunden').value);
+  if(isNaN(stundenWert)||stundenWert<=0){toast('⚠ Bitte gültige Stunden eingeben');return}
+  var m=findMarkt(stundenMarktId);
+  var liste=getStunden(m,stundenSaison);
+  liste.push({datum:stundenAddDatum,mitarbeiter:mitarbeiter,stunden:stundenWert});
+  saveData();
+  closeModal('modal-stunden-add');
+  renderStundenTage();
+  toast('✓ Stunden erfasst');
+}
+
+function deleteStundenEintrag(idx){
+  var m=findMarkt(stundenMarktId);
+  var liste=getStunden(m,stundenSaison);
+  liste.splice(idx,1);
+  saveData();
+  renderStundenTage();
+  toast('Eintrag gelöscht');
 }
 
 // ════════════════════════════════════════════════════════
