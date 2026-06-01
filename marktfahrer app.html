@@ -454,7 +454,7 @@ h1.print-title,.print-meta{display:none}
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v1.9</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v2.0</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -1560,7 +1560,8 @@ function renderMarktGrid(){
       var lj=ys[0];
       var diesjahr=lj?alle.filter(function(e){return jahrOf(e)===lj}):[];
       var byDate=groupByDate(diesjahr);
-      var avgU=avg(byDate.map(function(r){return r.umsatz}));
+      var gesamtU=sm(byDate.map(function(r){return r.umsatz}));
+      var anzTage=byDate.length;
       var st=m.planung?STATUS_LIST.find(function(s){return s.key===m.planung.status}):null;
       var stLabel=st?st.label:'–';
       var stCls=st?st.cls:'status-interessent';
@@ -1568,8 +1569,8 @@ function renderMarktGrid(){
         +'<div class="mc-name">'+esc(m.name)+'</div>'
         +'<div class="mc-sub">'+esc((m.planung&&m.planung.region)||m.region||'Markt')+' · '+ys.length+' Jahr(e)</div>'
         +'<div class="mc-stats">'
-        +'<div><div class="mcs-l">Umsatz Ø</div><div class="mcs-v">'+eur(avgU)+'</div></div>'
-        +'<div><div class="mcs-l">Einträge</div><div class="mcs-v">'+alle.length+'</div></div>'
+        +'<div><div class="mcs-l">Umsatz '+(lj||'')+'</div><div class="mcs-v">'+eur(gesamtU)+'</div></div>'
+        +'<div><div class="mcs-l">Markttage</div><div class="mcs-v">'+anzTage+'</div></div>'
         +'<div><div class="mcs-l">Saison</div><div class="mcs-v">'+(lj||'–')+'</div></div>'
         +'</div>'
         +'<div class="mc-footer"><span class="mc-status '+stCls+'">'+esc(stLabel)+'</span>'
@@ -2917,7 +2918,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v1.9 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v2.0 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
