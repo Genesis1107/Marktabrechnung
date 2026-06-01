@@ -454,7 +454,7 @@ h1.print-title,.print-meta{display:none}
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v1.7</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v1.8</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -567,6 +567,13 @@ h1.print-title,.print-meta{display:none}
             <div class="field"><label>Datum von</label><input type="date" id="p-datum-von" oninput="savePlanungField()"></div>
             <div class="field"><label>Datum bis</label><input type="date" id="p-datum-bis" oninput="savePlanungField()"></div>
           </div>
+        </div>
+
+        <div class="sec">Stände / Kutschen</div>
+        <div class="card">
+          <p style="font-size:0.82rem;color:var(--im);line-height:1.5;margin-bottom:10px;font-family:'IM Fell English',serif;font-style:italic">Anzahl der Verkaufsstände auf diesem Markt. Jeder Stand hat eine eigene Kasse.</p>
+          <div id="kutschen-liste"></div>
+          <button class="btn btn-secondary" style="width:100%;margin-top:8px" onclick="addKutsche()">+ Stand hinzufügen</button>
         </div>
 
         <div class="sec">Checkliste</div>
@@ -682,6 +689,13 @@ h1.print-title,.print-meta{display:none}
         <div class="modus-toggle">
           <button class="modus-btn zaehlen active" id="btn-zaehlen" onclick="setEingabeModus('zaehlen')">🪙 Geld zählen</button>
           <button class="modus-btn schnell" id="btn-schnell" onclick="setEingabeModus('schnell')">⚡ Schnellerfassung</button>
+        </div>
+
+        <!-- Kutschen-Wahl (nur bei mehreren Ständen) -->
+        <div class="card" id="kasse-kutsche-card" style="display:none;padding:11px 14px;margin-bottom:10px">
+          <div class="field"><label>Stand / Kutsche</label>
+            <select id="k-kutsche" onchange="onKasseKutscheChange()"></select>
+          </div>
         </div>
 
         <!-- Edit Banner Kasse -->
@@ -817,6 +831,9 @@ h1.print-title,.print-meta{display:none}
         <div class="form-row">
           <div class="field"><label>Jahr</label><select id="ab-jahr" onchange="calcAbschluss()"><option value="">— Wählen —</option></select></div>
           <div class="field"><label>Kassenrest (€)</label><input type="number" id="ab-rest" value="400" min="0" step="0.01" inputmode="decimal" oninput="calcAbschluss()"></div>
+        </div>
+        <div class="form-row solo" id="ab-kutsche-row" style="display:none">
+          <div class="field"><label>Stand / Kutsche</label><select id="ab-kutsche" onchange="calcAbschluss()"></select></div>
         </div>
 
         <div id="ab-empty" class="empty-state">Bitte Jahr wählen.</div>
@@ -990,8 +1007,14 @@ h1.print-title,.print-meta{display:none}
 
         <!-- BLOCK 6: Kutschen (nur wenn >1) -->
         <div class="card" id="k-card-wrap" style="display:none">
-          <div class="card-title">Kutschen</div>
+          <div class="card-title">Stände gesamt</div>
           <div class="k-cards" id="k-cards"></div>
+        </div>
+
+        <!-- BLOCK 6b: Stände-Vergleich pro Tag (nur wenn >1) -->
+        <div class="card" id="k-vergleich-wrap" style="display:none">
+          <div class="card-title">Stände-Vergleich je Tag</div>
+          <div class="tbl-wrap" id="k-vergleich-tbl"></div>
         </div>
 
         <!-- BLOCK 7: Einzeltage -->
@@ -1414,6 +1437,7 @@ function migrateSaisons(d){
     if(!m.saisons||typeof m.saisons!=='object')m.saisons={};
     if(!m.bestellungen||typeof m.bestellungen!=='object')m.bestellungen={};
     if(!m.stunden||typeof m.stunden!=='object')m.stunden={};
+    if(!Array.isArray(m.kutschen)||!m.kutschen.length)m.kutschen=['K1'];
     if(!m.planung)m.planung={status:'interessent',region:'',dauer:'',kmMinden:'',kmSk:'',veranstalter:'',datumVon:'',datumBis:'',checklist:{}};
     var jahre={};
     d.eintraege.forEach(function(e){if(e.marktId===m.id)jahre[String(e.jahr||String(e.datum).split('-')[0])]=true});
@@ -1571,7 +1595,7 @@ function createMarkt(){
   var idx=state.maerkte.length%COLORS.length;
   state.maerkte.push({
     id:state.nextMarktId++,name:name,region:region,
-    saisons:{},bestellungen:{},color:COLORS[idx],glyph:GLYPHS[idx],
+    saisons:{},bestellungen:{},stunden:{},kutschen:['K1'],color:COLORS[idx],glyph:GLYPHS[idx],
     createdAt:new Date().toISOString(),
     planung:{status:'interessent',region:region,dauer:'',kmMinden:'',kmSk:'',veranstalter:'',datumVon:'',datumBis:'',checklist:{}}
   });
@@ -1593,6 +1617,75 @@ function confirmDelMarkt(){
 // ════════════════════════════════════════════════════════
 //  PLANUNG
 // ════════════════════════════════════════════════════════
+// ── KUTSCHEN ──
+var activeKutsche='K1';
+
+function getKutschen(m){
+  if(!Array.isArray(m.kutschen)||!m.kutschen.length)m.kutschen=['K1'];
+  return m.kutschen;
+}
+
+function renderKutschenListe(){
+  var m=findMarkt(activeMarktId);
+  if(!m)return;
+  var kutschen=getKutschen(m);
+  var html='';
+  kutschen.forEach(function(k,idx){
+    html+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(201,176,122,.2)">'
+      +'<input type="text" value="'+esc(k)+'" onchange="renameKutsche('+idx+',this.value)" style="flex:1;background:var(--p);border:1px solid var(--pd);border-radius:2px;padding:7px 10px;font-family:Crimson Text,serif;font-size:15px;color:var(--ink)">'
+      +(kutschen.length>1?'<button class="icon-btn" onclick="removeKutsche('+idx+')">✕</button>':'<span style="width:34px"></span>')
+      +'</div>';
+  });
+  el('kutschen-liste').innerHTML=html;
+}
+
+function addKutsche(){
+  var m=findMarkt(activeMarktId);
+  var kutschen=getKutschen(m);
+  // Nächsten freien Namen K1, K2, ...
+  var n=kutschen.length+1;
+  var name='K'+n;
+  while(kutschen.indexOf(name)>=0){n++;name='K'+n}
+  kutschen.push(name);
+  saveData();
+  renderKutschenListe();
+  toast('Stand '+name+' hinzugefügt');
+}
+
+function renameKutsche(idx,newName){
+  var m=findMarkt(activeMarktId);
+  var kutschen=getKutschen(m);
+  newName=(newName||'').trim();
+  if(!newName){renderKutschenListe();return}
+  if(kutschen.indexOf(newName)>=0&&kutschen[idx]!==newName){toast('⚠ Name bereits vergeben');renderKutschenListe();return}
+  var oldName=kutschen[idx];
+  kutschen[idx]=newName;
+  // Bestehende Einträge/Kassen/Buchungen umbenennen
+  state.eintraege.forEach(function(e){if(e.marktId===activeMarktId&&e.kutsche===oldName)e.kutsche=newName});
+  state.kassungen.forEach(function(k){if(k.marktId===activeMarktId&&k.kutsche===oldName)k.kutsche=newName});
+  state.buchungen.forEach(function(b){if(b.marktId===activeMarktId&&b.kutsche===oldName)b.kutsche=newName});
+  saveData();
+  renderKutschenListe();
+  toast('Umbenannt: '+oldName+' → '+newName);
+}
+
+function removeKutsche(idx){
+  var m=findMarkt(activeMarktId);
+  var kutschen=getKutschen(m);
+  if(kutschen.length<=1){toast('⚠ Mindestens ein Stand nötig');return}
+  var name=kutschen[idx];
+  // Prüfen ob Daten existieren
+  var hatDaten=state.kassungen.some(function(k){return k.marktId===activeMarktId&&k.kutsche===name})
+    ||state.eintraege.some(function(e){return e.marktId===activeMarktId&&e.kutsche===name});
+  if(hatDaten){
+    if(!confirm('Für Stand "'+name+'" existieren bereits Daten. Diese bleiben erhalten, aber der Stand wird aus der Liste entfernt. Fortfahren?'))return;
+  }
+  kutschen.splice(idx,1);
+  saveData();
+  renderKutschenListe();
+  toast('Stand entfernt');
+}
+
 function renderPlanung(){
   var m=findMarkt(activeMarktId);
   if(!m)return;
@@ -1618,6 +1711,9 @@ function renderPlanung(){
   el('p-veranstalter').value=p.veranstalter||'';
   el('p-datum-von').value=p.datumVon||'';
   el('p-datum-bis').value=p.datumBis||'';
+
+  // Kutschen
+  renderKutschenListe();
 
   // Checkliste
   renderChecklist(m);
@@ -1732,7 +1828,25 @@ function savePlanungNotiz(){
 function renderKasse(){
   el('k-datum').value=todayISO();
   el('b-datum').value=todayISO();
+  // Kutschenwahl
+  var m=findMarkt(activeMarktId);
+  var kutschen=getKutschen(m);
+  var card=el('kasse-kutsche-card');
+  if(kutschen.length>1){
+    card.style.display='block';
+    if(kutschen.indexOf(activeKutsche)<0)activeKutsche=kutschen[0];
+    el('k-kutsche').innerHTML=kutschen.map(function(k){return'<option value="'+esc(k)+'"'+(k===activeKutsche?' selected':'')+'>'+esc(k)+'</option>'}).join('');
+  } else {
+    card.style.display='none';
+    activeKutsche=kutschen[0];
+  }
   calcKasse();
+  renderKasseList();
+  renderBuchList();
+}
+
+function onKasseKutscheChange(){
+  activeKutsche=el('k-kutsche').value;
   renderKasseList();
   renderBuchList();
 }
@@ -1795,14 +1909,15 @@ function saveKasse(){
     if(sBar===0&&sEc===0){toast('⚠ Bitte Bar oder EC eintragen');return}
     // Duplikat-Check
     if(editKasseId===null){
-      var exists=state.kassungen.find(function(k){return k.marktId===activeMarktId&&k.datum===datum&&k.typ==='abschluss'});
-      if(exists){toast('⚠ Für diesen Tag existiert bereits ein Tagesabschluss');return}
+      var exists=state.kassungen.find(function(k){return k.marktId===activeMarktId&&k.datum===datum&&k.typ==='abschluss'&&(k.kutsche||'K1')===activeKutsche});
+      if(exists){toast('⚠ Für diesen Tag/Stand existiert bereits ein Tagesabschluss');return}
     }
     // Schnellerfassung speichert bar als istBestand (anfang=0, diff=bar)
     // EC wird als separate Buchung automatisch angelegt
     data={
       id:editKasseId!==null?editKasseId:state.nextKasseId++,
       marktId:activeMarktId,typ:'abschluss',datum:datum,
+      kutsche:activeKutsche,
       modus:'schnell',
       anfang:0,coins:{},bills:{},
       muenzen:0,scheine:sBar,
@@ -1813,7 +1928,7 @@ function saveKasse(){
     if(sEc>0){
       // Prüfen ob bereits eine EC-Buchung für diesen Tag existiert
       var ecExists=state.buchungen.find(function(b){
-        return b.marktId===activeMarktId&&b.datum===datum&&b.zahlung==='EC'&&b.typ==='einnahme'&&b.autoEC;
+        return b.marktId===activeMarktId&&b.datum===datum&&b.zahlung==='EC'&&b.typ==='einnahme'&&b.autoEC&&(b.kutsche||'K1')===activeKutsche;
       });
       if(ecExists){
         ecExists.betrag=sEc;
@@ -1821,6 +1936,7 @@ function saveKasse(){
         state.buchungen.push({
           id:state.nextBuchId++,
           marktId:activeMarktId,typ:'einnahme',datum:datum,
+          kutsche:activeKutsche,
           bezeichnung:'EC-Einnahmen',betrag:sEc,
           zahlung:'EC',kategorie:'Umsatz',autoEC:true
         });
@@ -1835,8 +1951,8 @@ function saveKasse(){
     // ── MODUS A: Geldzählung ──
     zaehlTyp=el('k-typ-sel').value;
     if(zaehlTyp==='abschluss'&&editKasseId===null){
-      var exists2=state.kassungen.find(function(k){return k.marktId===activeMarktId&&k.datum===datum&&k.typ==='abschluss'});
-      if(exists2){toast('⚠ Für diesen Tag existiert bereits ein Tagesabschluss');return}
+      var exists2=state.kassungen.find(function(k){return k.marktId===activeMarktId&&k.datum===datum&&k.typ==='abschluss'&&(k.kutsche||'K1')===activeKutsche});
+      if(exists2){toast('⚠ Für diesen Tag/Stand existiert bereits ein Tagesabschluss');return}
     }
     var anfang=parseFloat(el('k-anfang').value)||0;
     var coins={},muenzen=0;
@@ -1847,6 +1963,7 @@ function saveKasse(){
     data={
       id:editKasseId!==null?editKasseId:state.nextKasseId++,
       marktId:activeMarktId,typ:zaehlTyp,datum:datum,
+      kutsche:activeKutsche,
       modus:'zaehlen',
       anfang:anfang,coins:coins,bills:bills,
       muenzen:muenzen,scheine:scheine,
@@ -1931,7 +2048,13 @@ function confirmDelKasse(){
 }
 
 function renderKasseList(){
-  var marktKassungen=state.kassungen.filter(function(k){return k.marktId===activeMarktId});
+  var m=findMarkt(activeMarktId);
+  var mehrere=getKutschen(m).length>1;
+  var marktKassungen=state.kassungen.filter(function(k){
+    if(k.marktId!==activeMarktId)return false;
+    if(mehrere&&(k.kutsche||'K1')!==activeKutsche)return false;
+    return true;
+  });
   marktKassungen.sort(function(a,b){if(a.datum!==b.datum)return b.datum.localeCompare(a.datum);return b.id-a.id});
   el('kasse-list-title').textContent=marktKassungen.length+' Zählungen';
   if(!marktKassungen.length){el('kasse-list').innerHTML='<div class="empty-state">Noch keine Zählungen vorhanden.</div>';return}
@@ -1944,7 +2067,7 @@ function renderKasseList(){
     var typCls=isSchnell?'ab':(isZw?'zw':'ab');
     var barEin=k.istBestand-k.anfang;
     // EC aus autoEC-Buchung
-    var ecBuch=state.buchungen.find(function(b){return b.marktId===activeMarktId&&b.datum===k.datum&&b.autoEC});
+    var ecBuch=state.buchungen.find(function(b){return b.marktId===activeMarktId&&b.datum===k.datum&&b.autoEC&&(b.kutsche||'K1')===(k.kutsche||'K1')});
     var ecEin=ecBuch?ecBuch.betrag:0;
     var umsatz=barEin+ecEin;
     html+='<div class="kasse-card'+(isZw?' zw':'')+'">'
@@ -1986,6 +2109,7 @@ function saveBuchung(){
   var data={
     id:editBuchId!==null?editBuchId:state.nextBuchId++,
     marktId:activeMarktId,typ:buchTyp,datum:datum,
+    kutsche:activeKutsche,
     bezeichnung:bezeichnung,betrag:betrag,
     zahlung:el('b-zahlung').value,
     kategorie:el('b-kategorie').value
@@ -2037,7 +2161,13 @@ function confirmDelBuch(){
 }
 
 function renderBuchList(){
-  var marktBuch=state.buchungen.filter(function(b){return b.marktId===activeMarktId});
+  var mb=findMarkt(activeMarktId);
+  var mehrereB=getKutschen(mb).length>1;
+  var marktBuch=state.buchungen.filter(function(b){
+    if(b.marktId!==activeMarktId)return false;
+    if(mehrereB&&(b.kutsche||'K1')!==activeKutsche)return false;
+    return true;
+  });
   marktBuch.sort(function(a,b){if(a.datum!==b.datum)return b.datum.localeCompare(a.datum);return b.id-a.id});
   if(!marktBuch.length){el('buch-list').innerHTML='<div class="empty-state">Noch keine Buchungen vorhanden.</div>';return}
   var html='';
@@ -2064,6 +2194,17 @@ function renderBuchList(){
 //  ABSCHLUSS
 // ════════════════════════════════════════════════════════
 function renderAbschluss(){
+  // Kutschen-Auswahl
+  var m=findMarkt(activeMarktId);
+  var kutschen=getKutschen(m);
+  var abRow=el('ab-kutsche-row');
+  if(kutschen.length>1){
+    abRow.style.display='block';
+    var cur=el('ab-kutsche').value;
+    el('ab-kutsche').innerHTML=kutschen.map(function(k){return'<option value="'+esc(k)+'"'+(k===cur?' selected':'')+'>'+esc(k)+'</option>'}).join('');
+  } else {
+    abRow.style.display='none';
+  }
   // Jahr-Dropdown aus Kassendaten
   var jahre={};
   state.kassungen.filter(function(k){return k.marktId===activeMarktId}).forEach(function(k){if(k.datum)jahre[k.datum.slice(0,4)]=true});
@@ -2082,8 +2223,13 @@ function calcAbschluss(){
   var rest=parseFloat(el('ab-rest').value)||0;
   if(!jahr){el('ab-result').style.display='none';el('ab-empty').style.display='block';return}
 
-  var fBuch=state.buchungen.filter(function(b){return b.marktId===activeMarktId&&b.datum.indexOf(jahr)===0});
-  var fTage=state.kassungen.filter(function(k){return k.marktId===activeMarktId&&k.typ==='abschluss'&&k.datum.indexOf(jahr)===0});
+  var mA=findMarkt(activeMarktId);
+  var mehrereA=getKutschen(mA).length>1;
+  var kutscheFilter=mehrereA?el('ab-kutsche').value:null;
+  function kutscheMatch(x){return !mehrereA||(x.kutsche||'K1')===kutscheFilter}
+
+  var fBuch=state.buchungen.filter(function(b){return b.marktId===activeMarktId&&b.datum.indexOf(jahr)===0&&kutscheMatch(b)});
+  var fTage=state.kassungen.filter(function(k){return k.marktId===activeMarktId&&k.typ==='abschluss'&&k.datum.indexOf(jahr)===0&&kutscheMatch(k)});
   fTage.sort(function(a,b){return a.datum.localeCompare(b.datum)});
 
   if(!fBuch.length&&!fTage.length){
@@ -2162,12 +2308,19 @@ function renderTransferSection(fTage,fBuch,jahr){
   renderTransferPreview();
 }
 
+function getAbschlussKutsche(){
+  var m=findMarkt(activeMarktId);
+  var kutschen=getKutschen(m);
+  if(kutschen.length>1)return el('ab-kutsche').value;
+  return (el('tr-kutsche')&&el('tr-kutsche').value||'K1').trim();
+}
+
 function renderTransferPreview(){
   var jahr=el('ab-jahr').value;
-  var kutsche=(el('tr-kutsche').value||'K1').trim();
+  var kutsche=getAbschlussKutsche();
   if(!jahr){el('tr-preview').innerHTML='';return}
-  var fTage=state.kassungen.filter(function(k){return k.marktId===activeMarktId&&k.typ==='abschluss'&&k.datum.indexOf(jahr)===0});
-  var fBuch=state.buchungen.filter(function(b){return b.marktId===activeMarktId&&b.datum.indexOf(jahr)===0});
+  var fTage=state.kassungen.filter(function(k){return k.marktId===activeMarktId&&k.typ==='abschluss'&&k.datum.indexOf(jahr)===0&&(k.kutsche||'K1')===kutsche});
+  var fBuch=state.buchungen.filter(function(b){return b.marktId===activeMarktId&&b.datum.indexOf(jahr)===0&&(b.kutsche||'K1')===kutsche});
   var ecByDate={};
   // EC aus allen Buchungen inkl. autoEC (Schnellerfassung)
   fBuch.forEach(function(b){if(b.typ==='einnahme'&&b.zahlung!=='Bar')ecByDate[b.datum]=(ecByDate[b.datum]||0)+b.betrag});
@@ -2186,10 +2339,10 @@ function renderTransferPreview(){
 
 function doTransfer(){
   var jahr=el('ab-jahr').value;
-  var kutsche=(el('tr-kutsche').value||'K1').trim();
+  var kutsche=getAbschlussKutsche();
   if(!jahr){toast('⚠ Bitte Jahr wählen');return}
-  var fTage=state.kassungen.filter(function(k){return k.marktId===activeMarktId&&k.typ==='abschluss'&&k.datum.indexOf(jahr)===0});
-  var fBuch=state.buchungen.filter(function(b){return b.marktId===activeMarktId&&b.datum.indexOf(jahr)===0});
+  var fTage=state.kassungen.filter(function(k){return k.marktId===activeMarktId&&k.typ==='abschluss'&&k.datum.indexOf(jahr)===0&&(k.kutsche||'K1')===kutsche});
+  var fBuch=state.buchungen.filter(function(b){return b.marktId===activeMarktId&&b.datum.indexOf(jahr)===0&&(b.kutsche||'K1')===kutsche});
   if(!fTage.length){toast('⚠ Keine Tagesabschlüsse vorhanden');return}
   var ecByDate={};
   fBuch.forEach(function(b){if(b.typ==='einnahme'&&b.zahlung!=='Bar')ecByDate[b.datum]=(ecByDate[b.datum]||0)+b.betrag});
@@ -2349,6 +2502,7 @@ function renderDashYear(alle,ys){
   // ── KUTSCHEN ──
   var byK=groupByKutsche(cur);
   var kWrap=el('k-card-wrap');
+  renderStaendeVergleich(cur,byK);
   if(byK.length>1){
     kWrap.style.display='block';
     var tU=sm(byK.map(function(k){return k.umsatz}))||1;
@@ -2432,6 +2586,58 @@ function renderTageGrid(rC,rP,bestTag){
       +'</div>';
   });
   grid.innerHTML=html;
+}
+
+function renderStaendeVergleich(cur,byK){
+  var wrap=el('k-vergleich-wrap');
+  if(!wrap)return;
+  if(byK.length<=1){wrap.style.display='none';return}
+  wrap.style.display='block';
+  // Stände-Namen
+  var staende=byK.map(function(k){return k.kutsche});
+  // Pro Tag und Stand den Umsatz
+  var byDateStand={};
+  var dateSet={};
+  cur.forEach(function(e){
+    var k=e.kutsche||'K1';
+    var d=e.datum;
+    dateSet[d]=true;
+    if(!byDateStand[d])byDateStand[d]={};
+    byDateStand[d][k]=(byDateStand[d][k]||0)+e.bar+e.ec;
+  });
+  var dates=Object.keys(dateSet).sort();
+  var WTS=['So','Mo','Di','Mi','Do','Fr','Sa'];
+  // Tabelle bauen
+  var html='<table><thead><tr><th>Tag</th>';
+  staende.forEach(function(s){html+='<th>'+esc(s)+'</th>'});
+  html+='<th>Σ</th></tr></thead><tbody>';
+  dates.forEach(function(d){
+    var wt=new Date(d).getDay();
+    html+='<tr><td>'+WTS[wt]+' '+fmtDate(d).slice(0,5)+'</td>';
+    var tagSum=0;
+    // Bester Stand des Tages markieren
+    var werte=staende.map(function(s){return(byDateStand[d][s]||0)});
+    var maxWert=Math.max.apply(null,werte);
+    staende.forEach(function(s){
+      var v=byDateStand[d][s]||0;
+      tagSum+=v;
+      var isBest=v===maxWert&&v>0&&staende.length>1;
+      html+='<td class="'+(isBest?'thi tpos':'')+'">'+(v>0?eur(v):'–')+'</td>';
+    });
+    html+='<td class="thi">'+eur(tagSum)+'</td></tr>';
+  });
+  // Summenzeile
+  html+='<tr style="border-top:2px solid var(--pd)"><td style="font-style:normal;font-weight:600">Summe</td>';
+  var gesamt=0;
+  staende.forEach(function(s){
+    var ss=byK.find(function(k){return k.kutsche===s});
+    var su=ss?ss.umsatz:0;
+    gesamt+=su;
+    html+='<td class="thi">'+eur(su)+'</td>';
+  });
+  html+='<td class="thi">'+eur(gesamt)+'</td></tr>';
+  html+='</tbody></table>';
+  el('k-vergleich-tbl').innerHTML=html;
 }
 
 function renderStundenKennzahlen(m,cur,prev,prevY,totU,totUP){
@@ -2711,7 +2917,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v1.7 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v1.8 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
