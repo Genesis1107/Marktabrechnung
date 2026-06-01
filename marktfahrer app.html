@@ -454,7 +454,7 @@ h1.print-title,.print-meta{display:none}
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v2.0</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v2.1</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -2918,7 +2918,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v2.0 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v2.1 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
@@ -3425,7 +3425,7 @@ function selectBaProdukt(id){
     var kisteInfo=g.proKiste>0?' · '+g.proKiste+'/Kiste':'';
     html+='<div style="display:grid;grid-template-columns:1fr 80px;gap:8px;align-items:center;margin-bottom:7px">'
       +'<label style="font-family:Cinzel,serif;font-size:0.82rem;color:var(--ink)">'+g.label+' <span style="color:var(--im);font-size:0.7rem">('+preisInfo+kisteInfo+')</span></label>'
-      +'<input type="number" id="bm-'+g.key+'" value="'+(menge||'')+'" min="0" inputmode="numeric" placeholder="0" style="text-align:right">'
+      +'<input type="number" id="bm-'+g.key+'" value="'+(menge||'')+'" min="0" inputmode="numeric" placeholder="0" style="text-align:right" onfocus="this.select()">'
       +'</div>';
   });
   el('bm-felder').innerHTML=html;
@@ -3518,25 +3518,56 @@ function uebernehmeVorjahr(){
 }
 
 // Export
+function LAGER_MAIL(lager){
+  if(lager==='Nord')return 'Bestellung-nord@beerenweine.eu';
+  if(lager==='Süd')return 'Bestellung-Sued@beerenweine.eu';
+  return '';
+}
+
+// Gruppiert Positionen nach Größentyp, baut pro Gruppe eine Größen-Tabelle
+function bestellGruppen(){
+  var m=findMarkt(activeMarktId);
+  var b=getBestellung(m,bestellSaison);
+  var gruppen={};
+  b.positionen.forEach(function(pos){
+    var prod=katalog.find(function(p){return p.id===pos.produktId});
+    if(!prod)return;
+    var st=prod.sizetype;
+    if(!gruppen[st])gruppen[st]={sizetype:st,groessen:SIZE_TEMPLATES[st]||prod.groessen,zeilen:[]};
+    gruppen[st].zeilen.push({prod:prod,pos:pos});
+  });
+  return gruppen;
+}
+
 function bestellTextZusammenfassung(){
   var m=findMarkt(activeMarktId);
   var b=getBestellung(m,bestellSaison);
   var lines=[];
-  lines.push('Bestellung '+m.name+' '+bestellSaison);
+  lines.push('BESTELLUNG '+m.name+' '+bestellSaison);
   if(b.lager)lines.push('Lager: Beerenweine '+b.lager);
+  lines.push('Datum: '+fmtDate(todayISO()));
+  lines.push('========================================');
   lines.push('');
   var umsatz=0,kisten=0;
-  b.positionen.forEach(function(pos){
-    var prod=katalog.find(function(p){return p.id===pos.produktId});
-    if(!prod)return;
-    var calc=calcPosition(pos);
-    umsatz+=calc.umsatz;kisten+=calc.kisten;
-    var mengen=prod.groessen.filter(function(g){return(pos.mengen[g.key]||0)>0})
-      .map(function(g){return g.label+': '+pos.mengen[g.key]}).join(', ');
-    lines.push(prod.name+' ('+mengen+')'+(prod.artikelnr?' [Art. '+prod.artikelnr+']':''));
+  var gruppen=bestellGruppen();
+  Object.keys(gruppen).forEach(function(st){
+    var g=gruppen[st];
+    g.zeilen.forEach(function(z){
+      var calc=calcPosition(z.pos);
+      umsatz+=calc.umsatz;kisten+=calc.kisten;
+      var mengen=g.groessen.filter(function(gr){return(z.pos.mengen[gr.key]||0)>0})
+        .map(function(gr){return gr.label+'='+z.pos.mengen[gr.key]}).join('  ');
+      var artnr=z.prod.artikelnr?' [Art.'+z.prod.artikelnr+']':'';
+      lines.push(z.prod.name+artnr);
+      lines.push('   '+mengen);
+    });
   });
   lines.push('');
-  lines.push('Summe: '+Math.round(kisten*10)/10+' Kisten, '+Math.round(kisten*GEWICHT_PRO_KISTE)+' kg, Verkaufswert '+eur(umsatz));
+  lines.push('========================================');
+  lines.push('Positionen: '+b.positionen.length);
+  lines.push('Kisten: '+(Math.round(kisten*10)/10));
+  lines.push('Gewicht: '+Math.round(kisten*GEWICHT_PRO_KISTE)+' kg');
+  lines.push('Verkaufswert: '+eur(umsatz));
   return lines.join('\n');
 }
 
@@ -3544,9 +3575,11 @@ function bestellMail(){
   var m=findMarkt(activeMarktId);
   var b=getBestellung(m,bestellSaison);
   if(!b.positionen.length){toast('⚠ Bestellung ist leer');return}
+  if(!b.lager){toast('⚠ Bitte zuerst ein Lager (Nord/Süd) wählen');return}
   var betreff='Bestellung '+m.name+' '+bestellSaison;
   var body=bestellTextZusammenfassung();
-  var mailto='mailto:?subject='+encodeURIComponent(betreff)+'&body='+encodeURIComponent(body);
+  var adresse=LAGER_MAIL(b.lager);
+  var mailto='mailto:'+encodeURIComponent(adresse)+'?subject='+encodeURIComponent(betreff)+'&body='+encodeURIComponent(body);
   window.location.href=mailto;
 }
 
@@ -3555,35 +3588,48 @@ function bestellPDF(){
   var b=getBestellung(m,bestellSaison);
   if(!b.positionen.length){toast('⚠ Bestellung ist leer');return}
   var umsatz=0,kisten=0;
-  var rows='';
-  b.positionen.forEach(function(pos){
-    var prod=katalog.find(function(p){return p.id===pos.produktId});
-    if(!prod)return;
-    var calc=calcPosition(pos);
-    umsatz+=calc.umsatz;kisten+=calc.kisten;
-    var mengen=prod.groessen.filter(function(g){return(pos.mengen[g.key]||0)>0})
-      .map(function(g){return g.label+':'+pos.mengen[g.key]}).join(', ');
-    rows+='<tr style="border-bottom:1px solid #f0e4cc">'
-      +'<td style="padding:4px 6px;font-size:11px">'+esc(prod.name)+'</td>'
-      +'<td style="padding:4px 6px;font-size:10px;color:#7a5c3a">'+esc(mengen)+'</td>'
-      +'<td style="padding:4px 6px;font-size:10px;text-align:right">'+(prod.artikelnr||'')+'</td>'
-      +'<td style="padding:4px 6px;font-size:11px;text-align:right;font-family:Cinzel,serif">'+eur(calc.umsatz)+'</td>'
-      +'</tr>';
+  var gruppen=bestellGruppen();
+
+  // Pro Größentyp eine Tabelle
+  var tabellen='';
+  var GRUPPEN_NAMEN={wein:'Wein / Met',plus:'Hochprozentig',schnaps:'Schnaps / Likör',absinth:'Absinth',kehlenschneider:'Kehlenschneider',stueck:'Stückartikel'};
+  Object.keys(gruppen).forEach(function(st){
+    var g=gruppen[st];
+    // Nur Größen mit mind. einer Menge in dieser Gruppe als Spalten
+    var aktiveGroessen=g.groessen.filter(function(gr){
+      return g.zeilen.some(function(z){return(z.pos.mengen[gr.key]||0)>0});
+    });
+    if(!aktiveGroessen.length)return;
+    var thead='<th style="padding:5px 7px;text-align:left;font-family:Cinzel,serif;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#7a5c3a;border-bottom:2px solid #c9b07a">Produkt</th>';
+    aktiveGroessen.forEach(function(gr){
+      thead+='<th style="padding:5px 7px;text-align:center;font-family:Cinzel,serif;font-size:9px;color:#7a5c3a;border-bottom:2px solid #c9b07a;white-space:nowrap">'+gr.label+'</th>';
+    });
+    thead+='<th style="padding:5px 7px;text-align:right;font-family:Cinzel,serif;font-size:9px;color:#7a5c3a;border-bottom:2px solid #c9b07a">Art.Nr</th>';
+    var tbody='';
+    g.zeilen.forEach(function(z){
+      var calc=calcPosition(z.pos);
+      umsatz+=calc.umsatz;kisten+=calc.kisten;
+      var tds='<td style="padding:5px 7px;font-size:12px;border-bottom:1px solid #f0e4cc">'+esc(z.prod.name)+'</td>';
+      aktiveGroessen.forEach(function(gr){
+        var menge=z.pos.mengen[gr.key]||0;
+        tds+='<td style="padding:5px 7px;text-align:center;font-family:Cinzel,serif;font-size:13px;font-weight:'+(menge>0?'700':'400')+';color:'+(menge>0?'#2c1a0e':'#ccc')+';border-bottom:1px solid #f0e4cc">'+(menge>0?menge:'·')+'</td>';
+      });
+      tds+='<td style="padding:5px 7px;text-align:right;font-size:10px;color:#7a5c3a;border-bottom:1px solid #f0e4cc">'+(z.prod.artikelnr||'')+'</td>';
+      tbody+='<tr>'+tds+'</tr>';
+    });
+    tabellen+='<div style="font-family:Cinzel,serif;font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#8b1a1a;margin:14px 0 6px">'+(GRUPPEN_NAMEN[st]||st)+'</div>'
+      +'<table style="width:100%;border-collapse:collapse"><thead><tr>'+thead+'</tr></thead><tbody>'+tbody+'</tbody></table>';
   });
+
   var gewicht=Math.round(kisten*GEWICHT_PRO_KISTE);
-  var html='<div style="text-align:center;border-bottom:2px solid #8b6914;padding-bottom:12px;margin-bottom:16px">'
+  var html='<div style="text-align:center;border-bottom:2px solid #8b6914;padding-bottom:12px;margin-bottom:10px">'
     +'<div style="font-size:14px;letter-spacing:6px;color:#8b6914">⚔ ⚜ ⚔</div>'
     +'<div style="font-family:Cinzel,serif;font-size:20px;font-weight:900">Bestellung</div>'
     +'<div style="font-family:Georgia,serif;font-style:italic;font-size:12px;color:#7a5c3a;margin-top:3px">'+esc(m.name)+' · Saison '+bestellSaison+(b.lager?' · Beerenweine '+b.lager:'')+'</div>'
+    +'<div style="font-family:Georgia,serif;font-style:italic;font-size:11px;color:#a8865a">Datum: '+fmtDate(todayISO())+'</div>'
     +'</div>'
-    +'<table style="width:100%;border-collapse:collapse;margin-bottom:14px">'
-    +'<thead><tr style="border-bottom:2px solid #c9b07a">'
-    +'<th style="padding:4px 6px;text-align:left;font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#7a5c3a">Produkt</th>'
-    +'<th style="padding:4px 6px;text-align:left;font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#7a5c3a">Mengen</th>'
-    +'<th style="padding:4px 6px;text-align:right;font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#7a5c3a">Art.Nr</th>'
-    +'<th style="padding:4px 6px;text-align:right;font-family:Cinzel,serif;font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#7a5c3a">Wert</th>'
-    +'</tr></thead><tbody>'+rows+'</tbody></table>'
-    +'<div style="background:rgba(139,105,20,.08);border:1px solid #8b6914;border-radius:2px;padding:10px 14px;font-family:Cinzel,serif;font-size:12px">'
+    +tabellen
+    +'<div style="background:rgba(139,105,20,.08);border:1px solid #8b6914;border-radius:2px;padding:10px 14px;font-family:Cinzel,serif;font-size:12px;margin-top:16px">'
     +'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Positionen:</span><strong>'+b.positionen.length+'</strong></div>'
     +'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Kisten:</span><strong>'+(Math.round(kisten*10)/10)+'</strong></div>'
     +'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Gewicht:</span><strong>'+gewicht+' kg</strong></div>'
