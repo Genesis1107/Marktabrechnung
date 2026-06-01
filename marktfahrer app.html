@@ -368,7 +368,7 @@ h1.print-title,.print-meta{display:none}
 .fahrer-chip.sel{background:var(--cr);color:var(--p);border-color:var(--cr2)}
 
 /* ── MODALS ── */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(44,26,14,.75);z-index:200;align-items:center;justify-content:center;padding:20px}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(44,26,14,.75);z-index:500;align-items:center;justify-content:center;padding:20px}
 .modal-overlay.open{display:flex}
 .modal{background:var(--p);border:2px solid var(--bdr);border-radius:4px;padding:24px 20px;width:100%;max-width:420px;box-shadow:4px 4px 24px rgba(44,26,14,.4);position:relative;max-height:88vh;overflow-y:auto}
 .modal::before,.modal::after{content:'✦';position:absolute;color:var(--go);font-size:12px}
@@ -454,7 +454,7 @@ h1.print-title,.print-meta{display:none}
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v1.8</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v1.9</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -2917,7 +2917,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v1.8 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v1.9 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
