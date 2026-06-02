@@ -456,7 +456,7 @@ h1.print-title,.print-meta{display:none}
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v2.2</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v2.3</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -497,6 +497,12 @@ h1.print-title,.print-meta{display:none}
         <div class="card">
           <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:12px;font-family:'IM Fell English',serif;font-style:italic">Geleistete Stunden je Mitarbeiter und Tag nachträglich erfassen.</p>
           <button class="btn btn-secondary" style="width:100%" onclick="openStunden()">⏱ Stunden erfassen</button>
+        </div>
+
+        <div class="sec">Chronik-Einträge korrigieren</div>
+        <div class="card">
+          <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:12px;font-family:'IM Fell English',serif;font-style:italic">Einzelne Umsatz-Einträge ansehen, Datum korrigieren oder löschen.</p>
+          <button class="btn btn-secondary" style="width:100%" onclick="openEintraege()">📋 Einträge verwalten</button>
         </div>
 
         <div class="sec">Produktkatalog</div>
@@ -1059,6 +1065,50 @@ h1.print-title,.print-meta{display:none}
   </nav>
 
 </div><!-- /app -->
+
+<!-- EINTRÄGE-VERWALTUNG-SCREEN -->
+<div id="screen-eintraege" style="display:none;position:fixed;inset:0;z-index:400;background:var(--p2);overflow-y:auto">
+  <div class="detail-hdr" style="position:sticky;top:0;z-index:10">
+    <div class="detail-hdr-top">
+      <button class="back-btn" onclick="closeEintraege()">← Zurück</button>
+      <div><div class="detail-hdr-name">📋 Chronik-Einträge</div>
+      <div class="detail-hdr-sub" id="eintraege-sub">–</div></div>
+    </div>
+  </div>
+  <div class="content" style="padding-bottom:40px">
+    <div class="info-box">
+      <strong>Hinweis</strong>
+      Hier siehst du alle einzelnen Umsatz-Einträge. Doppelte oder falsch datierte Einträge kannst du korrigieren oder löschen.
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>Markt</label>
+      <select id="ev-markt" onchange="renderEvListe()"></select>
+    </div>
+    <div id="ev-liste"></div>
+  </div>
+</div>
+
+<!-- EINTRAG-EDIT-MODAL -->
+<div class="modal-overlay" id="modal-eintrag-edit">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-eintrag-edit')">✕</button>
+    <h2>Eintrag bearbeiten</h2>
+    <div class="modal-sub" id="ee-sub"></div>
+    <div class="rd"></div>
+    <div class="form-row">
+      <div class="field"><label>Datum</label><input type="date" id="ee-datum"></div>
+      <div class="field"><label>Kutsche</label><input type="text" id="ee-kutsche"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Bar (€)</label><input type="number" id="ee-bar" step="0.01" min="0" inputmode="decimal"></div>
+      <div class="field"><label>EC (€)</label><input type="number" id="ee-ec" step="0.01" min="0" inputmode="decimal"></div>
+    </div>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-secondary" onclick="deleteEvEintrag()">🗑 Löschen</button>
+      <button class="btn btn-primary" style="flex:1" onclick="saveEvEintrag()">Speichern</button>
+    </div>
+  </div>
+</div>
 
 <!-- STUNDEN-SCREEN -->
 <div id="screen-stunden" style="display:none;position:fixed;inset:0;z-index:400;background:var(--p2);overflow-y:auto">
@@ -2973,7 +3023,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v2.2 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v2.3 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
@@ -3276,6 +3326,99 @@ function deleteStundenEintrag(idx){
   liste.splice(idx,1);
   saveData();
   renderStundenTage();
+  toast('Eintrag gelöscht');
+}
+
+// ════════════════════════════════════════════════════════
+//  CHRONIK-EINTRÄGE VERWALTEN
+// ════════════════════════════════════════════════════════
+var evMarktId=null;
+var editEvId=null;
+
+function openEintraege(){
+  el('screen-eintraege').style.display='block';
+  if(!state.maerkte.length){
+    el('ev-markt').innerHTML='<option value="">Keine Märkte</option>';
+    el('ev-liste').innerHTML='<div class="empty-state">Keine Märkte vorhanden.</div>';
+    return;
+  }
+  el('ev-markt').innerHTML=state.maerkte.map(function(m){return'<option value="'+m.id+'">'+esc(m.name)+'</option>'}).join('');
+  evMarktId=state.maerkte[0].id;
+  el('ev-markt').value=evMarktId;
+  renderEvListe();
+}
+function closeEintraege(){el('screen-eintraege').style.display='none';}
+
+function renderEvListe(){
+  evMarktId=parseInt(el('ev-markt').value,10);
+  var m=findMarkt(evMarktId);
+  if(!m)return;
+  el('eintraege-sub').textContent=m.name;
+  var liste=state.eintraege.filter(function(e){return e.marktId===evMarktId});
+  liste.sort(function(a,b){return a.datum<b.datum?1:(a.datum>b.datum?-1:0)});
+  if(!liste.length){el('ev-liste').innerHTML='<div class="empty-state">Keine Einträge für diesen Markt.</div>';return}
+
+  // Nach Jahr gruppieren + Dubletten-Warnung (gleiches Datum+Kutsche mehrfach)
+  var seen={};
+  var html='';
+  var byYear={};
+  liste.forEach(function(e){var y=jahrOf(e);if(!byYear[y])byYear[y]=[];byYear[y].push(e)});
+  Object.keys(byYear).sort().reverse().forEach(function(y){
+    html+='<div class="sec">'+y+' ('+byYear[y].length+' Einträge)</div>';
+    byYear[y].forEach(function(e){
+      var key=e.datum+'|'+(e.kutsche||'K1');
+      var dublette=seen[key];
+      seen[key]=true;
+      var umsatz=e.bar+e.ec;
+      html+='<div onclick="openEvEintrag('+e.id+')" style="background:var(--p);border:1px solid '+(dublette?'var(--cr)':'var(--pd)')+';border-radius:2px;padding:10px 12px;margin-bottom:6px;cursor:pointer'+(dublette?';border-left:3px solid var(--cr)':'')+'">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center">'
+        +'<div><span style="font-family:Cinzel,serif;font-size:0.88rem;font-weight:600;color:var(--ink)">'+fmtDate(e.datum)+'</span>'
+        +'<span style="font-size:0.75rem;color:var(--im);margin-left:8px">'+esc(e.kutsche||'K1')+'</span>'
+        +(dublette?'<span class="tr-tag upd" style="margin-left:6px">⚠ Dublette?</span>':'')+'</div>'
+        +'<span style="font-family:Cinzel,serif;font-size:0.9rem;font-weight:700;color:var(--cr)">'+eur(umsatz)+'</span>'
+        +'</div>'
+        +'<div style="font-size:0.75rem;color:var(--im);margin-top:3px">Bar: '+eur(e.bar)+' · EC: '+eur(e.ec)+'</div>'
+        +'</div>';
+    });
+  });
+  el('ev-liste').innerHTML=html;
+}
+
+function openEvEintrag(id){
+  var e=state.eintraege.find(function(x){return x.id===id});
+  if(!e)return;
+  editEvId=id;
+  el('ee-sub').textContent=findMarkt(e.marktId).name+' · '+fmtDate(e.datum);
+  el('ee-datum').value=e.datum;
+  el('ee-kutsche').value=e.kutsche||'K1';
+  el('ee-bar').value=e.bar;
+  el('ee-ec').value=e.ec;
+  openModal('modal-eintrag-edit');
+}
+
+function saveEvEintrag(){
+  var e=state.eintraege.find(function(x){return x.id===editEvId});
+  if(!e)return;
+  var datum=el('ee-datum').value;
+  if(!datum){toast('⚠ Datum fehlt');return}
+  e.datum=datum;
+  e.jahr=parseInt(datum.split('-')[0],10);
+  e.kutsche=el('ee-kutsche').value.trim()||'K1';
+  e.bar=parseFloat(el('ee-bar').value)||0;
+  e.ec=parseFloat(el('ee-ec').value)||0;
+  saveData();
+  closeModal('modal-eintrag-edit');
+  renderEvListe();
+  toast('✓ Eintrag aktualisiert');
+}
+
+function deleteEvEintrag(){
+  if(editEvId===null)return;
+  if(!confirm('Diesen Eintrag wirklich löschen?'))return;
+  state.eintraege=state.eintraege.filter(function(e){return e.id!==editEvId});
+  saveData();
+  closeModal('modal-eintrag-edit');
+  renderEvListe();
   toast('Eintrag gelöscht');
 }
 
