@@ -456,7 +456,7 @@ h1.print-title,.print-meta{display:none}
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v2.3</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v2.4</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -470,6 +470,13 @@ h1.print-title,.print-meta{display:none}
         </div>
       </div>
       <div class="markt-grid" id="markt-grid"></div>
+    </div>
+    <!-- Saison-Ansicht -->
+    <div id="view-saison" style="display:none">
+      <div class="content" style="padding-bottom:calc(30px + var(--nav-h) + var(--safe-bottom))">
+        <div class="year-toggle" id="saison-year-toggle" style="margin-top:8px"></div>
+        <div id="saison-inhalt"></div>
+      </div>
     </div>
     <!-- Daten-Ansicht -->
     <div id="view-daten" style="display:none">
@@ -1058,6 +1065,10 @@ h1.print-title,.print-meta{display:none}
       <span class="ni">🏰</span>
       <span class="nl">Märkte</span>
     </button>
+    <button class="nav-btn" id="nav-saison" onclick="showStartTab('saison')">
+      <span class="ni">📊</span>
+      <span class="nl">Saison</span>
+    </button>
     <button class="nav-btn" id="nav-daten" onclick="showStartTab('daten')">
       <span class="ni">💾</span>
       <span class="nl">Daten</span>
@@ -1573,14 +1584,19 @@ function goBack(){
 
 function showStartTab(tab){
   var navM=document.getElementById('nav-maerkte');
+  var navS=document.getElementById('nav-saison');
   var navD=document.getElementById('nav-daten');
   var viewM=document.getElementById('view-maerkte');
+  var viewS=document.getElementById('view-saison');
   var viewD=document.getElementById('view-daten');
   if(navM)navM.classList.toggle('active', tab==='maerkte');
+  if(navS)navS.classList.toggle('active', tab==='saison');
   if(navD)navD.classList.toggle('active', tab==='daten');
   if(viewM)viewM.style.display = tab==='maerkte' ? 'block' : 'none';
+  if(viewS)viewS.style.display = tab==='saison' ? 'block' : 'none';
   if(viewD)viewD.style.display = tab==='daten' ? 'block' : 'none';
   if(tab==='daten'){renderDatenPage();}
+  else if(tab==='saison'){renderSaison();}
   else{renderMarktGrid();}
 }
 
@@ -1609,6 +1625,132 @@ function switchTab(name){
 // ════════════════════════════════════════════════════════
 //  MARKTLISTE
 // ════════════════════════════════════════════════════════
+var saisonYear=null;
+
+function renderSaison(){
+  // Alle Jahre über alle Märkte sammeln
+  var ys=uniqueYears(state.eintraege);
+  if(!ys.length){
+    el('saison-year-toggle').innerHTML='';
+    el('saison-inhalt').innerHTML='<div class="empty" style="padding:48px 20px"><div class="ei">📊</div><div class="et">Noch keine Umsatzdaten</div><div class="eh">Erfasse Umsätze, um die Saisonübersicht zu sehen</div></div>';
+    return;
+  }
+  if(saisonYear===null||ys.indexOf(saisonYear)<0)saisonYear=ys[0];
+  el('saison-year-toggle').innerHTML=ys.map(function(y){return'<button class="yb'+(y===saisonYear?' active':'')+'" onclick="setSaisonYear('+y+')">'+y+'</button>'}).join('');
+  renderSaisonInhalt(ys);
+}
+
+function setSaisonYear(y){
+  saisonYear=y;
+  renderSaison();
+}
+
+function renderSaisonInhalt(ys){
+  var jahrEintraege=state.eintraege.filter(function(e){return jahrOf(e)===saisonYear});
+  // Vorjahr
+  var prevY=null;
+  for(var i=0;i<ys.length;i++){if(ys[i]<saisonYear){prevY=ys[i];break}}
+  var prevEintraege=prevY?state.eintraege.filter(function(e){return jahrOf(e)===prevY}):[];
+
+  // Märkte die in dieser Saison Umsatz hatten
+  var marktIds={};
+  jahrEintraege.forEach(function(e){marktIds[e.marktId]=true});
+  var marktListe=Object.keys(marktIds).map(function(id){return parseInt(id,10)});
+
+  // Gesamtumsatz + Markttage
+  function umsatzVon(eintraege){return sm(groupByDate(eintraege).map(function(r){return r.umsatz}))}
+  function tageVon(eintraege){var s={};eintraege.forEach(function(e){s[e.datum]=true});return Object.keys(s).length}
+
+  var gesamtU=umsatzVon(jahrEintraege);
+  var gesamtUVj=prevY?umsatzVon(prevEintraege):0;
+  var gesamtTage=tageVon(jahrEintraege);
+  var anzMaerkte=marktListe.length;
+
+  // Stunden über alle Märkte
+  var gesamtStunden=0;
+  state.maerkte.forEach(function(m){
+    var st=(m.stunden&&m.stunden[String(saisonYear)])||[];
+    st.forEach(function(e){gesamtStunden+=e.stunden});
+  });
+  var upsGesamt=gesamtStunden>0?gesamtU/gesamtStunden:0;
+
+  // Top-Märkte Rangliste
+  var marktUmsaetze=marktListe.map(function(id){
+    var m=findMarkt(id);
+    var eintr=jahrEintraege.filter(function(e){return e.marktId===id});
+    return{markt:m,umsatz:umsatzVon(eintr),tage:tageVon(eintr)};
+  }).sort(function(a,b){return b.umsatz-a.umsatz});
+
+  // Umsatz pro Mitarbeiter (Gesamtumsatz Markt / Anzahl Fahrer, gleich verteilt)
+  var maUmsatz={};
+  marktListe.forEach(function(id){
+    var m=findMarkt(id);
+    var eintr=jahrEintraege.filter(function(e){return e.marktId===id});
+    var mUmsatz=umsatzVon(eintr);
+    var saison=getSaison(m,saisonYear);
+    var fahrer=(saison.fahrer&&saison.fahrer.length)?saison.fahrer:[];
+    if(fahrer.length){
+      var anteil=mUmsatz/fahrer.length;
+      fahrer.forEach(function(f){maUmsatz[f]=(maUmsatz[f]||0)+anteil});
+    }
+  });
+  var maArr=Object.keys(maUmsatz).map(function(f){return{name:f,umsatz:maUmsatz[f]}}).sort(function(a,b){return b.umsatz-a.umsatz});
+
+  // ── HTML aufbauen ──
+  var html='';
+
+  // KPIs
+  html+='<div class="hero-row" style="margin-top:4px">';
+  html+='<div class="hero-card" style="--ca:var(--cr)"><div class="hero-l">Gesamtumsatz '+saisonYear+'</div><div class="hero-v">'+eur(gesamtU)+'</div>';
+  if(prevY){
+    var d=gesamtUVj>0?(gesamtU-gesamtUVj)/gesamtUVj*100:0;
+    html+='<div class="hero-d '+(d>=0?'dpos':'dneg')+'">'+(d>=0?'▲ ':'▼ ')+Math.abs(d).toFixed(1)+'% ggü. '+prevY+'</div>';
+  }
+  html+='</div>';
+  html+='<div class="hero-card" style="--ca:var(--go)"><div class="hero-l">Märkte / Tage</div><div class="hero-v">'+anzMaerkte+' / '+gesamtTage+'</div></div>';
+  html+='</div>';
+
+  html+='<div class="hero-row">';
+  html+='<div class="hero-card" style="--ca:var(--im)"><div class="hero-l">Gesamtstunden</div><div class="hero-v">'+(gesamtStunden>0?(Math.round(gesamtStunden*10)/10)+' h':'–')+'</div></div>';
+  html+='<div class="hero-card" style="--ca:var(--fo)"><div class="hero-l">Umsatz / Stunde</div><div class="hero-v">'+(gesamtStunden>0?eur(upsGesamt)+'/h':'–')+'</div></div>';
+  html+='</div>';
+
+  // Top-Märkte
+  html+='<div class="card"><div class="card-title">Märkte nach Umsatz</div>';
+  var maxMU=marktUmsaetze.length?marktUmsaetze[0].umsatz:1;
+  marktUmsaetze.forEach(function(mu,idx){
+    var pct=maxMU>0?mu.umsatz/maxMU*100:0;
+    html+='<div style="margin-bottom:8px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">'
+      +'<span style="font-family:Cinzel,serif;font-size:0.8rem;font-weight:600;color:var(--ink)">'+(idx+1)+'. '+esc(mu.markt?mu.markt.name:'?')+'</span>'
+      +'<span style="font-family:Cinzel,serif;font-size:0.82rem;font-weight:700;color:var(--cr)">'+eur(mu.umsatz)+'</span>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<div style="flex:1;height:8px;background:var(--p2);border:1px solid var(--pd);border-radius:1px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:linear-gradient(to right,var(--cr),#a83232)"></div></div>'
+      +'<span style="font-size:0.7rem;color:var(--im);min-width:38px;text-align:right">'+mu.tage+' Tage</span>'
+      +'</div></div>';
+  });
+  html+='</div>';
+
+  // Umsatz pro Mitarbeiter
+  if(maArr.length){
+    html+='<div class="card"><div class="card-title">Umsatz je Mitarbeiter</div>';
+    html+='<p style="font-size:0.72rem;color:var(--im);font-style:italic;margin-bottom:10px;font-family:IM Fell English,serif">Gesamtumsatz pro Markt gleichmäßig auf die beteiligten Fahrer verteilt.</p>';
+    var maxMA=maArr[0].umsatz;
+    maArr.forEach(function(ma){
+      var pct=maxMA>0?ma.umsatz/maxMA*100:0;
+      html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+        +'<span style="font-family:Cinzel,serif;font-size:0.76rem;color:var(--ink);min-width:70px">'+esc(ma.name)+'</span>'
+        +'<div style="flex:1;height:16px;background:var(--p2);border:1px solid var(--pd);border-radius:1px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--fo)"></div></div>'
+        +'<span style="font-family:Cinzel,serif;font-size:0.74rem;color:var(--im);min-width:62px;text-align:right">'+eur(ma.umsatz)+'</span>'
+        +'</div>';
+    });
+    html+='</div>';
+  }
+
+  el('saison-inhalt').innerHTML=html;
+}
+
 var marktSort='alpha';
 
 function setMarktSort(mode){
@@ -3023,7 +3165,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v2.3 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v2.4 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
