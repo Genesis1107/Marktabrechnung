@@ -456,7 +456,7 @@ h1.print-title,.print-meta{display:none}
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v2.4</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v2.5</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -654,6 +654,14 @@ h1.print-title,.print-meta{display:none}
           </div>
         </div>
 
+        <!-- Vorjahres-Notiz Hinweis -->
+        <div id="b-vj-notiz-box" style="display:none">
+          <div class="info-box" style="background:rgba(139,105,20,.08);border-color:var(--go)">
+            <strong>📜 Notiz aus dem Vorjahr</strong>
+            <span id="b-vj-notiz-text"></span>
+          </div>
+        </div>
+
         <!-- Live-Summen -->
         <div class="sec">Übersicht</div>
         <div class="card" id="b-summen-card">
@@ -696,6 +704,13 @@ h1.print-title,.print-meta{display:none}
         <!-- Laufende Bestellung -->
         <div class="sec">Bestellung <span id="b-pos-count" style="color:var(--cr);margin-left:4px;font-size:0.62rem"></span></div>
         <div id="b-positionen"></div>
+
+        <!-- Allgemeine Bestell-Notiz -->
+        <div class="sec">Notiz für nächstes Jahr</div>
+        <div class="card">
+          <p style="font-size:0.78rem;color:var(--im);line-height:1.5;margin-bottom:8px;font-family:'IM Fell English',serif;font-style:italic">Allgemeine Hinweise: Sorten die nächstes Jahr dazu sollen, Ladenhüter zum Streichen, usw.</p>
+          <textarea id="b-allg-notiz" rows="3" placeholder="z.B. Met Sorte X dazunehmen, Sorte Y war Ladenhüter…" oninput="saveBestellNotiz()" style="width:100%;background:var(--p);border:1px solid var(--pd);border-radius:2px;padding:9px 11px;font-family:'Crimson Text',serif;font-size:15px;color:var(--ink);resize:vertical"></textarea>
+        </div>
 
         <!-- Export -->
         <div class="sec">Export</div>
@@ -1260,6 +1275,21 @@ h1.print-title,.print-meta{display:none}
     <div class="btn-row" style="margin-top:14px">
       <button class="btn btn-secondary" onclick="backToBaProdukte()">← Zurück</button>
       <button class="btn btn-primary" style="flex:1" onclick="addBestellPosition()">Hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+<!-- POSITIONS-NOTIZ MODAL -->
+<div class="modal-overlay" id="modal-pos-notiz">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-pos-notiz')">✕</button>
+    <h2 id="pn-title">Notiz</h2>
+    <div class="modal-sub">Erfahrung für nächstes Jahr (z.B. „0,75 zu wenig, 0,5 passte")</div>
+    <div class="rd"></div>
+    <textarea id="pn-text" rows="4" placeholder="Notiz zu diesem Produkt…" style="width:100%;background:var(--p);border:1px solid var(--pd);border-radius:2px;padding:10px 12px;font-family:'Crimson Text',serif;font-size:15px;color:var(--ink);resize:vertical"></textarea>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-secondary" onclick="closeModal('modal-pos-notiz')">Abbrechen</button>
+      <button class="btn btn-primary" style="flex:1" onclick="savePosNotiz()">Speichern</button>
     </div>
   </div>
 </div>
@@ -3165,7 +3195,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v2.4 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v2.5 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
@@ -3579,6 +3609,7 @@ function getBestellung(m,jahr){
   if(!Array.isArray(b.positionen))b.positionen=[];
   if(typeof b.lager!=='string')b.lager='';
   if(!b.fahrzeug)b.fahrzeug='solo';
+  if(typeof b.notiz!=='string')b.notiz='';
   return b;
 }
 
@@ -3598,6 +3629,18 @@ function renderBestellung(){
   var b=getBestellung(m,bestellSaison);
   el('b-lager').value=b.lager||'';
   el('b-fahrzeug').value=b.fahrzeug||'solo';
+  el('b-allg-notiz').value=b.notiz||'';
+
+  // Vorjahres-Notiz anzeigen
+  var vorjahr=bestellSaison-1;
+  var vb=m.bestellungen&&m.bestellungen[String(vorjahr)];
+  var vjBox=el('b-vj-notiz-box');
+  if(vb&&vb.notiz&&vb.notiz.trim()){
+    vjBox.style.display='block';
+    el('b-vj-notiz-text').textContent=' ('+vorjahr+') '+vb.notiz;
+  } else {
+    vjBox.style.display='none';
+  }
 
   renderBestellPositionen();
   renderBestellSummen();
@@ -3693,6 +3736,15 @@ function renderBestellPositionen(){
     el('b-positionen').innerHTML='<div class="empty-state">Noch keine Positionen. Tippe auf „Produkt hinzufügen".</div>';
     return;
   }
+  // Vorjahres-Hinweise (Tendenz/Notiz) für Anzeige sammeln
+  var vorjahr=bestellSaison-1;
+  var vb=m.bestellungen&&m.bestellungen[String(vorjahr)];
+  var vjHinweise={};
+  if(vb&&vb.positionen){
+    vb.positionen.forEach(function(p){
+      if(p.tendenz||p.notiz)vjHinweise[p.produktId]={tendenz:p.tendenz,notiz:p.notiz};
+    });
+  }
   var html='';
   b.positionen.forEach(function(pos,idx){
     var prod=katalog.find(function(p){return p.id===pos.produktId});
@@ -3700,22 +3752,80 @@ function renderBestellPositionen(){
     var calc=calcPosition(pos);
     var mengenTxt=prod.groessen.filter(function(g){return(pos.mengen[g.key]||0)>0})
       .map(function(g){return g.label+': '+pos.mengen[g.key]}).join(' · ');
-    html+='<div style="background:var(--p);border:1px solid var(--pd);border-radius:2px;padding:11px 13px;margin-bottom:7px">'
+    // Vorjahres-Hinweis zu diesem Produkt
+    var vjH=vjHinweise[pos.produktId];
+    var vjHtml='';
+    if(vjH){
+      var tIcon=vjH.tendenz==='mehr'?'<span style="color:var(--cr)">⬆ '+vorjahr+': mehr nötig</span>':vjH.tendenz==='weniger'?'<span style="color:var(--ib)">⬇ '+vorjahr+': war zu viel</span>':'';
+      vjHtml='<div style="font-size:0.72rem;margin-top:4px;font-style:italic;font-family:IM Fell English,serif">'+tIcon+(vjH.notiz?'<span style="color:var(--im)">'+(tIcon?' · ':'')+esc(vjH.notiz)+'</span>':'')+'</div>';
+    }
+    // Tendenz-Buttons (aktueller Zustand)
+    var tMehr=pos.tendenz==='mehr';
+    var tWeniger=pos.tendenz==='weniger';
+    html+='<div style="background:var(--p);border:1px solid var(--pd);border-radius:2px;padding:11px 13px;margin-bottom:7px'+(vjH&&vjH.tendenz==='mehr'?';border-left:3px solid var(--cr)':vjH&&vjH.tendenz==='weniger'?';border-left:3px solid var(--ib)':'')+'">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
       +'<div style="flex:1;min-width:0">'
       +'<div style="font-family:Cinzel,serif;font-size:0.9rem;font-weight:600;color:var(--ink)">'+esc(prod.name)+'</div>'
       +'<div style="font-size:0.78rem;color:var(--im);margin-top:3px">'+mengenTxt+'</div>'
+      +vjHtml
       +'</div>'
       +'<div style="text-align:right;white-space:nowrap">'
       +'<div style="font-family:Cinzel,serif;font-size:0.9rem;font-weight:700;color:var(--cr)">'+eur(calc.umsatz)+'</div>'
       +'<div style="font-size:0.7rem;color:var(--im)">'+(Math.round(calc.kisten*10)/10)+' Kisten</div>'
       +'</div></div>'
-      +'<div style="display:flex;gap:5px;justify-content:flex-end;margin-top:6px">'
+      // Tendenz-Zeile + Notiz-Indikator
+      +'<div style="display:flex;gap:5px;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid rgba(201,176,122,.2)">'
+      +'<span style="font-size:0.66rem;color:var(--im);font-family:Cinzel,serif;text-transform:uppercase;letter-spacing:0.5px;margin-right:2px">Nächstes Jahr:</span>'
+      +'<button onclick="setTendenz('+idx+',\'mehr\')" style="padding:5px 10px;border-radius:2px;border:1px solid '+(tMehr?'var(--cr)':'var(--pd)')+';background:'+(tMehr?'rgba(139,26,26,.12)':'transparent')+';color:'+(tMehr?'var(--cr)':'var(--im)')+';font-size:0.72rem;cursor:pointer">⬆ mehr</button>'
+      +'<button onclick="setTendenz('+idx+',\'weniger\')" style="padding:5px 10px;border-radius:2px;border:1px solid '+(tWeniger?'var(--ib)':'var(--pd)')+';background:'+(tWeniger?'rgba(26,45,74,.12)':'transparent')+';color:'+(tWeniger?'var(--ib)':'var(--im)')+';font-size:0.72rem;cursor:pointer">⬇ weniger</button>'
+      +'<button onclick="editPosNotiz('+idx+')" style="padding:5px 10px;border-radius:2px;border:1px solid '+(pos.notiz?'var(--go)':'var(--pd)')+';background:'+(pos.notiz?'rgba(139,105,20,.1)':'transparent')+';color:'+(pos.notiz?'var(--go)':'var(--im)')+';font-size:0.72rem;cursor:pointer">💬</button>'
+      +'<div style="flex:1"></div>'
       +'<button class="icon-btn" onclick="editBestellPosition('+idx+')">✏️</button>'
       +'<button class="icon-btn" onclick="deleteBestellPosition('+idx+')">✕</button>'
-      +'</div></div>';
+      +'</div>'
+      +(pos.notiz?'<div style="font-size:0.74rem;color:var(--go);margin-top:5px;font-style:italic;font-family:IM Fell English,serif">💬 '+esc(pos.notiz)+'</div>':'')
+      +'</div>';
   });
   el('b-positionen').innerHTML=html;
+}
+
+function setTendenz(idx,tendenz){
+  var m=findMarkt(activeMarktId);
+  var b=getBestellung(m,bestellSaison);
+  var pos=b.positionen[idx];
+  if(!pos)return;
+  // Toggle: nochmal tippen hebt auf
+  pos.tendenz=(pos.tendenz===tendenz)?'':tendenz;
+  saveData();
+  renderBestellPositionen();
+}
+
+var notizPosIdx=null;
+function editPosNotiz(idx){
+  var m=findMarkt(activeMarktId);
+  var b=getBestellung(m,bestellSaison);
+  var pos=b.positionen[idx];
+  if(!pos)return;
+  notizPosIdx=idx;
+  var prod=katalog.find(function(p){return p.id===pos.produktId});
+  el('pn-title').textContent=prod?prod.name:'Notiz';
+  el('pn-text').value=pos.notiz||'';
+  openModal('modal-pos-notiz');
+  setTimeout(function(){try{el('pn-text').focus()}catch(e){}},100);
+}
+function savePosNotiz(){
+  var m=findMarkt(activeMarktId);
+  var b=getBestellung(m,bestellSaison);
+  var pos=b.positionen[notizPosIdx];
+  if(pos){pos.notiz=el('pn-text').value.trim();saveData();renderBestellPositionen()}
+  closeModal('modal-pos-notiz');
+}
+
+function saveBestellNotiz(){
+  var m=findMarkt(activeMarktId);
+  var b=getBestellung(m,bestellSaison);
+  b.notiz=el('b-allg-notiz').value;
+  saveData();
 }
 
 // Produkt-Auswahl Modal
@@ -3848,8 +3958,10 @@ function uebernehmeVorjahr(){
   var vb=m.bestellungen&&m.bestellungen[String(vorjahr)];
   if(!vb||!vb.positionen)return;
   var b=getBestellung(m,bestellSaison);
-  // Tiefe Kopie der Positionen
-  b.positionen=JSON.parse(JSON.stringify(vb.positionen));
+  // Tiefe Kopie der Positionen – Mengen übernehmen, aber Tendenz/Notiz zurücksetzen (neue Saison)
+  b.positionen=JSON.parse(JSON.stringify(vb.positionen)).map(function(p){
+    delete p.tendenz; delete p.notiz; return p;
+  });
   saveData();
   renderBestellPositionen();
   renderBestellSummen();
