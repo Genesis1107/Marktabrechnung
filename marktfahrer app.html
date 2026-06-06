@@ -456,7 +456,7 @@ h1.print-title,.print-meta{display:none}
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v2.5</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v2.6</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -2348,6 +2348,30 @@ function renderKasseList(){
     var ecBuch=state.buchungen.find(function(b){return b.marktId===activeMarktId&&b.datum===k.datum&&b.autoEC&&(b.kutsche||'K1')===(k.kutsche||'K1')});
     var ecEin=ecBuch?ecBuch.betrag:0;
     var umsatz=barEin+ecEin;
+    // Stückelungs-Detail bei Geldzählung
+    var stueckHtml='';
+    if(!isSchnell){
+      var muenzSum=k.muenzen||0;
+      var scheinSum=k.scheine||0;
+      var coins=k.coins||{};
+      var bills=k.bills||{};
+      var coinRows=COINS.filter(function(co){return(coins[co.id]||0)>0}).map(function(co){
+        return '<div style="display:flex;justify-content:space-between;font-size:0.74rem;padding:1px 0"><span style="color:var(--im)">'+co.val.toFixed(2).replace('.',',')+' € × '+(coins[co.id]||0)+'</span><span style="font-family:Cinzel,serif">'+fmt(co.val*(coins[co.id]||0))+'</span></div>';
+      }).join('');
+      var billRows=BILLS.filter(function(bi){return(bills[bi.id]||0)>0}).map(function(bi){
+        return '<div style="display:flex;justify-content:space-between;font-size:0.74rem;padding:1px 0"><span style="color:var(--im)">'+bi.val+' € × '+(bills[bi.id]||0)+'</span><span style="font-family:Cinzel,serif">'+fmt(bi.val*(bills[bi.id]||0))+'</span></div>';
+      }).join('');
+      stueckHtml='<details style="margin-top:6px">'
+        +'<summary style="cursor:pointer;font-size:0.74rem;color:var(--cr);font-family:Cinzel,serif;letter-spacing:0.5px">Stückelung anzeigen</summary>'
+        +'<div style="margin-top:6px;padding:8px 10px;background:rgba(201,176,122,.08);border-radius:2px">'
+        +'<div style="font-family:Cinzel,serif;font-size:0.66rem;text-transform:uppercase;letter-spacing:1px;color:var(--im);margin-bottom:3px">🪙 Münzen</div>'
+        +(coinRows||'<div style="font-size:0.72rem;color:var(--im);font-style:italic">keine</div>')
+        +'<div style="display:flex;justify-content:space-between;font-size:0.76rem;font-weight:600;border-top:1px solid rgba(201,176,122,.3);margin-top:3px;padding-top:3px"><span>Summe Münzen</span><span style="font-family:Cinzel,serif;color:var(--fo)">'+fmt(muenzSum)+'</span></div>'
+        +'<div style="font-family:Cinzel,serif;font-size:0.66rem;text-transform:uppercase;letter-spacing:1px;color:var(--im);margin:8px 0 3px">💶 Scheine</div>'
+        +(billRows||'<div style="font-size:0.72rem;color:var(--im);font-style:italic">keine</div>')
+        +'<div style="display:flex;justify-content:space-between;font-size:0.76rem;font-weight:600;border-top:1px solid rgba(201,176,122,.3);margin-top:3px;padding-top:3px"><span>Summe Scheine</span><span style="font-family:Cinzel,serif;color:var(--fo)">'+fmt(scheinSum)+'</span></div>'
+        +'</div></details>';
+    }
     html+='<div class="kasse-card'+(isZw?' zw':'')+'">'
       +'<div class="kc-hdr"><div style="flex:1;min-width:0">'
       +'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">'
@@ -2363,8 +2387,9 @@ function renderKasseList(){
       +'</div></div>'
       +(isSchnell
         ?'<div class="kc-meta">🪙 Bar: '+fmt(barEin)+(ecEin>0?' · 💳 EC: '+fmt(ecEin):'')+'</div>'
-        :'<div class="kc-meta">Anfang: '+fmt(k.anfang)+' · Ist: '+fmt(k.istBestand)+'</div>'
+        :'<div class="kc-meta">Anfang: '+fmt(k.anfang)+' · Ist: '+fmt(k.istBestand)+' · 🪙 '+fmt(k.muenzen||0)+' · 💶 '+fmt(k.scheine||0)+'</div>'
       )
+      +stueckHtml
       +'</div>';
   });
   el('kasse-list').innerHTML=html;
@@ -3195,7 +3220,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v2.5 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v2.6 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
