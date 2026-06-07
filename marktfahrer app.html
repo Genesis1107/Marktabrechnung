@@ -456,7 +456,7 @@ h1.print-title,.print-meta{display:none}
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v2.6</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v2.7</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -703,6 +703,7 @@ h1.print-title,.print-meta{display:none}
 
         <!-- Laufende Bestellung -->
         <div class="sec">Bestellung <span id="b-pos-count" style="color:var(--cr);margin-left:4px;font-size:0.62rem"></span></div>
+        <input type="text" id="b-pos-suche" placeholder="🔍 Position suchen…" oninput="renderBestellPositionen()" style="width:100%;background:var(--p);border:1px solid var(--pd);border-radius:2px;padding:9px 11px;font-family:'Crimson Text',serif;font-size:15px;color:var(--ink);margin-bottom:8px;outline:none">
         <div id="b-positionen"></div>
 
         <!-- Allgemeine Bestell-Notiz -->
@@ -771,13 +772,12 @@ h1.print-title,.print-meta{display:none}
             </div>
             <div class="coin-section">
               <div class="coin-section-title">💶 Scheine</div>
-              <div class="coin-row"><span class="coin-denom">500 €</span><input type="number" id="b-500" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b500">0,00 €</span></div>
-              <div class="coin-row"><span class="coin-denom">200 €</span><input type="number" id="b-200" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b200">0,00 €</span></div>
-              <div class="coin-row"><span class="coin-denom">100 €</span><input type="number" id="b-100" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b100">0,00 €</span></div>
-              <div class="coin-row"><span class="coin-denom">50 €</span><input type="number" id="b-050" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b050">0,00 €</span></div>
-              <div class="coin-row"><span class="coin-denom">20 €</span><input type="number" id="b-020" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b020">0,00 €</span></div>
-              <div class="coin-row"><span class="coin-denom">10 €</span><input type="number" id="b-010" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b010">0,00 €</span></div>
               <div class="coin-row"><span class="coin-denom">5 €</span><input type="number" id="b-005" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b005">0,00 €</span></div>
+              <div class="coin-row"><span class="coin-denom">10 €</span><input type="number" id="b-010" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b010">0,00 €</span></div>
+              <div class="coin-row"><span class="coin-denom">20 €</span><input type="number" id="b-020" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b020">0,00 €</span></div>
+              <div class="coin-row"><span class="coin-denom">50 €</span><input type="number" id="b-050" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b050">0,00 €</span></div>
+              <div class="coin-row"><span class="coin-denom">100 €</span><input type="number" id="b-100" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b100">0,00 €</span></div>
+              <div class="coin-row"><span class="coin-denom">200 €</span><input type="number" id="b-200" value="0" min="0" inputmode="numeric"><span class="coin-sub" id="s-b200">0,00 €</span></div>
               <div class="coin-total-row"><span class="coin-total-label">Scheine gesamt</span><span class="coin-total-val" id="s-scheine">0,00 €</span></div>
             </div>
             <div class="result-grid">
@@ -1417,10 +1417,12 @@ var COINS = [
   {id:'m-050',sid:'s-m050',val:0.5}
 ];
 var BILLS = [
-  {id:'b-500',sid:'s-b500',val:500},{id:'b-200',sid:'s-b200',val:200},
-  {id:'b-100',sid:'s-b100',val:100},{id:'b-050',sid:'s-b050',val:50},
-  {id:'b-020',sid:'s-b020',val:20}, {id:'b-010',sid:'s-b010',val:10},
-  {id:'b-005',sid:'s-b005',val:5}
+  {id:'b-005',sid:'s-b005',val:5},
+  {id:'b-010',sid:'s-b010',val:10},
+  {id:'b-020',sid:'s-b020',val:20},
+  {id:'b-050',sid:'s-b050',val:50},
+  {id:'b-100',sid:'s-b100',val:100},
+  {id:'b-200',sid:'s-b200',val:200}
 ];
 
 // ════════════════════════════════════════════════════════
@@ -2233,6 +2235,9 @@ function saveKasse(){
       if(exists2){toast('⚠ Für diesen Tag/Stand existiert bereits ein Tagesabschluss');return}
     }
     var anfang=parseFloat(el('k-anfang').value)||0;
+    if(anfang===0&&el('k-anfang').value.trim()===''&&editKasseId===null){
+      if(!confirm('Kein Anfangsbestand eingegeben. Es gibt normalerweise keine Kasse ohne Anfangsbestand.\n\nTrotzdem mit 0 € fortfahren?'))return;
+    }
     var coins={},muenzen=0;
     COINS.forEach(function(c){var n=parseInt(el(c.id).value)||0;coins[c.id]=n;muenzen+=n*c.val});
     var bills={},scheine=0;
@@ -3220,7 +3225,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v2.6 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v2.7 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
@@ -3770,10 +3775,14 @@ function renderBestellPositionen(){
       if(p.tendenz||p.notiz)vjHinweise[p.produktId]={tendenz:p.tendenz,notiz:p.notiz};
     });
   }
+  var suche=(el('b-pos-suche')&&el('b-pos-suche').value||'').toLowerCase().trim();
   var html='';
+  var sichtbar=0;
   b.positionen.forEach(function(pos,idx){
     var prod=katalog.find(function(p){return p.id===pos.produktId});
     if(!prod){return}
+    if(suche&&prod.name.toLowerCase().indexOf(suche)<0)return;
+    sichtbar++;
     var calc=calcPosition(pos);
     var mengenTxt=prod.groessen.filter(function(g){return(pos.mengen[g.key]||0)>0})
       .map(function(g){return g.label+': '+pos.mengen[g.key]}).join(' · ');
@@ -3811,6 +3820,7 @@ function renderBestellPositionen(){
       +(pos.notiz?'<div style="font-size:0.74rem;color:var(--go);margin-top:5px;font-style:italic;font-family:IM Fell English,serif">💬 '+esc(pos.notiz)+'</div>':'')
       +'</div>';
   });
+  if(suche&&sichtbar===0)html='<div class="empty-state">Keine Position gefunden.</div>';
   el('b-positionen').innerHTML=html;
 }
 
