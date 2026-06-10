@@ -456,7 +456,7 @@ h1.print-title,.print-meta{display:none}
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v2.7</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v2.8</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -498,6 +498,15 @@ h1.print-title,.print-meta{display:none}
           <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:6px;font-family:'IM Fell English',serif;font-style:italic">JSON-Backup auswählen um alle Daten wiederherzustellen.</p>
           <p style="font-size:0.8rem;color:var(--cr);font-style:italic;margin-bottom:12px">⚠ Bestehende Daten werden dabei überschrieben!</p>
           <input type="file" id="import-file" accept=".json,application/json" style="font-size:0.85rem;padding:8px;width:100%;background:var(--p);border:1px solid var(--pd);border-radius:2px">
+        </div>
+
+        <div class="sec">Märkte importieren (CSV)</div>
+        <div class="card">
+          <p style="font-size:0.85rem;color:var(--im);line-height:1.6;margin-bottom:6px;font-family:'IM Fell English',serif;font-style:italic">Märkte aus einer CSV-Datei anlegen. Spalten: Name, Region, Datum von, Datum bis.</p>
+          <p style="font-size:0.78rem;color:var(--im);font-style:italic;margin-bottom:12px">Bereits vorhandene Märkte (gleicher Name) werden übersprungen, nichts wird überschrieben.</p>
+          <label class="btn btn-secondary" style="width:100%;display:block;text-align:center;cursor:pointer">📥 Märkte-CSV wählen
+            <input type="file" id="markt-csv-file" accept=".csv,text/csv" style="display:none" onchange="onMarktCSVFile(event)">
+          </label>
         </div>
 
         <div class="sec">Stundenerfassung</div>
@@ -699,7 +708,10 @@ h1.print-title,.print-meta{display:none}
         </div>
 
         <!-- Produkt hinzufügen -->
-        <button class="btn btn-green" style="width:100%;margin-bottom:14px" onclick="openBestellAdd()">+ Produkt hinzufügen</button>
+        <button class="btn btn-green" style="width:100%;margin-bottom:8px" onclick="openBestellAdd()">+ Produkt hinzufügen</button>
+        <label class="btn btn-secondary" style="width:100%;margin-bottom:14px;display:block;text-align:center;cursor:pointer">📥 Bestellung aus CSV importieren
+          <input type="file" id="bestell-csv-file" accept=".csv,text/csv" style="display:none" onchange="onBestellCSVFile(event)">
+        </label>
 
         <!-- Laufende Bestellung -->
         <div class="sec">Bestellung <span id="b-pos-count" style="color:var(--cr);margin-left:4px;font-size:0.62rem"></span></div>
@@ -3225,7 +3237,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v2.7 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v2.8 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
@@ -3529,6 +3541,139 @@ function deleteStundenEintrag(idx){
   saveData();
   renderStundenTage();
   toast('Eintrag gelöscht');
+}
+
+// ════════════════════════════════════════════════════════
+//  CSV-IMPORT
+// ════════════════════════════════════════════════════════
+// Einfacher CSV-Parser (Semikolon ODER Komma, mit Anführungszeichen-Support)
+function parseCSV(text){
+  // Trennzeichen erkennen: Semikolon bevorzugt (deutsche Excel-Exporte)
+  var firstLine=text.split(/\r?\n/)[0];
+  var sep=(firstLine.split(';').length>firstLine.split(',').length)?';':',';
+  var rows=[];
+  var lines=text.split(/\r?\n/);
+  lines.forEach(function(line){
+    if(line.trim()==='')return;
+    var cells=[];var cur='';var inQ=false;
+    for(var i=0;i<line.length;i++){
+      var ch=line[i];
+      if(ch==='"'){inQ=!inQ;}
+      else if(ch===sep&&!inQ){cells.push(cur);cur='';}
+      else cur+=ch;
+    }
+    cells.push(cur);
+    rows.push(cells.map(function(x){return x.trim().replace(/^"|"$/g,'')}));
+  });
+  return rows;
+}
+
+function num(v){
+  if(v===undefined||v===null||v==='')return 0;
+  var n=parseFloat(String(v).replace(',','.').replace(/[^0-9.\-]/g,''));
+  return isNaN(n)?0:n;
+}
+
+// ── BESTELL-IMPORT ──
+// Spaltenposition (0-basiert) → Katalog-Größenkey. Basierend auf Excel "Produkte"-Sheet:
+// A(0)=Name B(1)=Artnr C(2)=0,2 D(3)=0,2 Ton[ignor] E(4)=0,25 Bord F(5)=0,5 G(6)=0,75 H(7)=1,0 Ton I(8)=1,0 Euro J(9)=1,5 K(10)=0,5 Tot[ignor]
+var CSV_SPALTEN_MAP={2:'0_2',4:'0_25b',5:'0_5',6:'0_75',7:'1_0t',8:'1_0e',9:'1_5'};
+
+function importBestellCSV(text){
+  var rows=parseCSV(text);
+  if(!rows.length){toast('⚠ CSV ist leer');return}
+  var m=findMarkt(activeMarktId);
+  var b=getBestellung(m,bestellSaison);
+
+  var importiert=0, nichtZugeordnet=[];
+  rows.forEach(function(cells){
+    if(cells.length<3)return;
+    var name=(cells[0]||'').trim();
+    var artnr=(cells[1]||'').trim();
+    // Header-/Kategoriezeilen überspringen (keine Artikelnummer + kein numerischer Inhalt)
+    if(!name||name==='Artikelnummer'||artnr==='Artikelnummer')return;
+    // Mengen sammeln
+    var mengen={};var hatMenge=false;
+    Object.keys(CSV_SPALTEN_MAP).forEach(function(colIdx){
+      var menge=num(cells[parseInt(colIdx,10)]);
+      if(menge>0){mengen[CSV_SPALTEN_MAP[colIdx]]=menge;hatMenge=true;}
+    });
+    if(!hatMenge)return; // Zeile ohne Mengen ignorieren
+    // Produkt im Katalog finden: erst Artikelnummer, dann Name
+    var prod=null;
+    if(artnr)prod=katalog.find(function(p){return String(p.artikelnr)===artnr});
+    if(!prod&&name)prod=katalog.find(function(p){return p.name.toLowerCase()===name.toLowerCase()});
+    if(!prod){nichtZugeordnet.push(name||artnr);return}
+    // Nur Größen übernehmen die das Produkt auch hat
+    var gültigeMengen={};
+    prod.groessen.forEach(function(g){if(mengen[g.key])gültigeMengen[g.key]=mengen[g.key]});
+    if(!Object.keys(gültigeMengen).length){nichtZugeordnet.push(name+' (Größen passten nicht)');return}
+    // Existierende Position aktualisieren oder neue anlegen
+    var existing=b.positionen.find(function(pos){return pos.produktId===prod.id});
+    if(existing){existing.mengen=gültigeMengen;}
+    else{b.positionen.push({produktId:prod.id,mengen:gültigeMengen});}
+    importiert++;
+  });
+  saveData();
+  renderBestellung();
+  var msg='✓ '+importiert+' Positionen importiert';
+  if(nichtZugeordnet.length){
+    msg+=' · '+nichtZugeordnet.length+' nicht zugeordnet';
+    alert('Import abgeschlossen.\n\n'+importiert+' Positionen übernommen.\n\nNICHT zugeordnet (bitte manuell ergänzen):\n• '+nichtZugeordnet.join('\n• '));
+  }
+  toast(msg);
+}
+
+function onBestellCSVFile(event){
+  var file=event.target.files[0];
+  if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){importBestellCSV(e.target.result)};
+  reader.readAsText(file,'UTF-8');
+  event.target.value='';
+}
+
+// ── MARKT-IMPORT ──
+// CSV-Spalten: Name, Region, Datum von, Datum bis
+function importMarktCSV(text){
+  var rows=parseCSV(text);
+  if(!rows.length){toast('⚠ CSV ist leer');return}
+  var neu=0, uebersprungen=0;
+  rows.forEach(function(cells,idx){
+    if(cells.length<1)return;
+    var name=(cells[0]||'').trim();
+    if(!name||name.toLowerCase()==='name')return; // Header/leer
+    // Existiert Markt schon? (Name-Vergleich, nicht überschreiben)
+    var exists=state.maerkte.find(function(m){return m.name.toLowerCase()===name.toLowerCase()});
+    if(exists){uebersprungen++;return}
+    var region=(cells[1]||'').trim();
+    var von=(cells[2]||'').trim();
+    var bis=(cells[3]||'').trim();
+    var idxC=state.maerkte.length;
+    state.maerkte.push({
+      id:state.nextMarktId++,name:name,region:region,
+      saisons:{},bestellungen:{},stunden:{},kutschen:['K1'],
+      color:COLORS[idxC%COLORS.length],glyph:GLYPHS[idxC%GLYPHS.length],
+      createdAt:new Date().toISOString(),
+      planung:{status:'interessent',region:region,dauer:'',kmMinden:'',kmSk:'',veranstalter:'',datumVon:von,datumBis:bis,checklist:{}}
+    });
+    neu++;
+  });
+  saveData();
+  renderMarktGrid();
+  renderDatenPage();
+  var msg='✓ '+neu+' neue Märkte';
+  if(uebersprungen)msg+=' · '+uebersprungen+' schon vorhanden (übersprungen)';
+  toast(msg);
+}
+
+function onMarktCSVFile(event){
+  var file=event.target.files[0];
+  if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){importMarktCSV(e.target.result)};
+  reader.readAsText(file,'UTF-8');
+  event.target.value='';
 }
 
 // ════════════════════════════════════════════════════════
