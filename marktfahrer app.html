@@ -464,7 +464,7 @@ h1.print-title,.print-meta{display:none}
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.1</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.2</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -482,6 +482,7 @@ h1.print-title,.print-meta{display:none}
           <button class="sort-btn" id="sort-datum" onclick="setMarktSort('datum')">Datum</button>
         </div>
       </div>
+      <div id="erinnerungs-box"></div>
       <div class="markt-grid" id="markt-grid"></div>
       <div id="markt-phasen"></div>
     </div>
@@ -1420,7 +1421,6 @@ var STATUS_LIST = [
   {key:'interessent',  label:'Interessent',   cls:'status-interessent'},
   {key:'beworben',     label:'Beworben',       cls:'status-beworben'},
   {key:'akzeptiert',   label:'Akzeptiert',     cls:'status-akzeptiert'},
-  {key:'bestaetigt',   label:'Bestätigt',      cls:'status-bestaetigt'},
   {key:'vorbereitung', label:'Vorbereitung',   cls:'status-vorbereitung'},
   {key:'aktiv',        label:'Aktiv',          cls:'status-aktiv'},
   {key:'abgeschlossen',label:'Abgeschlossen',  cls:'status-abgeschlossen'},
@@ -1429,12 +1429,10 @@ var STATUS_LIST = [
 
 var CHECKLISTE = {
   interessent:  ['Termin recherchiert','Veranstalter kontaktiert'],
-  beworben:     ['Bewerbung abgeschickt','Termin im Kalender geblockt (vorläufig)'],
-  akzeptiert:   ['Zusage erhalten','Vertrag erhalten'],
-  bestaetigt:   ['Vertrag unterschrieben','Termin aktiviert','Personal eingeplant'],
-  vorbereitung: ['Marktfahrer zugeteilt','Bestellung erfolgt (mind. 6 Wochen vor Termin)'],
-  aktiv:        ['Tägliche Kassenzählung'],
-  abgeschlossen:['Marktabschluss erstellt','Daten in Chronik übertragen']
+  beworben:     ['Bewerbung abgeschickt','Termin im Kalender blocken'],
+  akzeptiert:   ['Zusage erhalten','Vertrag unterzeichnet','Termin aktiviert'],
+  vorbereitung: ['Personal einplanen','Bestellung der Ware'],
+  aktiv:        ['Fahrzeug laden','Tägliche Kassenzählung','Marktabschluss nach letztem Markttag','Daten in Chronik übertragen']
 };
 
 var COINS = [
@@ -1570,6 +1568,8 @@ function migrateSaisons(d){
     if(!Array.isArray(m.kutschen)||!m.kutschen.length)m.kutschen=['K1'];
     if(typeof m.favorit!=='boolean')m.favorit=false;
     if(!m.planung)m.planung={status:'interessent',region:'',dauer:'',kmMinden:'',kmSk:'',veranstalter:'',datumVon:'',datumBis:'',checklist:{}};
+    // Phase "bestaetigt" wurde entfernt → auf "akzeptiert" zurücksetzen
+    if(m.planung.status==='bestaetigt')m.planung.status='akzeptiert';
     var jahre={};
     d.eintraege.forEach(function(e){if(e.marktId===m.id)jahre[String(e.jahr||String(e.datum).split('-')[0])]=true});
     var jahrListe=Object.keys(jahre);
@@ -1879,10 +1879,13 @@ function marktKachelHTML(m){
   var datumTxt=startDatum?fmtDatumKurz(startDatum):'–';
   var favAktiv=m.favorit?'★':'☆';
   var favColor=m.favorit?'var(--go)':'rgba(168,134,90,.4)';
+  var warnung=marktHatErinnerung(m)?'<span style="color:var(--cr);font-size:0.9rem" title="Offene Aufgabe vor Marktstart">⚠</span>':'';
   return '<div class="markt-card" style="--cc:'+m.color+'" data-g="'+m.glyph+'" onclick="openMarkt('+m.id+')">'
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">'
     +'<div class="mc-name" style="flex:1;min-width:0">'+esc(m.name)+'</div>'
-    +'<button onclick="toggleFavorit(event,'+m.id+')" style="background:none;border:none;cursor:pointer;font-size:1.25rem;line-height:1;color:'+favColor+';padding:0 2px;flex-shrink:0" title="Favorit">'+favAktiv+'</button>'
+    +'<div style="display:flex;align-items:center;gap:4px;flex-shrink:0">'+warnung
+    +'<button onclick="toggleFavorit(event,'+m.id+')" style="background:none;border:none;cursor:pointer;font-size:1.25rem;line-height:1;color:'+favColor+';padding:0 2px" title="Favorit">'+favAktiv+'</button>'
+    +'</div>'
     +'</div>'
     +'<div class="mc-sub">'+esc((m.planung&&m.planung.region)||m.region||'Markt')+' · '+ys.length+' Jahr(e)</div>'
     +'<div class="mc-stats">'
@@ -1904,12 +1907,32 @@ function marktSuchFilter(){
 }
 
 // Phasen-Icons
-var PHASE_ICONS={interessent:'🔎',beworben:'✉️',akzeptiert:'✓',bestaetigt:'📋',vorbereitung:'📦',aktiv:'⚔',abgeschlossen:'🏁',abgelehnt:'✕'};
+var PHASE_ICONS={interessent:'🔎',beworben:'✉️',akzeptiert:'✓',vorbereitung:'📦',aktiv:'⚔',abgeschlossen:'🏁',abgelehnt:'✕'};
 var ARCHIV_STATUS=['abgeschlossen','abgelehnt'];
+
+function renderErinnerungen(){
+  var box=el('erinnerungs-box');
+  if(!box)return;
+  var erinnerungen=sammleErinnerungen();
+  if(!erinnerungen.length){box.innerHTML='';return}
+  var rows='';
+  erinnerungen.forEach(function(e){
+    var tageTxt=e.tage===0?'heute':(e.tage===1?'morgen':'in '+e.tage+' Tagen');
+    rows+='<div onclick="openMarkt('+e.markt.id+')" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(139,26,26,.15);cursor:pointer">'
+      +'<div style="min-width:0"><span style="font-family:Cinzel,serif;font-size:0.82rem;color:var(--ink);font-weight:600">'+esc(e.markt.name)+'</span>'
+      +'<span style="color:var(--cr);font-size:0.8rem;margin-left:6px">'+esc(e.label)+' offen</span></div>'
+      +'<span style="font-size:0.74rem;color:var(--im);white-space:nowrap">Start '+tageTxt+'</span>'
+      +'</div>';
+  });
+  box.innerHTML='<div style="margin:8px 14px 4px;background:rgba(139,26,26,.06);border:1px solid var(--cr);border-left:3px solid var(--cr);border-radius:2px;padding:10px 13px">'
+    +'<div style="font-family:Cinzel,serif;font-size:0.68rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--cr);margin-bottom:4px">⚠ Anstehende Aufgaben</div>'
+    +rows+'</div>';
+}
 
 function renderMarktGrid(){
   var grid=el('markt-grid');
   var phasenWrap=el('markt-phasen');
+  renderErinnerungen();
 
   if(!state.maerkte.length){
     phasenWrap.innerHTML='';
@@ -2204,6 +2227,115 @@ function renderPlanung(){
   renderPlanungNotiz(m);
 }
 
+// ════════════════════════════════════════════════════════
+//  STATUS-AUTOMATIK & ERINNERUNGEN
+// ════════════════════════════════════════════════════════
+// Kritische Punkte (status::text) die 6 Wochen vor Start erinnert werden
+var KRITISCHE_PUNKTE=[
+  {key:'akzeptiert::Zusage erhalten',     label:'Zusage'},
+  {key:'akzeptiert::Vertrag unterzeichnet',label:'Vertrag'},
+  {key:'vorbereitung::Bestellung der Ware',label:'Bestellung'}
+];
+var AKTIV_PHASEN_KEYS=['interessent','beworben','akzeptiert','vorbereitung','aktiv'];
+
+// Tage zwischen heute und einem ISO-Datum (positiv = Datum liegt in der Zukunft)
+function tageBis(iso){
+  if(!iso)return null;
+  var p=iso.split('-');if(p.length!==3)return null;
+  var ziel=new Date(parseInt(p[0],10),parseInt(p[1],10)-1,parseInt(p[2],10));
+  var heute=new Date();heute.setHours(0,0,0,0);
+  ziel.setHours(0,0,0,0);
+  return Math.round((ziel-heute)/86400000);
+}
+
+// Sind alle Haken einer Phase gesetzt?
+function phaseKomplett(m,phaseKey){
+  var punkte=CHECKLISTE[phaseKey]||[];
+  if(!punkte.length)return false;
+  var cl=m.planung.checklist||{};
+  return punkte.every(function(text){return !!cl[phaseKey+'::'+text]});
+}
+
+// Auto-Fortschritt: rückt Markt so weit vor wie Phasen vollständig abgehakt sind.
+// Letzter Aktiv-Haken → abgeschlossen. Gibt true zurück wenn Status geändert.
+function autoFortschritt(m){
+  if(!m.planung)return false;
+  var st=m.planung.status;
+  // Archiv/abgelehnt nie automatisch ändern
+  if(st==='abgeschlossen'||st==='abgelehnt')return false;
+  var geaendert=false;
+  // Spezialfall Aktiv: wenn alle Aktiv-Haken (inkl. "Daten in Chronik übertragen") gesetzt → abgeschlossen
+  if(st==='aktiv'){
+    if(phaseKomplett(m,'aktiv')){m.planung.status='abgeschlossen';return true}
+    return false;
+  }
+  // Normale Phasen: solange aktuelle Phase komplett ist, eine weiter
+  var reihenfolge=['interessent','beworben','akzeptiert','vorbereitung','aktiv'];
+  var idx=reihenfolge.indexOf(st);
+  if(idx<0)return false;
+  while(idx<reihenfolge.length-1 && phaseKomplett(m,reihenfolge[idx])){
+    idx++;
+    m.planung.status=reihenfolge[idx];
+    geaendert=true;
+  }
+  return geaendert;
+}
+
+// 2-Wochen-Regel: zukünftiger Start in ≤14 Tagen → Aktiv (Vorrang).
+// Nur Phasen interessent..vorbereitung; nicht abgeschlossen/abgelehnt; nur zukünftige Starts.
+function checkAktivRegel(m){
+  if(!m.planung)return false;
+  var st=m.planung.status;
+  if(['interessent','beworben','akzeptiert','vorbereitung'].indexOf(st)<0)return false;
+  var d=tageBis(m.planung.datumVon);
+  if(d===null)return false;
+  if(d>=0&&d<=14){m.planung.status='aktiv';return true}
+  return false;
+}
+
+// Beim App-Start: erst Auto-Fortschritt, dann 2-Wochen-Regel
+function runStatusAutomatik(){
+  var geaendert=false;
+  state.maerkte.forEach(function(m){
+    if(autoFortschritt(m))geaendert=true;
+    if(checkAktivRegel(m))geaendert=true;
+  });
+  if(geaendert)saveData();
+}
+
+// Offene Erinnerungen sammeln (kritische Punkte, ≤6 Wochen=42 Tage vor Start, Haken fehlt)
+// Auch wenn Markt schon aktiv ist. Nicht bei abgeschlossen/abgelehnt.
+function sammleErinnerungen(){
+  var result=[];
+  state.maerkte.forEach(function(m){
+    if(!m.planung)return;
+    if(m.planung.status==='abgeschlossen'||m.planung.status==='abgelehnt')return;
+    var d=tageBis(m.planung.datumVon);
+    if(d===null)return;
+    if(d<0)return; // vergangener Start
+    if(d>42)return; // noch mehr als 6 Wochen hin
+    var cl=m.planung.checklist||{};
+    KRITISCHE_PUNKTE.forEach(function(kp){
+      if(!cl[kp.key]){
+        result.push({markt:m,label:kp.label,tage:d});
+      }
+    });
+  });
+  // nach Dringlichkeit: nächster Start zuerst
+  result.sort(function(a,b){return a.tage-b.tage});
+  return result;
+}
+
+// Hat ein Markt offene Erinnerungen? (für Kachel-Markierung)
+function marktHatErinnerung(m){
+  if(!m.planung)return false;
+  if(m.planung.status==='abgeschlossen'||m.planung.status==='abgelehnt')return false;
+  var d=tageBis(m.planung.datumVon);
+  if(d===null||d<0||d>42)return false;
+  var cl=m.planung.checklist||{};
+  return KRITISCHE_PUNKTE.some(function(kp){return !cl[kp.key]});
+}
+
 function renderChecklist(m){
   var p=m.planung;
   if(!p.checklist)p.checklist={};
@@ -2232,13 +2364,27 @@ function toggleCheck(key){
   if(!m||!m.planung)return;
   if(!m.planung.checklist)m.planung.checklist={};
   m.planung.checklist[key]=!m.planung.checklist[key];
-  saveData(); renderChecklist(m);
+  // Auto-Fortschritt prüfen
+  var vorher=m.planung.status;
+  autoFortschritt(m);
+  saveData();
+  renderPlanung();
+  renderMarktGrid();
+  if(m.planung.status!==vorher){
+    toast('Status: '+(STATUS_LIST.find(function(s){return s.key===m.planung.status})||{}).label);
+  }
 }
 
 function setStatus(key){
   var m=findMarkt(activeMarktId);
   if(!m)return;
   if(key==='abgelehnt'){if(!confirm('Markt als abgelehnt markieren?'))return}
+  // Reset: von abgeschlossen/abgelehnt zurück auf interessent → alle Haken entfernen, Zyklus neu
+  var war=m.planung.status;
+  if((war==='abgeschlossen'||war==='abgelehnt')&&key==='interessent'){
+    if(!confirm('Neue Saison starten? Alle Checklisten-Haken werden entfernt und der Zyklus beginnt neu. Die Statistiken bleiben erhalten.'))return;
+    m.planung.checklist={};
+  }
   m.planung.status=key;
   el('detail-sub').textContent=(m.planung.region?m.planung.region+' · ':'')+(STATUS_LIST.find(function(s){return s.key===key})||{}).label;
   saveData(); renderPlanung(); renderMarktGrid();
@@ -3418,7 +3564,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v3.1 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v3.2 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
@@ -4640,6 +4786,9 @@ function setupCoinInput(id){
 document.addEventListener('DOMContentLoaded',function(){
   state=loadData();
   katalog=loadKatalog();
+
+  // Status-Automatik beim Start (Auto-Fortschritt + 2-Wochen-Regel)
+  runStatusAutomatik();
 
   // Coin-Inputs
   COINS.forEach(function(c){setupCoinInput(c.id)});
