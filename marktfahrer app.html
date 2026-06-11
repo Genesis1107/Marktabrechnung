@@ -464,7 +464,7 @@ h1.print-title,.print-meta{display:none}
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.0</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.1</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -479,6 +479,7 @@ h1.print-title,.print-meta{display:none}
           <button class="sort-btn active" id="sort-alpha" onclick="setMarktSort('alpha')">A–Z</button>
           <button class="sort-btn" id="sort-umsatz" onclick="setMarktSort('umsatz')">Umsatz</button>
           <button class="sort-btn" id="sort-status" onclick="setMarktSort('status')">Status</button>
+          <button class="sort-btn" id="sort-datum" onclick="setMarktSort('datum')">Datum</button>
         </div>
       </div>
       <div class="markt-grid" id="markt-grid"></div>
@@ -1567,6 +1568,7 @@ function migrateSaisons(d){
     if(!m.bestellungen||typeof m.bestellungen!=='object')m.bestellungen={};
     if(!m.stunden||typeof m.stunden!=='object')m.stunden={};
     if(!Array.isArray(m.kutschen)||!m.kutschen.length)m.kutschen=['K1'];
+    if(typeof m.favorit!=='boolean')m.favorit=false;
     if(!m.planung)m.planung={status:'interessent',region:'',dauer:'',kmMinden:'',kmSk:'',veranstalter:'',datumVon:'',datumBis:'',checklist:{}};
     var jahre={};
     d.eintraege.forEach(function(e){if(e.marktId===m.id)jahre[String(e.jahr||String(e.datum).split('-')[0])]=true});
@@ -1817,6 +1819,13 @@ function setMarktSort(mode){
   document.getElementById('sort-alpha').classList.toggle('active',mode==='alpha');
   document.getElementById('sort-umsatz').classList.toggle('active',mode==='umsatz');
   document.getElementById('sort-status').classList.toggle('active',mode==='status');
+  document.getElementById('sort-datum').classList.toggle('active',mode==='datum');
+  renderMarktGrid();
+}
+
+var phasenZu={};
+function togglePhase(key){
+  phasenZu[key]=!phasenZu[key];
   renderMarktGrid();
 }
 
@@ -1839,6 +1848,22 @@ function marktLetzterUmsatz(m){
 }
 
 // Wiederverwendbare Markt-Kachel
+function fmtDatumKurz(iso){
+  if(!iso)return '';
+  var p=iso.split('-');
+  if(p.length!==3)return '';
+  return p[2]+'.'+p[1]+'.';
+}
+
+function toggleFavorit(event,id){
+  event.stopPropagation();
+  var m=findMarkt(id);
+  if(!m)return;
+  m.favorit=!m.favorit;
+  saveData();
+  renderMarktGrid();
+}
+
 function marktKachelHTML(m){
   var alle=state.eintraege.filter(function(e){return e.marktId===m.id});
   var ys=uniqueYears(alle);
@@ -1850,13 +1875,20 @@ function marktKachelHTML(m){
   var st=m.planung?STATUS_LIST.find(function(s){return s.key===m.planung.status}):null;
   var stLabel=st?st.label:'–';
   var stCls=st?st.cls:'status-interessent';
+  var startDatum=(m.planung&&m.planung.datumVon)||'';
+  var datumTxt=startDatum?fmtDatumKurz(startDatum):'–';
+  var favAktiv=m.favorit?'★':'☆';
+  var favColor=m.favorit?'var(--go)':'rgba(168,134,90,.4)';
   return '<div class="markt-card" style="--cc:'+m.color+'" data-g="'+m.glyph+'" onclick="openMarkt('+m.id+')">'
-    +'<div class="mc-name">'+esc(m.name)+'</div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">'
+    +'<div class="mc-name" style="flex:1;min-width:0">'+esc(m.name)+'</div>'
+    +'<button onclick="toggleFavorit(event,'+m.id+')" style="background:none;border:none;cursor:pointer;font-size:1.25rem;line-height:1;color:'+favColor+';padding:0 2px;flex-shrink:0" title="Favorit">'+favAktiv+'</button>'
+    +'</div>'
     +'<div class="mc-sub">'+esc((m.planung&&m.planung.region)||m.region||'Markt')+' · '+ys.length+' Jahr(e)</div>'
     +'<div class="mc-stats">'
     +'<div><div class="mcs-l">Umsatz '+(lj||'')+'</div><div class="mcs-v">'+eur(gesamtU)+'</div></div>'
     +'<div><div class="mcs-l">Markttage</div><div class="mcs-v">'+anzTage+'</div></div>'
-    +'<div><div class="mcs-l">Saison</div><div class="mcs-v">'+(lj||'–')+'</div></div>'
+    +'<div><div class="mcs-l">Start</div><div class="mcs-v">'+datumTxt+'</div></div>'
     +'</div>'
     +'<div class="mc-footer"><span class="mc-status '+stCls+'">'+esc(stLabel)+'</span>'
     +'<span style="color:'+m.color+';font-family:Cinzel,serif;font-size:11px;letter-spacing:1px">Öffnen →</span></div>'
@@ -1915,6 +1947,16 @@ function renderListe(liste){
       if(sa!==sb)return sa-sb;
       return a.name.localeCompare(b.name,'de');
     });
+  } else if(marktSort==='datum'){
+    liste.sort(function(a,b){
+      var da=(a.planung&&a.planung.datumVon)||'';
+      var db=(b.planung&&b.planung.datumVon)||'';
+      // Märkte ohne Datum ans Ende
+      if(!da&&!db)return a.name.localeCompare(b.name,'de');
+      if(!da)return 1;
+      if(!db)return -1;
+      return da<db?-1:(da>db?1:0);
+    });
   }
   if(!liste.length){
     grid.innerHTML='<div class="empty" style="grid-column:1/-1;padding:36px 20px"><div class="ei">🔍</div><div class="et">Kein Markt gefunden</div><div class="eh">Andere Suche versuchen</div></div>';
@@ -1938,21 +1980,50 @@ function renderPhasen(liste){
   // innerhalb Phase alphabetisch
   Object.keys(byStatus).forEach(function(s){byStatus[s].sort(function(a,b){return a.name.localeCompare(b.name,'de')})});
 
+  // Hilfsfunktion: ein einklappbarer Abschnitt
+  function abschnitt(key,icon,label,maerkte){
+    var zu=phasenZu[key];
+    var h='<div class="phase-sec">'
+      +'<div class="phase-hdr" onclick="togglePhase(\''+key+'\')" style="cursor:pointer">'
+      +'<span class="ph-icon">'+icon+'</span>'
+      +'<span class="ph-label">'+esc(label)+'</span>'
+      +'<span class="ph-count">'+maerkte.length+'</span>'
+      +'<span style="flex:1"></span>'
+      +'<span style="color:var(--im);font-size:0.8rem">'+(zu?'▶':'▼')+'</span>'
+      +'</div>';
+    if(!zu){
+      h+='<div class="markt-grid" style="padding:0">';
+      maerkte.forEach(function(m){h+=marktKachelHTML(m)});
+      h+='</div>';
+    }
+    h+='</div>';
+    return h;
+  }
+
   var html='';
-  // Aktive Phasen in Zyklus-Reihenfolge
+
+  // ⭐ FAVORITEN ganz oben (eigener Abschnitt, Märkte aus allen aktiven Phasen)
+  var favoriten=liste.filter(function(m){return m.favorit&&ARCHIV_STATUS.indexOf((m.planung&&m.planung.status)||'interessent')<0});
+  favoriten.sort(function(a,b){return a.name.localeCompare(b.name,'de')});
+  if(favoriten.length){
+    html+=abschnitt('favoriten','⭐','Favoriten',favoriten);
+  }
+
+  // Aktive Phasen – AKTIV zuerst, dann der Rest in Zyklus-Reihenfolge
   var aktivPhasen=STATUS_LIST.filter(function(s){return ARCHIV_STATUS.indexOf(s.key)<0});
+  // Reihenfolge: aktiv zuerst, dann die übrigen in ursprünglicher Reihenfolge
+  var geordnet=aktivPhasen.slice().sort(function(a,b){
+    if(a.key==='aktiv')return -1;
+    if(b.key==='aktiv')return 1;
+    return 0;
+  });
+
   var aktiveAnzahl=0;
-  aktivPhasen.forEach(function(s){
+  geordnet.forEach(function(s){
     var maerkte=byStatus[s.key]||[];
     if(!maerkte.length)return; // leere Phase ausblenden
     aktiveAnzahl+=maerkte.length;
-    html+='<div class="phase-sec">'
-      +'<div class="phase-hdr"><span class="ph-icon">'+(PHASE_ICONS[s.key]||'•')+'</span>'
-      +'<span class="ph-label">'+esc(s.label)+'</span>'
-      +'<span class="ph-count">'+maerkte.length+'</span></div>'
-      +'<div class="markt-grid" style="padding:0">';
-    maerkte.forEach(function(m){html+=marktKachelHTML(m)});
-    html+='</div></div>';
+    html+=abschnitt(s.key,(PHASE_ICONS[s.key]||'•'),s.label,maerkte);
   });
 
   // "Neuen Markt anlegen" am Ende der aktiven Phasen
@@ -3347,7 +3418,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v3.0 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v3.1 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
