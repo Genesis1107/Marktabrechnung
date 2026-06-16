@@ -470,7 +470,7 @@ h1.print-title,.print-meta{display:none}
     <div class="page-hdr">
       <span class="sync-icon" id="sync-icon-start" title="Synchronisation mit Datenbank">☁</span>
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.2</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.3</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -1593,6 +1593,17 @@ function syncAlleMaerkte(){
     });
   });
 
+  // Härtung: pro Markt+Datum+Stand darf nur eine Zeile gesendet werden
+  // (Datenbank-Regel erlaubt nur einen Eintrag pro Tag/Stand).
+  // Bei Konflikt im lokalen Bestand gewinnt die zuletzt erfasste Zeile,
+  // damit ein einzelnes Duplikat nicht den gesamten Sync blockiert.
+  var kassNachSchluessel = {};
+  kassierungenZeilen.forEach(function(z){
+    var schluessel = z.markt_lokale_id + '|' + z.datum + '|' + z.stand;
+    kassNachSchluessel[schluessel] = z; // letzter Eintrag im Array gewinnt
+  });
+  kassierungenZeilen = Object.values(kassNachSchluessel);
+
   var buchungenZeilen = state.buchungen.map(function(b){
     return {
       lokale_id: String(b.id),
@@ -1659,6 +1670,31 @@ function syncVerzoegert(){
   if(syncTimer) clearTimeout(syncTimer);
   syncTimer = setTimeout(syncAlleMaerkte, 1500);
 }
+
+function diagnoseKassierungDuplikate(){
+  var gruppen = {};
+  var alle = [];
+  state.kassungen.forEach(function(k){
+    alle.push({quelle:'kassung', id:k.id, marktId:k.marktId, datum:k.datum, stand:k.kutsche||'K1'});
+  });
+  state.eintraege.forEach(function(e){
+    alle.push({quelle:'eintrag', id:e.id, marktId:e.marktId, datum:e.datum, stand:e.kutsche||'K1'});
+  });
+  alle.forEach(function(z){
+    var key = z.marktId+'|'+z.datum+'|'+z.stand;
+    if(!gruppen[key]) gruppen[key]=[];
+    gruppen[key].push(z);
+  });
+  var duplikate = Object.keys(gruppen).filter(function(k){return gruppen[k].length>1});
+  console.log('=== Duplikat-Diagnose kassierungen ===');
+  console.log('Anzahl Markt+Datum+Stand-Kombinationen mit Duplikat:', duplikate.length);
+  duplikate.forEach(function(k){
+    var markt = state.maerkte.find(function(m){return m.id===gruppen[k][0].marktId});
+    console.log('Konflikt bei:', k, '(Markt: '+(markt?markt.name:'?')+')', gruppen[k]);
+  });
+  return duplikate.length;
+}
+window.diagnoseKassierungDuplikate = diagnoseKassierungDuplikate;
 
 // ════════════════════════════════════════════════════════
 //  STORAGE
@@ -3717,7 +3753,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v3.2 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v3.3 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
