@@ -78,9 +78,14 @@ body{
   border-bottom:2px solid var(--bdr);
   padding:calc(14px + var(--safe-top)) 18px 12px;
   text-align:center;flex-shrink:0;
+  position:relative;
 }
 .page-hdr h1{font-family:'Cinzel',serif;font-size:0.95rem;font-weight:900;color:var(--p);letter-spacing:3px;text-transform:uppercase}
 .page-hdr .sub{font-size:0.75rem;color:rgba(245,233,201,0.6);margin-top:2px;font-style:italic;font-family:'IM Fell English',serif}
+.sync-icon{position:absolute;top:calc(14px + var(--safe-top));right:16px;font-size:0.85rem;cursor:default;opacity:.75;transition:opacity .3s}
+.sync-icon.sync-fehler{opacity:1;color:var(--cr2)}
+.detail-hdr-top .sync-icon{position:static;margin-left:auto;font-size:0.85rem;opacity:.75}
+.detail-hdr-top .sync-icon.sync-fehler{opacity:1;color:var(--cr2)}
 
 /* ── CONTENT ── */
 .content{padding:14px 12px calc(20px + var(--nav-h) + var(--safe-bottom));max-width:640px;margin:0 auto;width:100%;overflow-x:hidden}
@@ -463,8 +468,9 @@ h1.print-title,.print-meta{display:none}
   <!-- ════ STARTSEITE: MARKTLISTE + DATEN ════ -->
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
+      <span class="sync-icon" id="sync-icon-start" title="Synchronisation mit Datenbank">☁</span>
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.2</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.3</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -581,6 +587,7 @@ h1.print-title,.print-meta{display:none}
           <div class="detail-hdr-name" id="detail-name">–</div>
           <div class="detail-hdr-sub" id="detail-sub">–</div>
         </div>
+        <span class="sync-icon" id="sync-icon-detail" title="Synchronisation mit Datenbank">☁</span>
       </div>
       <div class="tab-bar">
         <button class="tab-btn active" data-tab="planung" onclick="switchTab('planung')">📋 Planung</button>
@@ -1509,11 +1516,150 @@ function groupByKutsche(eintraege){
 }
 
 // ════════════════════════════════════════════════════════
+//  SUPABASE SYNC (Stufe 1: stiller Doppelbetrieb)
+//  Schreibt zusätzlich zu localStorage nach Supabase.
+//  localStorage bleibt die alleinige Quelle für die App selbst.
+// ════════════════════════════════════════════════════════
+var SUPA_URL = 'https://bbfpkxgjxxppqovauneh.supabase.co';
+var SUPA_KEY = 'sb_publishable__2Ui6Sw3W5DYEw8--GUaFw_l0m8Dseq';
+var syncInProgress = false;
+var syncTimer = null;
+
+function setSyncStatus(fehler){
+  ['sync-icon-start','sync-icon-detail'].forEach(function(id){
+    var elx = document.getElementById(id);
+    if(!elx) return;
+    elx.classList.toggle('sync-fehler', !!fehler);
+    elx.title = fehler ? 'Synchronisation fehlgeschlagen – wird erneut versucht' : 'Synchronisation mit Datenbank aktiv';
+  });
+}
+
+function supaRequest(tabelle, zeilen, onConflict){
+  if(!zeilen || !zeilen.length) return Promise.resolve();
+  return fetch(SUPA_URL + '/rest/v1/' + tabelle + '?on_conflict=' + onConflict, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPA_KEY,
+      'Authorization': 'Bearer ' + SUPA_KEY,
+      'Prefer': 'resolution=merge-duplicates'
+    },
+    body: JSON.stringify(zeilen)
+  }).then(function(res){
+    if(!res.ok) return res.text().then(function(t){throw new Error(tabelle+': '+res.status+' '+t)});
+  });
+}
+
+function syncAlleMaerkte(){
+  if(syncInProgress) return;
+  syncInProgress = true;
+
+  var maerkteZeilen = state.maerkte.map(function(m){
+    return {
+      lokale_id: String(m.id),
+      name: m.name,
+      ort: m.region || m.planung && m.planung.region || null,
+      datum_von: m.planung && m.planung.datumVon ? m.planung.datumVon : null,
+      datum_bis: m.planung && m.planung.datumBis ? m.planung.datumBis : null,
+      status: m.planung && m.planung.status ? m.planung.status : 'interessent'
+    };
+  });
+
+  var kassierungenZeilen = [];
+  state.kassungen.forEach(function(k){
+    kassierungenZeilen.push({
+      lokale_id: 'k' + k.id,
+      markt_lokale_id: String(k.marktId),
+      datum: k.datum,
+      stand: k.kutsche || 'K1',
+      bar_summe: k.muenzen + k.scheine || 0,
+      ec_summe: 0,
+      stueckelung: {coins:k.coins||{}, bills:k.bills||{}},
+      modus: 'zaehlen',
+      notiz: k.notiz || null
+    });
+  });
+  state.eintraege.forEach(function(e){
+    kassierungenZeilen.push({
+      lokale_id: 'e' + e.id,
+      markt_lokale_id: String(e.marktId),
+      datum: e.datum,
+      stand: e.kutsche || 'K1',
+      bar_summe: e.bar || 0,
+      ec_summe: e.ec || 0,
+      stueckelung: null,
+      modus: 'schnell',
+      notiz: null
+    });
+  });
+
+  var buchungenZeilen = state.buchungen.map(function(b){
+    return {
+      lokale_id: String(b.id),
+      markt_lokale_id: String(b.marktId),
+      typ: b.typ,
+      datum: b.datum,
+      stand: b.kutsche || 'K1',
+      bezeichnung: b.bezeichnung,
+      betrag: b.betrag,
+      zahlung: b.zahlung,
+      kategorie: b.kategorie,
+      auto_ec: !!b.autoEC
+    };
+  });
+
+  // Schritt 1: Märkte senden (müssen vor abhängigen Tabellen existieren)
+  supaRequest('maerkte', maerkteZeilen, 'lokale_id')
+    .then(function(){
+      // Schritt 2: abhängige Tabellen brauchen die echte markt_id (uuid) aus Supabase,
+      // daher Märkte abrufen und lokale_id -> uuid zuordnen
+      return fetch(SUPA_URL + '/rest/v1/maerkte?select=id,lokale_id', {
+        headers: {'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY}
+      }).then(function(res){return res.json()});
+    })
+    .then(function(maerkteAusSupa){
+      var idMap = {};
+      maerkteAusSupa.forEach(function(row){ idMap[row.lokale_id] = row.id; });
+
+      function mitMarktId(zeile){
+        var z = Object.assign({}, zeile);
+        z.markt_id = idMap[z.markt_lokale_id];
+        delete z.markt_lokale_id;
+        return z;
+      }
+
+      var kassZeilenFertig = kassierungenZeilen.filter(function(z){return idMap[z.markt_lokale_id]}).map(mitMarktId);
+      var buchZeilenFertig = buchungenZeilen.filter(function(z){return idMap[z.markt_lokale_id]}).map(mitMarktId);
+
+      return Promise.all([
+        supaRequest('kassierungen', kassZeilenFertig, 'lokale_id'),
+        supaRequest('buchungen', buchZeilenFertig, 'lokale_id')
+      ]);
+    })
+    .then(function(){
+      setSyncStatus(false);
+      syncInProgress = false;
+    })
+    .catch(function(err){
+      console.log('Sync-Fehler:', err);
+      setSyncStatus(true);
+      syncInProgress = false;
+    });
+}
+
+function syncVerzoegert(){
+  // Sammelt mehrere schnelle saveData()-Aufrufe zu einem Sync-Versuch
+  if(syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncAlleMaerkte, 1500);
+}
+
+// ════════════════════════════════════════════════════════
 //  STORAGE
 // ════════════════════════════════════════════════════════
 function saveData(){
   try{localStorage.setItem(LS_KEY,JSON.stringify(state))}
   catch(e){toast('⚠ Speichern fehlgeschlagen')}
+  syncVerzoegert();
 }
 
 function cleanOrphanedAutoEC(d){
@@ -3564,7 +3710,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v3.2 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v3.3 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
