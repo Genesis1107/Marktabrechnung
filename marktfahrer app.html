@@ -1566,22 +1566,37 @@ function syncAlleMaerkte(){
   });
 
   var kassierungenZeilen = [];
+  var kassSchluessel = {}; // markt|datum|stand -> true, sobald eine kassung diesen Schlüssel belegt hat
+
   state.kassungen.forEach(function(k){
+    var schluessel = String(k.marktId) + '|' + k.datum + '|' + (k.kutsche || 'K1');
+    kassSchluessel[schluessel] = true;
     kassierungenZeilen.push({
       lokale_id: 'k' + k.id,
+      _schluessel: schluessel,
       markt_lokale_id: String(k.marktId),
       datum: k.datum,
       stand: k.kutsche || 'K1',
-      bar_summe: k.muenzen + k.scheine || 0,
+      bar_summe: (k.istBestand||0) - (k.anfang||0),
       ec_summe: 0,
       stueckelung: {coins:k.coins||{}, bills:k.bills||{}},
       modus: 'zaehlen',
       notiz: k.notiz || null
     });
   });
+
+  // eintraege sind die aus einer Kassenzählung abgeleitete Chronik-Zusammenfassung
+  // (oder, falls keine Zählung vorliegt, das Ergebnis der Schnellerfassung).
+  // Liegt für denselben Markt+Datum+Stand bereits eine kassung vor, ist der
+  // eintrag nur deren Ableitung und wird NICHT zusätzlich gesendet - sonst
+  // entstehen zwei Zeilen für denselben Vorgang und die Datenbank-Regel
+  // "ein Eintrag pro Tag/Stand" schlägt fehl.
   state.eintraege.forEach(function(e){
+    var schluessel = String(e.marktId) + '|' + e.datum + '|' + (e.kutsche || 'K1');
+    if(kassSchluessel[schluessel]) return; // bereits durch Zählung abgedeckt
     kassierungenZeilen.push({
       lokale_id: 'e' + e.id,
+      _schluessel: schluessel,
       markt_lokale_id: String(e.marktId),
       datum: e.datum,
       stand: e.kutsche || 'K1',
@@ -1592,17 +1607,7 @@ function syncAlleMaerkte(){
       notiz: null
     });
   });
-
-  // Härtung: pro Markt+Datum+Stand darf nur eine Zeile gesendet werden
-  // (Datenbank-Regel erlaubt nur einen Eintrag pro Tag/Stand).
-  // Bei Konflikt im lokalen Bestand gewinnt die zuletzt erfasste Zeile,
-  // damit ein einzelnes Duplikat nicht den gesamten Sync blockiert.
-  var kassNachSchluessel = {};
-  kassierungenZeilen.forEach(function(z){
-    var schluessel = z.markt_lokale_id + '|' + z.datum + '|' + z.stand;
-    kassNachSchluessel[schluessel] = z; // letzter Eintrag im Array gewinnt
-  });
-  kassierungenZeilen = Object.values(kassNachSchluessel);
+  kassierungenZeilen.forEach(function(z){ delete z._schluessel; });
 
   var buchungenZeilen = state.buchungen.map(function(b){
     return {
@@ -1672,6 +1677,10 @@ function syncVerzoegert(){
 }
 
 function diagnoseKassierungDuplikate(){
+  // Hinweis: Eine kassung (Zählen) und der daraus abgeleitete eintrag (Chronik)
+  // für denselben Tag/Stand sind KEIN Fehler, sondern der normale Ablauf.
+  // Ein echter Konflikt liegt nur vor, wenn mehrere kassungen oder mehrere
+  // eintraege für denselben Markt+Datum+Stand existieren.
   var gruppen = {};
   var alle = [];
   state.kassungen.forEach(function(k){
@@ -1685,14 +1694,20 @@ function diagnoseKassierungDuplikate(){
     if(!gruppen[key]) gruppen[key]=[];
     gruppen[key].push(z);
   });
-  var duplikate = Object.keys(gruppen).filter(function(k){return gruppen[k].length>1});
-  console.log('=== Duplikat-Diagnose kassierungen ===');
-  console.log('Anzahl Markt+Datum+Stand-Kombinationen mit Duplikat:', duplikate.length);
-  duplikate.forEach(function(k){
-    var markt = state.maerkte.find(function(m){return m.id===gruppen[k][0].marktId});
-    console.log('Konflikt bei:', k, '(Markt: '+(markt?markt.name:'?')+')', gruppen[k]);
+  var echteKonflikte = Object.keys(gruppen).filter(function(k){
+    var eintraegeHier = gruppen[k];
+    var anzKassung = eintraegeHier.filter(function(z){return z.quelle==='kassung'}).length;
+    var anzEintrag = eintraegeHier.filter(function(z){return z.quelle==='eintrag'}).length;
+    // erwartet: 1 kassung + 1 eintrag (Normalfall) ODER nur 1 kassung ODER nur 1 eintrag
+    return anzKassung>1 || anzEintrag>1;
   });
-  return duplikate.length;
+  console.log('=== Duplikat-Diagnose kassierungen ===');
+  console.log('Anzahl Markt+Datum+Stand-Kombinationen mit ECHTEM Konflikt (mehrere Zählungen oder mehrere Schnellerfassungen):', echteKonflikte.length);
+  echteKonflikte.forEach(function(k){
+    var markt = state.maerkte.find(function(m){return m.id===gruppen[k][0].marktId});
+    console.log('Echter Konflikt bei:', k, '(Markt: '+(markt?markt.name:'?')+')', gruppen[k]);
+  });
+  return echteKonflikte.length;
 }
 window.diagnoseKassierungDuplikate = diagnoseKassierungDuplikate;
 
