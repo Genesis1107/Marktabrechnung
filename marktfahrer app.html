@@ -470,7 +470,7 @@ h1.print-title,.print-meta{display:none}
     <div class="page-hdr">
       <span class="sync-icon" id="sync-icon-start" title="Synchronisation mit Datenbank">☁</span>
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.4</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.5</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -1744,11 +1744,14 @@ function syncAlleMaerkte(){
     .then(function(){
       setSyncStatus(false);
       syncInProgress = false;
+      // DEBUG (temporär): Zeigt Sync-Zähler als Toast
+      toast('Sync OK · Std:'+stundenZeilen.length+' Best:'+bestellungenZeilen.length+' Pos:'+bestellpositionenZeilen.length);
     })
     .catch(function(err){
       console.log('Sync-Fehler:', err);
       setSyncStatus(true);
       syncInProgress = false;
+      toast('⚠ Sync-Fehler: '+err.message);
     });
 }
 
@@ -3850,7 +3853,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v3.4 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v3.5 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
