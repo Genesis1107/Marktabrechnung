@@ -470,7 +470,7 @@ h1.print-title,.print-meta{display:none}
     <div class="page-hdr">
       <span class="sync-icon" id="sync-icon-start" title="Synchronisation mit Datenbank">☁</span>
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.3</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.4</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -1624,11 +1624,62 @@ function syncAlleMaerkte(){
     };
   });
 
+  // Stunden: m.stunden[jahr] = [{id, datum, mitarbeiter, stunden}]
+  // id wurde mit saveStundenEintrag() als "marktId|datum|mitarbeiter" vergeben
+  // Ältere Einträge ohne id werden übersprungen (kein stabiler Schlüssel möglich)
+  var stundenZeilen = [];
+  state.maerkte.forEach(function(m){
+    if(!m.stunden||typeof m.stunden!=='object') return;
+    Object.keys(m.stunden).forEach(function(jahr){
+      var liste = m.stunden[jahr]||[];
+      liste.forEach(function(e){
+        if(!e.id) return;
+        stundenZeilen.push({
+          lokale_id: String(e.id),
+          markt_lokale_id: String(m.id),
+          datum: e.datum,
+          mitarbeiter_name: e.mitarbeiter,
+          stunden: e.stunden
+        });
+      });
+    });
+  });
+
+  // Bestellungen: m.bestellungen[jahr] = {lager, fahrzeug, positionen:[{produktId, mengen:{groessenKey:menge}}]}
+  var bestellungenZeilen = [];
+  var bestellpositionenZeilen = [];
+  state.maerkte.forEach(function(m){
+    if(!m.bestellungen||typeof m.bestellungen!=='object') return;
+    Object.keys(m.bestellungen).forEach(function(jahr){
+      var b = m.bestellungen[jahr];
+      if(!b||!b.positionen||!b.positionen.length) return;
+      var bestLokaleId = String(m.id)+'|'+jahr;
+      bestellungenZeilen.push({
+        lokale_id: bestLokaleId,
+        markt_lokale_id: String(m.id),
+        jahr: parseInt(jahr),
+        lager: b.lager||null,
+        fahrzeug: b.fahrzeug||null
+      });
+      b.positionen.forEach(function(pos){
+        Object.keys(pos.mengen||{}).forEach(function(groessenKey){
+          var menge = pos.mengen[groessenKey];
+          if(!menge||menge<=0) return;
+          bestellpositionenZeilen.push({
+            lokale_id: bestLokaleId+'|'+pos.produktId+'|'+groessenKey,
+            bestellung_lokale_id: bestLokaleId,
+            produkt_lokale_id: String(pos.produktId),
+            groessen_key: groessenKey,
+            menge: menge
+          });
+        });
+      });
+    });
+  });
+
   // Schritt 1: Märkte senden (müssen vor abhängigen Tabellen existieren)
   supaRequest('maerkte', maerkteZeilen, 'lokale_id')
     .then(function(){
-      // Schritt 2: abhängige Tabellen brauchen die echte markt_id (uuid) aus Supabase,
-      // daher Märkte abrufen und lokale_id -> uuid zuordnen
       return fetch(SUPA_URL + '/rest/v1/maerkte?select=id,lokale_id', {
         headers: {'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY}
       }).then(function(res){
@@ -1637,11 +1688,8 @@ function syncAlleMaerkte(){
       });
     })
     .then(function(maerkteAusSupa){
-      console.log('Sync-Diagnose: Märkte aus Supabase:', maerkteAusSupa);
       var idMap = {};
       maerkteAusSupa.forEach(function(row){ idMap[String(row.lokale_id)] = row.id; });
-      console.log('Sync-Diagnose: idMap:', idMap);
-      console.log('Sync-Diagnose: kassierungenZeilen vor Filter:', kassierungenZeilen);
 
       function mitMarktId(zeile){
         var z = Object.assign({}, zeile);
@@ -1652,12 +1700,46 @@ function syncAlleMaerkte(){
 
       var kassZeilenFertig = kassierungenZeilen.filter(function(z){return idMap[z.markt_lokale_id]}).map(mitMarktId);
       var buchZeilenFertig = buchungenZeilen.filter(function(z){return idMap[z.markt_lokale_id]}).map(mitMarktId);
-      console.log('Sync-Diagnose: kassZeilenFertig nach Filter:', kassZeilenFertig);
+      var stundenFertig = stundenZeilen.filter(function(z){return idMap[z.markt_lokale_id]}).map(mitMarktId);
+      var bestFertig = bestellungenZeilen.filter(function(z){return idMap[z.markt_lokale_id]}).map(mitMarktId);
 
-      return Promise.all([
-        supaRequest('kassierungen', kassZeilenFertig, 'lokale_id'),
-        supaRequest('buchungen', buchZeilenFertig, 'lokale_id')
-      ]);
+      // Bestellungen erst senden, dann Positionen mit bestellung_id verknüpfen
+      return supaRequest('bestellungen', bestFertig, 'lokale_id')
+        .then(function(){
+          if(!bestellpositionenZeilen.length) return Promise.resolve();
+          return fetch(SUPA_URL + '/rest/v1/bestellungen?select=id,lokale_id', {
+            headers: {'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY}
+          }).then(function(res){
+            if(!res.ok) return res.text().then(function(t){throw new Error('GET bestellungen: '+res.status+' '+t)});
+            return res.json();
+          }).then(function(bestAusSupa){
+            var bestIdMap = {};
+            bestAusSupa.forEach(function(row){ bestIdMap[row.lokale_id] = row.id; });
+            // produkt_id (uuid) über lokale_id + groessen_key aus produkte-Tabelle nötig –
+            // wird in Stufe 2 ergänzt wenn produkte-UUID-Lookup implementiert wird;
+            // vorerst Positionen ohne FK senden (produkt_id-Constraint muss dafür angepasst werden)
+            var posFertig = bestellpositionenZeilen
+              .filter(function(z){ return bestIdMap[z.bestellung_lokale_id]; })
+              .map(function(z){
+                var p = {
+                  lokale_id: z.lokale_id,
+                  bestellung_id: bestIdMap[z.bestellung_lokale_id],
+                  menge: z.menge,
+                  produkt_lokale_id: z.produkt_lokale_id,
+                  groessen_key: z.groessen_key
+                };
+                return p;
+              });
+            return supaRequest('bestellpositionen', posFertig, 'lokale_id');
+          });
+        })
+        .then(function(){
+          return Promise.all([
+            supaRequest('kassierungen', kassZeilenFertig, 'lokale_id'),
+            supaRequest('buchungen', buchZeilenFertig, 'lokale_id'),
+            supaRequest('stunden', stundenFertig, 'lokale_id')
+          ]);
+        });
     })
     .then(function(){
       setSyncStatus(false);
@@ -3768,7 +3850,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v3.3 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v3.4 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
@@ -4058,7 +4140,12 @@ function saveStundenEintrag(){
   if(isNaN(stundenWert)||stundenWert<=0){toast('⚠ Bitte gültige Stunden eingeben');return}
   var m=findMarkt(stundenMarktId);
   var liste=getStunden(m,stundenSaison);
-  liste.push({datum:stundenAddDatum,mitarbeiter:mitarbeiter,stunden:stundenWert});
+  // Duplikat-Schutz: selber Mitarbeiter am selben Tag nur einmal erlaubt
+  var duplikat=liste.find(function(e){return e.datum===stundenAddDatum&&e.mitarbeiter===mitarbeiter});
+  if(duplikat){toast('⚠ '+mitarbeiter+' ist für diesen Tag bereits erfasst');return}
+  // Stabile ID als Basis für späteren Supabase-Sync
+  var lokaleId=stundenMarktId+'|'+stundenAddDatum+'|'+mitarbeiter;
+  liste.push({id:lokaleId,datum:stundenAddDatum,mitarbeiter:mitarbeiter,stunden:stundenWert});
   saveData();
   closeModal('modal-stunden-add');
   renderStundenTage();
