@@ -470,7 +470,7 @@ h1.print-title,.print-meta{display:none}
     <div class="page-hdr">
       <span class="sync-icon" id="sync-icon-start" title="Synchronisation mit Datenbank">☁</span>
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.5</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.6</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -1703,32 +1703,46 @@ function syncAlleMaerkte(){
       var stundenFertig = stundenZeilen.filter(function(z){return idMap[z.markt_lokale_id]}).map(mitMarktId);
       var bestFertig = bestellungenZeilen.filter(function(z){return idMap[z.markt_lokale_id]}).map(mitMarktId);
 
-      // Bestellungen erst senden, dann Positionen mit bestellung_id verknüpfen
+      // Bestellungen erst senden, dann Positionen mit bestellung_id + produkt_id verknüpfen
       return supaRequest('bestellungen', bestFertig, 'lokale_id')
         .then(function(){
           if(!bestellpositionenZeilen.length) return Promise.resolve();
-          return fetch(SUPA_URL + '/rest/v1/bestellungen?select=id,lokale_id', {
-            headers: {'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY}
-          }).then(function(res){
-            if(!res.ok) return res.text().then(function(t){throw new Error('GET bestellungen: '+res.status+' '+t)});
-            return res.json();
-          }).then(function(bestAusSupa){
+          // Bestellungen UND Produkte parallel abrufen, um beide UUIDs nachzuschlagen
+          return Promise.all([
+            fetch(SUPA_URL + '/rest/v1/bestellungen?select=id,lokale_id', {
+              headers: {'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY}
+            }).then(function(res){
+              if(!res.ok) return res.text().then(function(t){throw new Error('GET bestellungen: '+res.status+' '+t)});
+              return res.json();
+            }),
+            fetch(SUPA_URL + '/rest/v1/produkte?select=id,lokale_id,groessen_key', {
+              headers: {'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY}
+            }).then(function(res){
+              if(!res.ok) return res.text().then(function(t){throw new Error('GET produkte: '+res.status+' '+t)});
+              return res.json();
+            })
+          ]).then(function(ergebnisse){
+            var bestAusSupa = ergebnisse[0];
+            var produkteAusSupa = ergebnisse[1];
             var bestIdMap = {};
             bestAusSupa.forEach(function(row){ bestIdMap[row.lokale_id] = row.id; });
-            // produkt_id (uuid) über lokale_id + groessen_key aus produkte-Tabelle nötig –
-            // wird in Stufe 2 ergänzt wenn produkte-UUID-Lookup implementiert wird;
-            // vorerst Positionen ohne FK senden (produkt_id-Constraint muss dafür angepasst werden)
+            // Produkt-Lookup: "lokale_id|groessen_key" -> uuid
+            var produktIdMap = {};
+            produkteAusSupa.forEach(function(row){
+              produktIdMap[row.lokale_id + '|' + row.groessen_key] = row.id;
+            });
             var posFertig = bestellpositionenZeilen
               .filter(function(z){ return bestIdMap[z.bestellung_lokale_id]; })
               .map(function(z){
-                var p = {
+                return {
                   lokale_id: z.lokale_id,
                   bestellung_id: bestIdMap[z.bestellung_lokale_id],
                   menge: z.menge,
                   produkt_lokale_id: z.produkt_lokale_id,
-                  groessen_key: z.groessen_key
+                  groessen_key: z.groessen_key,
+                  // echte UUID-Verknüpfung (null falls Produkt im Katalog fehlt)
+                  produkt_id: produktIdMap[z.produkt_lokale_id + '|' + z.groessen_key] || null
                 };
-                return p;
               });
             return supaRequest('bestellpositionen', posFertig, 'lokale_id');
           });
@@ -3853,7 +3867,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v3.5 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v3.6 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
