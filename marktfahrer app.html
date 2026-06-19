@@ -470,7 +470,7 @@ h1.print-title,.print-meta{display:none}
     <div class="page-hdr">
       <span class="sync-icon" id="sync-icon-start" title="Synchronisation mit Datenbank">☁</span>
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.7</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.8</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -1550,10 +1550,10 @@ function supaRequest(tabelle, zeilen, onConflict){
   });
 }
 
-// Hartes Löschen: entfernt aus Supabase alle Zeilen einer Tabelle, deren lokale_id
-// NICHT mehr in der App vorhanden ist (z.B. nach Löschen oder Korrektur).
-// So bleibt die Datenbank ein exakter Spiegel von localStorage und es entstehen
-// keine Geister-Datensätze, die unique-Constraints verletzen.
+// Hartes Löschen mit Schwellenwert-Sicherung: entfernt aus Supabase alle Zeilen,
+// deren lokale_id NICHT mehr in der App vorhanden ist. Bei wenigen Löschungen still;
+// bei vielen (> LOESCH_SCHWELLE) oder kompletter Tabellen-Leerung erst Rückfrage.
+var LOESCH_SCHWELLE = 20;
 function supaAbgleich(tabelle, aktuelleLokaleIds){
   return fetch(SUPA_URL + '/rest/v1/' + tabelle + '?select=lokale_id', {
     headers: {'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY}
@@ -1567,7 +1567,24 @@ function supaAbgleich(tabelle, aktuelleLokaleIds){
       .map(function(r){ return r.lokale_id; })
       .filter(function(id){ return id != null && !aktuelleSet[String(id)]; });
     if(!zuLoeschen.length) return Promise.resolve(0);
-    // PostgREST: Löschen über in-Filter; lokale_id-Werte URL-enkodieren
+
+    // Sicherung: viele Löschungen oder komplette Tabellen-Leerung → Rückfrage
+    var leertGanzeTabelle = (zuLoeschen.length === supaZeilen.length && supaZeilen.length > 0);
+    if(zuLoeschen.length > LOESCH_SCHWELLE || leertGanzeTabelle){
+      var meldung = '⚠ Sicherheitsabfrage Synchronisation\n\n'
+        + 'In der Tabelle "' + tabelle + '" sollen ' + zuLoeschen.length
+        + ' Eintrag/Einträge GELÖSCHT werden'
+        + (leertGanzeTabelle ? ' (das LEERT die komplette Tabelle!)' : '') + '.\n\n'
+        + 'Das passiert, weil diese Einträge in der App nicht mehr vorhanden sind.\n\n'
+        + 'Betroffene Kennungen:\n' + zuLoeschen.slice(0,30).join(', ')
+        + (zuLoeschen.length > 30 ? ' … (+'+(zuLoeschen.length-30)+' weitere)' : '')
+        + '\n\nWirklich löschen?';
+      if(!confirm(meldung)){
+        // Abgebrochen: nichts löschen, Tabelle diesmal überspringen
+        return Promise.resolve(0);
+      }
+    }
+
     var liste = zuLoeschen.map(function(id){ return '"' + String(id).replace(/"/g,'') + '"'; }).join(',');
     return fetch(SUPA_URL + '/rest/v1/' + tabelle + '?lokale_id=in.(' + encodeURIComponent(liste) + ')', {
       method: 'DELETE',
@@ -3918,7 +3935,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v3.7 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v3.8 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
