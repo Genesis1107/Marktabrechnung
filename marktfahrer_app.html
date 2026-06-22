@@ -1462,7 +1462,8 @@ function initSupaAuth() {
     console.error('[Auth] Supabase SDK nicht geladen');
     return;
   }
-  supaAuthClient = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
+  var SUPA_ANON_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiZnBreGdqeHhwcHFvdmF1bmVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1OTYzMjgsImV4cCI6MjA5NzE3MjMyOH0.cetflln9XgX_rQIy2-HAdGVjR98EgQpUpif_LLg7o70';
+  supaAuthClient = window.supabase.createClient(SUPA_URL, SUPA_ANON_JWT, {
     auth: {
       persistSession:    true,
       autoRefreshToken:  true,
