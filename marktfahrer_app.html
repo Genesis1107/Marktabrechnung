@@ -1603,11 +1603,6 @@ function doLogout() {
   supaAuthClient.auth.signOut();
 }
 
-// Auth starten sobald DOM bereit
-document.addEventListener('DOMContentLoaded', function() {
-  setTimeout(initSupaAuth, 150);
-});
-
 // ════════════════════════════════════════════════════════
 "use strict";
 
@@ -5400,6 +5395,9 @@ document.addEventListener('DOMContentLoaded',function(){
 
   // Saubere Initialisierung der Startseite
   showStartTab('maerkte');
+
+  // Supabase Auth initialisieren (alle Variablen sind jetzt definiert)
+  setTimeout(initSupaAuth, 200);
 });
 </script>
 </body>
