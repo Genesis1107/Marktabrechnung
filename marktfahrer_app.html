@@ -9,6 +9,7 @@
 <meta name="theme-color" content="#1e1208">
 <title>Marktfahrer App</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=IM+Fell+English:ital@0;1&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 :root {
   --p:#f2e8d0; --p2:#e8d9b5; --pd:#c9b07a; --ink:#2c1a0e; --im:#7a5c3a;
@@ -464,13 +465,44 @@ h1.print-title,.print-meta{display:none}
 </head>
 <body>
 <div id="app">
+<!-- ════════════════════════════════════════════════════
+     LOGIN-SCREEN (Stufe 2) – erscheint bei fehlender Session
+     ════════════════════════════════════════════════════ -->
+<div id="login-screen" style="position:fixed;inset:0;z-index:9999;background:var(--p2);background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E&quot;);display:flex;align-items:center;justify-content:center;padding:24px;">
+  <div style="width:100%;max-width:380px;background:var(--p);border:1px solid var(--pd);border-top:4px solid var(--cr);border-radius:3px;padding:32px 28px;box-shadow:0 8px 32px rgba(44,26,14,0.18);">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:40px;margin-bottom:8px;color:var(--cr)">⚔</div>
+      <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:900;color:var(--ink);letter-spacing:3px">MARKTFAHRER</div>
+      <div style="font-family:'IM Fell English',serif;font-style:italic;font-size:13px;color:var(--im);margin-top:4px">Beerenweine · Kontorbuch</div>
+      <div style="width:60px;height:1px;background:var(--pd);margin:14px auto 0"></div>
+    </div>
+    <div id="login-error" style="display:none;background:rgba(139,26,26,0.1);border:1px solid var(--cr);border-radius:2px;padding:10px 14px;font-family:'Crimson Text',serif;font-size:14px;color:var(--cr);margin-bottom:16px;text-align:center;"></div>
+    <div style="margin-bottom:14px">
+      <label style="font-family:'Cinzel',serif;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--im);display:block;margin-bottom:6px">✉ E-Mail</label>
+      <input type="email" id="login-email" autocomplete="email" placeholder="deine@email.de" style="width:100%;background:rgba(255,255,255,0.6);border:1px solid var(--pd);border-bottom:2px solid var(--bdr);border-radius:2px;padding:12px 14px;font-family:'Crimson Text',serif;font-size:16px;color:var(--ink);outline:none;-webkit-appearance:none;" onkeydown="if(event.key==='Enter')document.getElementById('login-pw').focus()">
+    </div>
+    <div style="margin-bottom:6px">
+      <label style="font-family:'Cinzel',serif;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--im);display:block;margin-bottom:6px">🗝 Passwort</label>
+      <input type="password" id="login-pw" autocomplete="current-password" placeholder="••••••••" style="width:100%;background:rgba(255,255,255,0.6);border:1px solid var(--pd);border-bottom:2px solid var(--bdr);border-radius:2px;padding:12px 14px;font-family:'Crimson Text',serif;font-size:16px;color:var(--ink);outline:none;-webkit-appearance:none;" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div style="text-align:right;margin-bottom:20px">
+      <span onclick="doPasswordReset()" style="font-family:'Crimson Text',serif;font-style:italic;font-size:13px;color:var(--im);cursor:pointer;text-decoration:underline;text-underline-offset:2px;">Passwort vergessen?</span>
+    </div>
+    <button onclick="doLogin()" id="login-btn" style="width:100%;padding:14px;background:var(--cr);color:var(--p);border:none;border-radius:2px;font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;min-height:48px;">⚔ Einloggen</button>
+    <div id="login-loading" style="display:none;text-align:center;margin-top:14px">
+      <span style="font-family:'IM Fell English',serif;font-style:italic;font-size:13px;color:var(--im)">Zugang wird geprüft…</span>
+    </div>
+    <div style="text-align:center;margin-top:20px;font-family:'Crimson Text',serif;font-size:11px;color:var(--if)">v3.9 · Marktfahrer App</div>
+  </div>
+</div>
+<!-- ENDE LOGIN-SCREEN -->
 
   <!-- ════ STARTSEITE: MARKTLISTE + DATEN ════ -->
   <div class="screen active" id="screen-start">
     <div class="page-hdr">
       <span class="sync-icon" id="sync-icon-start" title="Synchronisation mit Datenbank">☁</span>
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.8</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.9</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -572,6 +604,12 @@ h1.print-title,.print-meta{display:none}
         <div class="card">
           <p style="font-size:0.82rem;color:var(--im);line-height:1.5;margin-bottom:12px;font-family:'IM Fell English',serif;font-style:italic">Setzt die App vollständig zurück. Bitte vorher ein Backup erstellen!</p>
           <button class="btn btn-danger" style="margin-top:0" onclick="clearAllData()">🗑 Alle Daten unwiderruflich löschen</button>
+        </div>
+
+        <div class="sec">Sitzung</div>
+        <div class="card">
+          <div id="login-info" style="font-family:'IM Fell English',serif;font-style:italic;font-size:0.88rem;color:var(--im);margin-bottom:12px">Nicht eingeloggt</div>
+          <button class="btn btn-secondary" onclick="doLogout()">🚪 Ausloggen</button>
         </div>
 
       </div>
@@ -1412,6 +1450,164 @@ h1.print-title,.print-meta{display:none}
 </div>
 
 <script>
+// ════════════════════════════════════════════════════════
+//  SUPABASE AUTH – STUFE 2
+//  Login mit E-Mail + Passwort, Session-Token im localStorage
+// ════════════════════════════════════════════════════════
+var supaAuthClient = null;
+var supaSession    = null;
+
+function initSupaAuth() {
+  if (typeof window.supabase === 'undefined') {
+    console.error('[Auth] Supabase SDK nicht geladen');
+    return;
+  }
+  supaAuthClient = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
+    auth: {
+      persistSession:    true,
+      autoRefreshToken:  true,
+      detectSessionInUrl: false,
+      storageKey: 'mps_supabase_auth'
+    }
+  });
+
+  // Beim Start: vorhandene Session prüfen
+  supaAuthClient.auth.getSession().then(function(result) {
+    var session = result.data && result.data.session;
+    if (session) {
+      supaSession = session;
+      onLoginSuccess(session);
+    } else {
+      showLoginScreen();
+    }
+  });
+
+  // Auth-State-Listener
+  supaAuthClient.auth.onAuthStateChange(function(event, session) {
+    if (event === 'SIGNED_IN' && session) {
+      supaSession = session;
+      onLoginSuccess(session);
+    }
+    if (event === 'SIGNED_OUT') {
+      supaSession = null;
+      showLoginScreen();
+    }
+    if (event === 'TOKEN_REFRESHED' && session) {
+      supaSession = session;
+    }
+  });
+}
+
+function onLoginSuccess(session) {
+  var ls = document.getElementById('login-screen');
+  if (ls) ls.style.display = 'none';
+  // Login-Info im Daten-Tab aktualisieren
+  var infoEl = document.getElementById('login-info');
+  if (infoEl) {
+    infoEl.textContent = '⚔ Eingeloggt als: ' + (session.user.email || '–');
+  }
+}
+
+function showLoginScreen() {
+  var ls = document.getElementById('login-screen');
+  if (ls) ls.style.display = 'flex';
+}
+
+function doLogin() {
+  var email  = (document.getElementById('login-email').value || '').trim();
+  var pw     = document.getElementById('login-pw').value || '';
+  var errEl  = document.getElementById('login-error');
+  var btn    = document.getElementById('login-btn');
+  var load   = document.getElementById('login-loading');
+
+  errEl.style.display = 'none';
+
+  if (!email || !pw) {
+    errEl.textContent = 'Bitte E-Mail und Passwort eingeben.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!supaAuthClient) {
+    errEl.textContent = 'Verbindung nicht bereit – bitte kurz warten.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '…';
+  load.style.display = 'block';
+
+  supaAuthClient.auth.signInWithPassword({ email: email, password: pw })
+    .then(function(result) {
+      btn.disabled = false;
+      btn.textContent = '⚔ Einloggen';
+      load.style.display = 'none';
+
+      if (result.error) {
+        var msg = result.error.message || '';
+        var anzeige = 'Anmeldung fehlgeschlagen.';
+        if (msg.indexOf('Invalid login') >= 0 || msg.indexOf('invalid_credentials') >= 0 || msg.indexOf('Invalid') >= 0) {
+          anzeige = 'E-Mail oder Passwort falsch.';
+        } else if (msg.indexOf('Email not confirmed') >= 0) {
+          anzeige = 'E-Mail-Adresse noch nicht bestätigt.';
+        } else if (msg.indexOf('Too many') >= 0) {
+          anzeige = 'Zu viele Versuche – bitte kurz warten.';
+        }
+        errEl.textContent = anzeige;
+        errEl.style.display = 'block';
+        return;
+      }
+      // Erfolg → onAuthStateChange übernimmt
+      document.getElementById('login-email').value = '';
+      document.getElementById('login-pw').value = '';
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      btn.textContent = '⚔ Einloggen';
+      load.style.display = 'none';
+      errEl.textContent = 'Netzwerkfehler – bitte Verbindung prüfen.';
+      errEl.style.display = 'block';
+    });
+}
+
+function doPasswordReset() {
+  var email = (document.getElementById('login-email').value || '').trim();
+  var errEl = document.getElementById('login-error');
+  if (!email) {
+    errEl.textContent = 'Bitte zuerst die E-Mail-Adresse eingeben.';
+    errEl.style.display = 'block';
+    return;
+  }
+  supaAuthClient.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.href
+  }).then(function(result) {
+    if (result.error) {
+      errEl.style.background = 'rgba(139,26,26,0.1)';
+      errEl.style.color = 'var(--cr)';
+      errEl.style.borderColor = 'var(--cr)';
+      errEl.textContent = 'Fehler: ' + result.error.message;
+    } else {
+      errEl.style.background = 'rgba(45,80,22,0.1)';
+      errEl.style.color = 'var(--fo)';
+      errEl.style.borderColor = 'var(--fo)';
+      errEl.textContent = '✓ Reset-Link wurde an ' + email + ' gesendet.';
+    }
+    errEl.style.display = 'block';
+  });
+}
+
+function doLogout() {
+  if (!supaAuthClient) return;
+  if (!confirm('Wirklich ausloggen?')) return;
+  supaAuthClient.auth.signOut();
+}
+
+// Auth starten sobald DOM bereit
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(initSupaAuth, 150);
+});
+
+// ════════════════════════════════════════════════════════
 "use strict";
 
 // ════════════════════════════════════════════════════════
@@ -1536,12 +1732,13 @@ function setSyncStatus(fehler){
 
 function supaRequest(tabelle, zeilen, onConflict){
   if(!zeilen || !zeilen.length) return Promise.resolve();
+  var authToken = (supaSession && supaSession.access_token) ? supaSession.access_token : SUPA_KEY;
   return fetch(SUPA_URL + '/rest/v1/' + tabelle + '?on_conflict=' + onConflict, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'apikey': SUPA_KEY,
-      'Authorization': 'Bearer ' + SUPA_KEY,
+      'Authorization': 'Bearer ' + authToken,
       'Prefer': 'resolution=merge-duplicates'
     },
     body: JSON.stringify(zeilen)
@@ -1555,8 +1752,9 @@ function supaRequest(tabelle, zeilen, onConflict){
 // bei vielen (> LOESCH_SCHWELLE) oder kompletter Tabellen-Leerung erst Rückfrage.
 var LOESCH_SCHWELLE = 20;
 function supaAbgleich(tabelle, aktuelleLokaleIds){
+  var authToken2 = (supaSession && supaSession.access_token) ? supaSession.access_token : SUPA_KEY;
   return fetch(SUPA_URL + '/rest/v1/' + tabelle + '?select=lokale_id', {
-    headers: {'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY}
+    headers: {'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + authToken2}
   }).then(function(res){
     if(!res.ok) return res.text().then(function(t){throw new Error('GET '+tabelle+': '+res.status+' '+t)});
     return res.json();
@@ -3935,7 +4133,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v3.8 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v3.9 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
