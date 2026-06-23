@@ -492,7 +492,7 @@ h1.print-title,.print-meta{display:none}
     <div id="login-loading" style="display:none;text-align:center;margin-top:14px">
       <span style="font-family:'IM Fell English',serif;font-style:italic;font-size:13px;color:var(--im)">Zugang wird geprüft…</span>
     </div>
-    <div style="text-align:center;margin-top:20px;font-family:'Crimson Text',serif;font-size:11px;color:var(--if)">v4.3 · Marktfahrer App</div>
+    <div style="text-align:center;margin-top:20px;font-family:'Crimson Text',serif;font-size:11px;color:var(--if)">v4.4 · Marktfahrer App</div>
   </div>
 </div>
 <!-- ENDE LOGIN-SCREEN -->
@@ -502,7 +502,7 @@ h1.print-title,.print-meta{display:none}
     <div class="page-hdr">
       <span class="sync-icon" id="sync-icon-start" title="Synchronisation mit Datenbank">☁</span>
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v4.3</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v4.4</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -2071,6 +2071,8 @@ function supaGet(tabelle, select) {
 // Baut aus Supabase-Rohdaten den vollständigen App-State
 function ladeAusSupabase() {
   setSyncLaden(true);
+  // Bestehenden Sync-Timer canceln – kein Abgleich während des Ladens
+  if(syncTimer){ clearTimeout(syncTimer); syncTimer=null; }
   var maerkteRaw, kassRaw, buchRaw, stundenRaw;
 
   return supaGet('maerkte', 'id,lokale_id,name,ort,datum_von,datum_bis,status')
@@ -2269,7 +2271,10 @@ function ladeAusSupabase() {
       setSyncLaden(false);
       setSyncStatus(false);
       console.log('Stufe 3: Aus Supabase geladen – ' + maerkte.length + ' Märkte, ' +
-        kassungen.length + ' Kassierungen, ' + buchungen.length + ' Buchungen');
+        kassungen.length + ' Kassierungen, ' + buchungen.length + ' Buchungen, ' +
+        eintraege.length + ' Einträge');
+      // Frischen Sync anstoßen – jetzt mit konsistenten IDs, kein Risiko
+      syncVerzoegert();
       return state;
     })
     .catch(function(err) {
@@ -2278,6 +2283,8 @@ function ladeAusSupabase() {
       console.log('Supabase-Laden fehlgeschlagen:', err);
       // Auch bei Fehler Flag setzen – localStorage-Daten sind dann die Basis
       supabaseLadeAbgeschlossen = true;
+      // Frischen Sync mit localStorage-Daten anstoßen
+      syncVerzoegert();
       return null; // null = Fehler, App arbeitet mit localStorage weiter
     });
 }
@@ -4402,7 +4409,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v4.3 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v4.4 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
