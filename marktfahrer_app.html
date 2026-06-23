@@ -492,7 +492,7 @@ h1.print-title,.print-meta{display:none}
     <div id="login-loading" style="display:none;text-align:center;margin-top:14px">
       <span style="font-family:'IM Fell English',serif;font-style:italic;font-size:13px;color:var(--im)">Zugang wird geprüft…</span>
     </div>
-    <div style="text-align:center;margin-top:20px;font-family:'Crimson Text',serif;font-size:11px;color:var(--if)">v4.2 · Marktfahrer App</div>
+    <div style="text-align:center;margin-top:20px;font-family:'Crimson Text',serif;font-size:11px;color:var(--if)">v4.3 · Marktfahrer App</div>
   </div>
 </div>
 <!-- ENDE LOGIN-SCREEN -->
@@ -502,7 +502,7 @@ h1.print-title,.print-meta{display:none}
     <div class="page-hdr">
       <span class="sync-icon" id="sync-icon-start" title="Synchronisation mit Datenbank">☁</span>
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v4.2</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v4.3</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -1722,6 +1722,10 @@ var SUPA_URL = 'https://bbfpkxgjxxppqovauneh.supabase.co';
 var SUPA_KEY = 'sb_publishable__2Ui6Sw3W5DYEw8--GUaFw_l0m8Dseq';
 var syncInProgress = false;
 var syncTimer = null;
+// Stufe 3: Solange der initiale Supabase-Ladevorgang noch läuft oder
+// noch nicht stattgefunden hat, wird supaAbgleich (destruktives Löschen)
+// blockiert – nur Upserts sind erlaubt.
+var supabaseLadeAbgeschlossen = false;
 
 function setSyncStatus(fehler){
   ['sync-icon-start','sync-icon-detail'].forEach(function(id){
@@ -1754,6 +1758,11 @@ function supaRequest(tabelle, zeilen, onConflict){
 // bei vielen (> LOESCH_SCHWELLE) oder kompletter Tabellen-Leerung erst Rückfrage.
 var LOESCH_SCHWELLE = 20;
 function supaAbgleich(tabelle, aktuelleLokaleIds){
+  // Stufe 3: Kein destruktiver Abgleich bevor initiales Laden aus Supabase abgeschlossen ist.
+  // Verhindert Massenlöschungen nach Backup-Import oder leerem localStorage.
+  if(!supabaseLadeAbgeschlossen){
+    return Promise.resolve(0);
+  }
   var authToken2 = (supaSession && supaSession.access_token) ? supaSession.access_token : SUPA_KEY;
   return fetch(SUPA_URL + '/rest/v1/' + tabelle + '?select=lokale_id', {
     headers: {'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + authToken2}
@@ -2254,6 +2263,9 @@ function ladeAusSupabase() {
       cleanOrphanedAutoEC(state);
       try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e) {}
 
+      // Ab jetzt darf supaAbgleich laufen – IDs sind konsistent
+      supabaseLadeAbgeschlossen = true;
+
       setSyncLaden(false);
       setSyncStatus(false);
       console.log('Stufe 3: Aus Supabase geladen – ' + maerkte.length + ' Märkte, ' +
@@ -2264,6 +2276,8 @@ function ladeAusSupabase() {
       setSyncLaden(false);
       setSyncStatus(true);
       console.log('Supabase-Laden fehlgeschlagen:', err);
+      // Auch bei Fehler Flag setzen – localStorage-Daten sind dann die Basis
+      supabaseLadeAbgeschlossen = true;
       return null; // null = Fehler, App arbeitet mit localStorage weiter
     });
 }
@@ -4388,7 +4402,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v4.2 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v4.3 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
