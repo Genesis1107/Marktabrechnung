@@ -492,7 +492,7 @@ h1.print-title,.print-meta{display:none}
     <div id="login-loading" style="display:none;text-align:center;margin-top:14px">
       <span style="font-family:'IM Fell English',serif;font-style:italic;font-size:13px;color:var(--im)">Zugang wird geprüft…</span>
     </div>
-    <div style="text-align:center;margin-top:20px;font-family:'Crimson Text',serif;font-size:11px;color:var(--if)">v4.1 · Marktfahrer App</div>
+    <div style="text-align:center;margin-top:20px;font-family:'Crimson Text',serif;font-size:11px;color:var(--if)">v4.2 · Marktfahrer App</div>
   </div>
 </div>
 <!-- ENDE LOGIN-SCREEN -->
@@ -502,7 +502,7 @@ h1.print-title,.print-meta{display:none}
     <div class="page-hdr">
       <span class="sync-icon" id="sync-icon-start" title="Synchronisation mit Datenbank">☁</span>
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v4.1</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v4.2</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -646,6 +646,7 @@ h1.print-title,.print-meta{display:none}
         <div class="sec">Marktdaten</div>
         <div class="card">
           <div class="form-row">
+            <div class="field"><label>PLZ</label><input type="text" id="p-plz" placeholder="z.B. 26180" maxlength="5" inputmode="numeric" oninput="savePlanungField()"></div>
             <div class="field"><label>Ort / Region</label><input type="text" id="p-region" placeholder="z.B. Bayern" oninput="savePlanungField()"></div>
             <div class="field"><label>Dauer (Tage)</label><input type="number" id="p-dauer" min="1" max="30" placeholder="3" oninput="savePlanungField()"></div>
           </div>
@@ -2143,29 +2144,49 @@ function ladeAusSupabase() {
           var numId = parseInt(lokalId.replace(/^k/, ''), 10) || nextKasseId;
           nextKasseId = Math.max(nextKasseId, numId + 1);
           var stk = r.stueckelung || {};
+          var barSumme = parseFloat(r.bar_summe) || 0;
           kassungen.push({
             id: numId,
             marktId: marktId,
             datum: r.datum,
             kutsche: r.stand || 'K1',
-            istBestand: (parseFloat(r.bar_summe) || 0),
+            typ: 'abschluss',        // Supabase speichert nur Abschlüsse
+            istBestand: barSumme,    // anfang=0, bar_summe = istBestand - anfang
             anfang: 0,
+            muenzen: 0,
+            scheine: barSumme,
             coins: stk.coins || {},
             bills: stk.bills || {},
             notiz: r.notiz || '',
             modus: 'zaehlen'
           });
-        } else {
-          // Schnellerfassung → eintrag
-          var numIdE = parseInt(lokalId.replace(/^e/, ''), 10) || nextEintragId;
-          nextEintragId = Math.max(nextEintragId, numIdE + 1);
+          // Eintrag (Chronik) aus Zählung ableiten – EC aus Buchungen später nicht verfügbar,
+          // daher ec=0 als Startwert; wird bei "In Chronik übertragen" korrekt gesetzt
+          var numIdE = nextEintragId++;
+          var jahrNum = parseInt(r.datum.slice(0, 4), 10);
           eintraege.push({
             id: numIdE,
             marktId: marktId,
             datum: r.datum,
             kutsche: r.stand || 'K1',
+            bar: barSumme,
+            ec: parseFloat(r.ec_summe) || 0,
+            jahr: jahrNum,
+            modus: 'zaehlen'
+          });
+        } else {
+          // Schnellerfassung → eintrag
+          var numIdSchnell = parseInt(lokalId.replace(/^e/, ''), 10) || nextEintragId;
+          nextEintragId = Math.max(nextEintragId, numIdSchnell + 1);
+          var jahrSchnell = parseInt(r.datum.slice(0, 4), 10);
+          eintraege.push({
+            id: numIdSchnell,
+            marktId: marktId,
+            datum: r.datum,
+            kutsche: r.stand || 'K1',
             bar: parseFloat(r.bar_summe) || 0,
             ec: parseFloat(r.ec_summe) || 0,
+            jahr: jahrSchnell,
             modus: 'schnell'
           });
         }
@@ -3001,6 +3022,7 @@ function renderPlanung(){
   el('status-flow').innerHTML=sfHtml;
 
   // Felder
+  el('p-plz').value=m.plz||'';
   el('p-region').value=p.region||'';
   el('p-dauer').value=p.dauer||'';
   el('p-km-minden').value=p.kmMinden||'';
@@ -3196,6 +3218,7 @@ function savePlanungField(){
   var m=findMarkt(activeMarktId);
   if(!m)return;
   if(!m.planung)m.planung={};
+  m.plz=el('p-plz').value.trim();
   m.planung.region=el('p-region').value;
   m.planung.dauer=el('p-dauer').value;
   m.planung.kmMinden=el('p-km-minden').value;
@@ -4365,7 +4388,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v4.1 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v4.2 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
