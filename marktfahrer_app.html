@@ -492,7 +492,7 @@ h1.print-title,.print-meta{display:none}
     <div id="login-loading" style="display:none;text-align:center;margin-top:14px">
       <span style="font-family:'IM Fell English',serif;font-style:italic;font-size:13px;color:var(--im)">Zugang wird geprüft…</span>
     </div>
-    <div style="text-align:center;margin-top:20px;font-family:'Crimson Text',serif;font-size:11px;color:var(--if)">v3.9 · Marktfahrer App</div>
+    <div style="text-align:center;margin-top:20px;font-family:'Crimson Text',serif;font-size:11px;color:var(--if)">v4.0 · Marktfahrer App</div>
   </div>
 </div>
 <!-- ENDE LOGIN-SCREEN -->
@@ -502,7 +502,7 @@ h1.print-title,.print-meta{display:none}
     <div class="page-hdr">
       <span class="sync-icon" id="sync-icon-start" title="Synchronisation mit Datenbank">☁</span>
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v3.9</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v4.0</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -1219,7 +1219,11 @@ h1.print-title,.print-meta{display:none}
   </div>
   <div class="content" style="padding-bottom:40px">
     <div class="form-row">
-      <div class="field"><label>Markt</label><select id="st-markt" onchange="onStundenMarktChange()"></select></div>
+      <div class="field" style="flex:2">
+        <label>Markt</label>
+        <input type="text" id="st-markt-suche" placeholder="Markt suchen…" oninput="onStundenSuche()" autocomplete="off" style="margin-bottom:4px">
+        <select id="st-markt" onchange="onStundenMarktChange()" size="1"></select>
+      </div>
       <div class="field"><label>Saison</label><select id="st-saison" onchange="renderStundenTage()"></select></div>
     </div>
     <div id="st-summary" class="card" style="display:none">
@@ -1397,6 +1401,7 @@ h1.print-title,.print-meta{display:none}
     <div class="modal-sub">Marktchronik anlegen</div>
     <div class="rd"></div>
     <div class="field" style="margin-bottom:10px"><label>Marktname</label><input type="text" id="m-name" placeholder="z.B. Rastede"></div>
+    <div class="field" style="margin-bottom:10px"><label>Postleitzahl</label><input type="text" id="m-plz" placeholder="z.B. 26180" maxlength="5" inputmode="numeric"></div>
     <div class="field" style="margin-bottom:10px"><label>Region / Ort</label><input type="text" id="m-region-modal" placeholder="z.B. Niedersachsen"></div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="closeModal('modal-markt')">Abbrechen</button>
@@ -1631,7 +1636,7 @@ var CHECKLISTE = {
   beworben:     ['Bewerbung abgeschickt','Termin im Kalender blocken'],
   akzeptiert:   ['Zusage erhalten','Vertrag unterzeichnet','Termin aktiviert'],
   vorbereitung: ['Personal einplanen','Bestellung der Ware'],
-  aktiv:        ['Fahrzeug laden','Tägliche Kassenzählung','Marktabschluss nach letztem Markttag','Daten in Chronik übertragen']
+  aktiv:        ['Fahrzeug laden','Tägliche Kassenzählung','Marktabschluss nach letztem Markttag','Daten in Chronik übertragen','Stunden vollständig erfasst']
 };
 
 var COINS = [
@@ -2420,6 +2425,15 @@ function fmtDatumKurz(iso){
   return p[2]+'.'+p[1]+'.';
 }
 
+function openMaps(query){
+  // iOS: Apple Maps, sonst Google Maps
+  var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+  var url=isIOS
+    ?'maps://?q='+query
+    :'https://www.google.com/maps/search/?api=1&query='+query;
+  window.open(url,'_blank');
+}
+
 function toggleFavorit(event,id){
   event.stopPropagation();
   var m=findMarkt(id);
@@ -2445,6 +2459,11 @@ function marktKachelHTML(m){
   var favAktiv=m.favorit?'★':'☆';
   var favColor=m.favorit?'var(--go)':'rgba(168,134,90,.4)';
   var warnung=marktHatErinnerung(m)?'<span style="color:var(--cr);font-size:0.9rem" title="Offene Aufgabe vor Marktstart">⚠</span>':'';
+  var mapsLink='';
+  if(m.plz||((m.planung&&m.planung.region)||m.region)){
+    var mapsQuery=encodeURIComponent((m.plz?m.plz+' ':'')+m.name+' '+(((m.planung&&m.planung.region)||m.region)||''));
+    mapsLink='<button onclick="event.stopPropagation();openMaps(\''+mapsQuery+'\')" style="background:none;border:1px solid var(--pd);border-radius:2px;cursor:pointer;color:var(--im);font-family:Cinzel,serif;font-size:9px;letter-spacing:1px;padding:3px 7px;line-height:1.4" title="In Maps öffnen">📍 Maps</button>';
+  }
   return '<div class="markt-card" style="--cc:'+m.color+'" data-g="'+m.glyph+'" onclick="openMarkt('+m.id+')">'
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">'
     +'<div class="mc-name" style="flex:1;min-width:0">'+esc(m.name)+'</div>'
@@ -2459,6 +2478,7 @@ function marktKachelHTML(m){
     +'<div><div class="mcs-l">Start</div><div class="mcs-v">'+datumTxt+'</div></div>'
     +'</div>'
     +'<div class="mc-footer"><span class="mc-status '+stCls+'">'+esc(stLabel)+'</span>'
+    +(mapsLink?mapsLink:'')
     +'<span style="color:'+m.color+';font-family:Cinzel,serif;font-size:11px;letter-spacing:1px">Öffnen →</span></div>'
     +'</div>';
 }
@@ -2645,17 +2665,18 @@ function renderPhasen(liste){
 }
 
 function openNewMarktModal(){
-  el('m-name').value=''; el('m-region-modal').value='';
+  el('m-name').value=''; el('m-plz').value=''; el('m-region-modal').value='';
   openModal('modal-markt');
 }
 
 function createMarkt(){
   var name=el('m-name').value.trim();
+  var plz=el('m-plz').value.trim();
   var region=el('m-region-modal').value.trim();
   if(!name){toast('⚠ Bitte Namen eingeben');return}
   var idx=state.maerkte.length%COLORS.length;
   state.maerkte.push({
-    id:state.nextMarktId++,name:name,region:region,
+    id:state.nextMarktId++,name:name,plz:plz,region:region,
     saisons:{},bestellungen:{},stunden:{},kutschen:['K1'],color:COLORS[idx],glyph:GLYPHS[idx],
     createdAt:new Date().toISOString(),
     planung:{status:'interessent',region:region,dauer:'',kmMinden:'',kmSk:'',veranstalter:'',datumVon:'',datumBis:'',checklist:{}}
@@ -4129,7 +4150,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v3.9 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v4.0 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
@@ -4304,17 +4325,60 @@ function getStunden(m,jahr){
   return m.stunden[key];
 }
 
-function openStunden(){
-  el('screen-stunden').style.display='block';
+function stundenMarktGesperrt(m){
+  // Gesperrt wenn Checklisten-Punkt "Stunden vollständig erfasst" abgehakt
+  var cl=m.planung&&m.planung.checklist||{};
+  var key='aktiv::Stunden vollständig erfasst';
+  return !!cl[key];
+}
+
+function stundenMarktOptionen(suchtext){
+  var q=(suchtext||'').toLowerCase().trim();
+  return state.maerkte.filter(function(m){
+    if(stundenMarktGesperrt(m))return false;
+    if(!q)return true;
+    return m.name.toLowerCase().indexOf(q)>=0||
+      ((m.planung&&m.planung.region)||m.region||'').toLowerCase().indexOf(q)>=0||
+      (m.plz||'').indexOf(q)>=0;
+  });
+}
+
+function fuelleStundenSelect(suchtext){
   var sel=el('st-markt');
-  if(!state.maerkte.length){
-    sel.innerHTML='<option value="">Keine Märkte</option>';
-    el('st-tage').innerHTML='<div class="empty-state">Erst Märkte anlegen.</div>';
+  var liste=stundenMarktOptionen(suchtext);
+  if(!liste.length){
+    sel.innerHTML='<option value="">Keine Märkte gefunden</option>';
     return;
   }
-  sel.innerHTML=state.maerkte.map(function(m){return'<option value="'+m.id+'">'+esc(m.name)+'</option>'}).join('');
-  stundenMarktId=state.maerkte[0].id;
-  sel.value=stundenMarktId;
+  var aktuelleId=stundenMarktId;
+  sel.innerHTML=liste.map(function(m){
+    return '<option value="'+m.id+'"'+(m.id===aktuelleId?' selected':'')+'>'+esc(m.name)+(m.plz?' ('+m.plz+')':'')+'</option>';
+  }).join('');
+  // Falls aktuell gewählter Markt nicht mehr in gefilterter Liste → ersten nehmen
+  if(!liste.find(function(m){return m.id===aktuelleId;})){
+    stundenMarktId=liste[0].id;
+    sel.value=stundenMarktId;
+  }
+}
+
+function onStundenSuche(){
+  var q=el('st-markt-suche').value;
+  fuelleStundenSelect(q);
+  onStundenMarktChange();
+}
+
+function openStunden(){
+  el('screen-stunden').style.display='block';
+  el('st-markt-suche').value='';
+  var liste=stundenMarktOptionen('');
+  if(!liste.length){
+    el('st-markt').innerHTML='<option value="">Keine Märkte verfügbar</option>';
+    el('st-tage').innerHTML='<div class="empty-state">Alle Märkte gesperrt oder keine vorhanden.</div>';
+    return;
+  }
+  fuelleStundenSelect('');
+  stundenMarktId=liste[0].id;
+  el('st-markt').value=stundenMarktId;
   onStundenMarktChange();
 }
 function closeStunden(){el('screen-stunden').style.display='none';}
