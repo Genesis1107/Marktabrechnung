@@ -492,7 +492,7 @@ h1.print-title,.print-meta{display:none}
     <div id="login-loading" style="display:none;text-align:center;margin-top:14px">
       <span style="font-family:'IM Fell English',serif;font-style:italic;font-size:13px;color:var(--im)">Zugang wird geprüft…</span>
     </div>
-    <div style="text-align:center;margin-top:20px;font-family:'Crimson Text',serif;font-size:11px;color:var(--if)">v4.0 · Marktfahrer App</div>
+    <div style="text-align:center;margin-top:20px;font-family:'Crimson Text',serif;font-size:11px;color:var(--if)">v4.1 · Marktfahrer App</div>
   </div>
 </div>
 <!-- ENDE LOGIN-SCREEN -->
@@ -502,7 +502,7 @@ h1.print-title,.print-meta{display:none}
     <div class="page-hdr">
       <span class="sync-icon" id="sync-icon-start" title="Synchronisation mit Datenbank">☁</span>
       <h1>⚜ Marktfahrer</h1>
-      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v4.0</span></div>
+      <div class="sub">Beerenweine · Marktchronik · <span style="opacity:.7">v4.1</span></div>
     </div>
     <!-- Märkte-Ansicht -->
     <div id="view-maerkte">
@@ -2040,6 +2040,221 @@ function syncVerzoegert(){
   // Sammelt mehrere schnelle saveData()-Aufrufe zu einem Sync-Versuch
   if(syncTimer) clearTimeout(syncTimer);
   syncTimer = setTimeout(syncAlleMaerkte, 1500);
+}
+
+// ════════════════════════════════════════════════════════
+//  STUFE 3: AUS SUPABASE LESEN
+// ════════════════════════════════════════════════════════
+
+// Hilfsfunktion: GET einer Supabase-Tabelle mit optionalem Select
+function supaGet(tabelle, select) {
+  var authToken = (supaSession && supaSession.access_token) ? supaSession.access_token : SUPA_KEY;
+  var url = SUPA_URL + '/rest/v1/' + tabelle + '?select=' + (select || '*') + '&limit=10000';
+  return fetch(url, {
+    headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + authToken }
+  }).then(function(res) {
+    if (!res.ok) return res.text().then(function(t) { throw new Error('GET ' + tabelle + ': ' + res.status + ' ' + t); });
+    return res.json();
+  });
+}
+
+// Baut aus Supabase-Rohdaten den vollständigen App-State
+function ladeAusSupabase() {
+  setSyncLaden(true);
+  var maerkteRaw, kassRaw, buchRaw, stundenRaw;
+
+  return supaGet('maerkte', 'id,lokale_id,name,ort,datum_von,datum_bis,status')
+    .then(function(rows) {
+      maerkteRaw = rows;
+      return supaGet('kassierungen', 'lokale_id,markt_id,datum,stand,bar_summe,ec_summe,stueckelung,modus,notiz');
+    })
+    .then(function(rows) {
+      kassRaw = rows;
+      return supaGet('buchungen', 'lokale_id,markt_id,typ,datum,stand,bezeichnung,betrag,zahlung,kategorie,auto_ec');
+    })
+    .then(function(rows) {
+      buchRaw = rows;
+      return supaGet('stunden', 'lokale_id,markt_id,datum,mitarbeiter_name,stunden');
+    })
+    .then(function(rows) {
+      stundenRaw = rows;
+
+      // UUID → lokale_id Map für Märkte
+      var uuidZuLokalId = {};
+      maerkteRaw.forEach(function(r) { uuidZuLokalId[r.id] = r.lokale_id; });
+
+      // Märkte aufbauen – bestehende localStorage-Objekte erhalten (Planung, Bestellungen etc.)
+      // Supabase liefert nur die Basisdaten; alles andere kommt aus localStorage falls vorhanden
+      var lsRaw = null;
+      try { lsRaw = JSON.parse(localStorage.getItem(LS_KEY)); } catch(e) {}
+      var lsMaerkte = (lsRaw && Array.isArray(lsRaw.maerkte)) ? lsRaw.maerkte : [];
+      var lsMap = {};
+      lsMaerkte.forEach(function(m) { lsMap[String(m.id)] = m; });
+
+      var maerkte = maerkteRaw.map(function(r) {
+        var lokalId = r.lokale_id;
+        var vorhandener = lsMap[lokalId] || {};
+        return Object.assign({
+          id: parseInt(lokalId, 10) || lokalId,
+          name: r.name,
+          region: r.ort || '',
+          saisons: {},
+          bestellungen: {},
+          stunden: {},
+          kutschen: ['K1'],
+          color: '#8b1a1a',
+          glyph: '⚔',
+          createdAt: new Date().toISOString(),
+          planung: {
+            status: r.status || 'interessent',
+            region: r.ort || '',
+            dauer: '', kmMinden: '', kmSk: '', veranstalter: '',
+            datumVon: r.datum_von || '',
+            datumBis: r.datum_bis || '',
+            checklist: {}
+          }
+        }, vorhandener, {
+          // Supabase-Felder überschreiben immer (aktuellste Daten)
+          name: r.name,
+          _supaId: r.id  // UUID für spätere Lookups merken
+        });
+      });
+
+      // UUID → Markt-Objekt Map
+      var uuidZuMarkt = {};
+      maerkte.forEach(function(m) {
+        if (m._supaId) uuidZuMarkt[m._supaId] = m;
+      });
+
+      // Kassierungen → kassungen + eintraege aufteilen
+      var kassungen = [];
+      var eintraege = [];
+      var nextKasseId = 1;
+      var nextEintragId = 1;
+
+      kassRaw.forEach(function(r) {
+        var markt = uuidZuMarkt[r.markt_id];
+        if (!markt) return;
+        var marktId = markt.id;
+        var lokalId = r.lokale_id;
+
+        if (r.modus === 'zaehlen' || (!r.modus && r.stueckelung)) {
+          // Zählung → kassung
+          var numId = parseInt(lokalId.replace(/^k/, ''), 10) || nextKasseId;
+          nextKasseId = Math.max(nextKasseId, numId + 1);
+          var stk = r.stueckelung || {};
+          kassungen.push({
+            id: numId,
+            marktId: marktId,
+            datum: r.datum,
+            kutsche: r.stand || 'K1',
+            istBestand: (parseFloat(r.bar_summe) || 0),
+            anfang: 0,
+            coins: stk.coins || {},
+            bills: stk.bills || {},
+            notiz: r.notiz || '',
+            modus: 'zaehlen'
+          });
+        } else {
+          // Schnellerfassung → eintrag
+          var numIdE = parseInt(lokalId.replace(/^e/, ''), 10) || nextEintragId;
+          nextEintragId = Math.max(nextEintragId, numIdE + 1);
+          eintraege.push({
+            id: numIdE,
+            marktId: marktId,
+            datum: r.datum,
+            kutsche: r.stand || 'K1',
+            bar: parseFloat(r.bar_summe) || 0,
+            ec: parseFloat(r.ec_summe) || 0,
+            modus: 'schnell'
+          });
+        }
+      });
+
+      // Buchungen aufbauen
+      var buchungen = [];
+      var nextBuchId = 1;
+      buchRaw.forEach(function(r) {
+        var markt = uuidZuMarkt[r.markt_id];
+        if (!markt) return;
+        var numId = parseInt(r.lokale_id, 10) || nextBuchId;
+        nextBuchId = Math.max(nextBuchId, numId + 1);
+        buchungen.push({
+          id: numId,
+          marktId: markt.id,
+          typ: r.typ,
+          datum: r.datum,
+          kutsche: r.stand || 'K1',
+          bezeichnung: r.bezeichnung || '',
+          betrag: parseFloat(r.betrag) || 0,
+          zahlung: r.zahlung || 'bar',
+          kategorie: r.kategorie || '',
+          autoEC: !!r.auto_ec
+        });
+      });
+
+      // Stunden in Markt-Objekte einbauen
+      stundenRaw.forEach(function(r) {
+        var markt = uuidZuMarkt[r.markt_id];
+        if (!markt) return;
+        var jahr = r.datum ? r.datum.slice(0, 4) : String(new Date().getFullYear());
+        if (!markt.stunden) markt.stunden = {};
+        if (!Array.isArray(markt.stunden[jahr])) markt.stunden[jahr] = [];
+        markt.stunden[jahr].push({
+          id: r.lokale_id,
+          datum: r.datum,
+          mitarbeiter: r.mitarbeiter_name,
+          stunden: parseFloat(r.stunden) || 0
+        });
+      });
+
+      // _supaId aufräumen (internes Hilfsfeld)
+      maerkte.forEach(function(m) { delete m._supaId; });
+
+      // Höchste IDs ermitteln
+      var maxMarktId = maerkte.reduce(function(mx, m) {
+        var n = parseInt(m.id, 10); return (n > mx ? n : mx);
+      }, 0);
+
+      var neuerState = {
+        maerkte: maerkte,
+        eintraege: eintraege,
+        kassungen: kassungen,
+        buchungen: buchungen,
+        nextMarktId: maxMarktId + 1,
+        nextEintragId: nextEintragId,
+        nextKasseId: nextKasseId,
+        nextBuchId: nextBuchId
+      };
+
+      // State übernehmen + localStorage aktualisieren
+      state = neuerState;
+      migrateSaisons(state);
+      cleanOrphanedAutoEC(state);
+      try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e) {}
+
+      setSyncLaden(false);
+      setSyncStatus(false);
+      console.log('Stufe 3: Aus Supabase geladen – ' + maerkte.length + ' Märkte, ' +
+        kassungen.length + ' Kassierungen, ' + buchungen.length + ' Buchungen');
+      return state;
+    })
+    .catch(function(err) {
+      setSyncLaden(false);
+      setSyncStatus(true);
+      console.log('Supabase-Laden fehlgeschlagen:', err);
+      return null; // null = Fehler, App arbeitet mit localStorage weiter
+    });
+}
+
+// Setzt den Lade-Indikator (🟡 während Supabase lädt)
+function setSyncLaden(aktiv) {
+  ['sync-icon-start', 'sync-icon-detail'].forEach(function(id) {
+    var elx = document.getElementById(id);
+    if (!elx) return;
+    elx.textContent = aktiv ? '🟡' : '☁';
+    elx.title = aktiv ? 'Lade aktuelle Daten…' : 'Synchronisation mit Datenbank aktiv';
+  });
 }
 
 function diagnoseKassierungDuplikate(){
@@ -4150,7 +4365,7 @@ function exportPDF(){
 
   // Footer
   html+='<div style="border-top:1px solid #c9b07a;margin-top:16px;padding-top:8px;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:10px;color:#a8865a">'
-    +'Marktfahrer App · Beerenweine · v4.0 · Erstellt am '+fmtDate(todayISO())
+    +'Marktfahrer App · Beerenweine · v4.1 · Erstellt am '+fmtDate(todayISO())
     +'</div>';
 
   // In Modal einfügen und öffnen
@@ -4225,14 +4440,27 @@ function importBackup(event){
       if(typeof imported.nextBuchId!=='number')imported.nextBuchId=imported.buchungen.length+1;
       state=imported;
       migrateSaisons(state);
-      saveData();
       // Katalog mit importieren falls vorhanden
       if(data.katalog&&Array.isArray(data.katalog)&&data.katalog.length){
         katalog=data.katalog;
         saveKatalog();
       }
-      renderDatenPage();
-      toast('✓ '+state.maerkte.length+' Märkte, '+state.eintraege.length+' Einträge geladen');
+      // Stufe 3: Nach Import sofort aus Supabase laden statt destruktiven Sync zu riskieren
+      // Supabase ist die Wahrheit – localStorage-Import nur als Fallback wenn Supabase nicht erreichbar
+      toast('Backup eingelesen – lade aktuelle Daten aus Datenbank…');
+      ladeAusSupabase().then(function(geladen){
+        if(geladen){
+          renderMarktGrid();
+          renderDatenPage();
+          toast('✓ Daten aus Datenbank geladen ('+state.maerkte.length+' Märkte)');
+        } else {
+          // Supabase nicht erreichbar → Backup-Daten verwenden
+          try{localStorage.setItem(LS_KEY,JSON.stringify(state))}catch(ex){}
+          renderMarktGrid();
+          renderDatenPage();
+          toast('✓ '+state.maerkte.length+' Märkte aus Backup geladen (Offline-Modus)');
+        }
+      });
     }catch(err){
       toast('⚠ Import fehlgeschlagen: '+err.message);
     }
@@ -5461,7 +5689,25 @@ document.addEventListener('DOMContentLoaded',function(){
   showStartTab('maerkte');
 
   // Supabase Auth initialisieren (alle Variablen sind jetzt definiert)
-  setTimeout(initSupaAuth, 200);
+  setTimeout(function() {
+    initSupaAuth();
+
+    // Stufe 3: Aus Supabase laden (im Hintergrund, überschreibt localStorage)
+    // Kurze Verzögerung damit Auth-Session ggf. noch gesetzt wird
+    setTimeout(function() {
+      ladeAusSupabase().then(function(geladen) {
+        if (geladen) {
+          // Erfolgreich aus Supabase geladen → UI aktualisieren
+          renderMarktGrid();
+          // Falls gerade ein Markt offen ist, auch neu rendern
+          if (activeMarktId !== null) {
+            renderPlanung();
+          }
+        }
+        // Bei Fehler (geladen === null): App läuft still mit localStorage weiter
+      });
+    }, 500);
+  }, 200);
 });
 </script>
 </body>
