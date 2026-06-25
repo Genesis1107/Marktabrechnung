@@ -518,7 +518,7 @@ async function doLogout() {
 }
 
 async function loadProfil() {
-  const { data } = await sb.from('profil').select('*').eq('id', currentUser.id).single();
+  const { data } = await sb.from('profile').select('*').eq('id', currentUser.id).single();
   currentProfil = data;
   // Einstellungen befüllen
   el('settings-name').textContent  = data?.anzeigename || currentUser.email;
