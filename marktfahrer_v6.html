@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Marktfahrer · v6.0</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ── TOKENS ─────────────────────────────────────────────────── */
+:root {
+  --bg:        #1a1208;
+  --bg2:       #241a0e;
+  --bg3:       #2e2010;
+  --surface:   #3a2a14;
+  --surface2:  #4a3520;
+  --border:    #6b4c28;
+  --border2:   #8a6438;
+  --gold:      #c9942a;
+  --gold2:     #e8b84b;
+  --gold3:     #f5d070;
+  --text:      #f0e6c8;
+  --text2:     #c8b888;
+  --text3:     #8a7858;
+  --red:       #c0392b;
+  --red2:      #e74c3c;
+  --green:     #2e7d32;
+  --green2:    #4caf50;
+  --blue:      #1565c0;
+  --blue2:     #42a5f5;
+  --amber:     #e65100;
+  --amber2:    #ff9800;
+  --radius:    8px;
+  --radius2:   12px;
+  --safe-bot:  env(safe-area-inset-bottom, 0px);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; overscroll-behavior: none; }
+
+/* ── LAYOUT ─────────────────────────────────────────────────── */
+#app { display: flex; flex-direction: column; height: 100%; }
+#screen-wrap { flex: 1; overflow-y: auto; overflow-x: hidden; }
+.screen { display: none; min-height: 100%; }
+.screen.active { display: block; }
+
+/* ── HEADER ─────────────────────────────────────────────────── */
+#main-header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 10px 16px 8px; display: none; }
+#main-header.visible { display: block; }
+.header-inner { display: flex; align-items: center; justify-content: space-between; }
+.header-title { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); font-weight: 600; }
+.header-sub { font-size: 13px; color: var(--text2); margin-top: 2px; }
+#btn-back { background: none; border: none; color: var(--gold); font-size: 22px; cursor: pointer; padding: 4px 8px 4px 0; display: none; }
+#btn-back.visible { display: block; }
+
+/* ── BOTTOM NAV ─────────────────────────────────────────────── */
+#bottom-nav { background: var(--bg2); border-top: 1px solid var(--border); display: none; padding-bottom: var(--safe-bot); }
+#bottom-nav.visible { display: flex; }
+.nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 8px 4px; background: none; border: none; color: var(--text3); cursor: pointer; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; gap: 3px; transition: color .15s; }
+.nav-btn .nav-icon { font-size: 22px; }
+.nav-btn.active { color: var(--gold); }
+
+/* ── TYPO ───────────────────────────────────────────────────── */
+h1 { font-size: 22px; font-weight: 600; color: var(--gold2); }
+h2 { font-size: 17px; font-weight: 600; color: var(--gold); margin-bottom: 12px; }
+h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+.section { padding: 16px; }
+.section + .section { border-top: 1px solid var(--border); }
+
+/* ── BUTTONS ────────────────────────────────────────────────── */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 20px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 14px; font-weight: 500; cursor: pointer; transition: background .15s, border-color .15s; }
+.btn:active { transform: scale(.97); }
+.btn-primary { background: var(--gold); border-color: var(--gold2); color: var(--bg); font-weight: 700; }
+.btn-primary:active { background: var(--gold2); }
+.btn-danger { background: var(--red); border-color: var(--red2); color: #fff; }
+.btn-success { background: var(--green); border-color: var(--green2); color: #fff; }
+.btn-full { width: 100%; }
+.btn-sm { padding: 7px 14px; font-size: 13px; }
+.btn-icon { padding: 8px; border-radius: 50%; width: 38px; height: 38px; }
+
+/* ── INPUTS ─────────────────────────────────────────────────── */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; color: var(--text3); letter-spacing: .5px; margin-bottom: 5px; text-transform: uppercase; }
+.field input, .field select, .field textarea {
+  width: 100%; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text); padding: 10px 12px;
+  font-size: 15px; outline: none; -webkit-appearance: none; appearance: none;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--gold); }
+.field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23c9942a' d='M1 1l5 5 5-5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+.field textarea { resize: vertical; min-height: 70px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+/* ── CARDS / LISTS ──────────────────────────────────────────── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius2); padding: 14px 16px; margin-bottom: 10px; cursor: pointer; transition: border-color .15s, background .15s; }
+.card:active { background: var(--surface2); border-color: var(--gold); }
+.card-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.card-sub { font-size: 12px; color: var(--text3); margin-top: 3px; }
+.card-row { display: flex; align-items: center; justify-content: space-between; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: .5px; }
+
+/* ── STATUS-FARBEN ──────────────────────────────────────────── */
+.status-interessent  { background: #2c2c2c; color: #888; }
+.status-angefragt    { background: #1a2a3a; color: var(--blue2); }
+.status-bestaetigt   { background: #1a2e1a; color: var(--green2); }
+.status-vorbereitung { background: #2a1a00; color: var(--amber2); }
+.status-aktiv        { background: #2a1500; color: #ff9800; }
+.status-abgeschlossen{ background: #1a2a1a; color: var(--green2); }
+.status-abgelehnt    { background: #2a1a1a; color: var(--red2); }
+
+/* ── TOAST ──────────────────────────────────────────────────── */
+#toast { position: fixed; bottom: calc(70px + var(--safe-bot)); left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface2); border: 1px solid var(--border2); border-radius: 24px; padding: 9px 20px; font-size: 13px; color: var(--text); opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; z-index: 999; white-space: nowrap; max-width: 90vw; text-align: center; }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#toast.err { border-color: var(--red2); color: var(--red2); }
+#toast.ok  { border-color: var(--green2); color: var(--green2); }
+
+/* ── MODAL ──────────────────────────────────────────────────── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 800; display: flex; align-items: flex-end; justify-content: center; }
+.modal-overlay.hidden { display: none; }
+.modal-box { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius2) var(--radius2) 0 0; padding: 20px 16px calc(20px + var(--safe-bot)); width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; }
+.modal-title { font-size: 16px; font-weight: 700; color: var(--gold); margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+.modal-actions .btn { flex: 1; }
+
+/* ── DIVIDER ────────────────────────────────────────────────── */
+.divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+.or-divider { display: flex; align-items: center; gap: 10px; color: var(--text3); font-size: 12px; margin: 16px 0; }
+.or-divider::before, .or-divider::after { content: ''; flex: 1; border-top: 1px solid var(--border); }
+
+/* ── KASSE SPEZIFISCH ───────────────────────────────────────── */
+.kasse-zahl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.kasse-zahl-item { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; }
+.kasse-zahl-label { font-size: 13px; color: var(--text2); }
+.kasse-zahl-input { width: 70px; text-align: right; background: var(--surface); border: 1px solid var(--border2); border-radius: 6px; color: var(--text); padding: 5px 8px; font-size: 15px; font-weight: 600; }
+.kasse-summe-bar { background: var(--surface); border: 1px solid var(--gold); border-radius: var(--radius2); padding: 16px; margin: 14px 0; text-align: center; }
+.kasse-summe-label { font-size: 12px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+.kasse-summe-val { font-size: 32px; font-weight: 700; color: var(--gold2); }
+.kasse-summe-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+/* ── MARKTABSCHLUSS ─────────────────────────────────────────── */
+.abschluss-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.abschluss-label { font-size: 13px; color: var(--text2); }
+.abschluss-val { font-size: 15px; font-weight: 600; color: var(--text); }
+.abschluss-val.green { color: var(--green2); }
+.abschluss-val.red { color: var(--red2); }
+
+/* ── TABS ───────────────────────────────────────────────────── */
+.tab-bar { display: flex; border-bottom: 1px solid var(--border); background: var(--bg2); overflow-x: auto; scrollbar-width: none; }
+.tab-bar::-webkit-scrollbar { display: none; }
+.tab-btn { flex: none; padding: 12px 18px; background: none; border: none; color: var(--text3); font-size: 13px; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: color .15s; }
+.tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ── LOGIN SCREEN ───────────────────────────────────────────── */
+#screen-login { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 32px 24px; }
+.login-logo { text-align: center; margin-bottom: 40px; }
+.login-logo-icon { font-size: 52px; margin-bottom: 8px; }
+.login-logo-title { font-size: 24px; font-weight: 700; color: var(--gold); letter-spacing: 3px; text-transform: uppercase; }
+.login-logo-sub { font-size: 11px; color: var(--text3); letter-spacing: 2px; margin-top: 4px; }
+.login-box { width: 100%; max-width: 360px; }
+
+/* ── EMPTY STATE ────────────────────────────────────────────── */
+.empty-state { text-align: center; padding: 48px 24px; color: var(--text3); }
+.empty-state-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-state-text { font-size: 14px; }
+
+/* ── LOADING ─────────────────────────────────────────────────── */
+.spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; margin: 32px auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── STAT CHIPS ─────────────────────────────────────────────── */
+.stat-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.stat-chip { background: var(--bg3); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--text2); }
+.stat-chip span { color: var(--gold); font-weight: 600; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── HEADER ───────────────────────────────────────────── -->
+  <div id="main-header">
+    <div class="header-inner">
+      <button id="btn-back" onclick="goBack()">‹</button>
+      <div>
+        <div class="header-title" id="header-title">Marktfahrer</div>
+        <div class="header-sub" id="header-sub"></div>
+      </div>
+      <div id="header-right"></div>
+    </div>
+  </div>
+
+  <!-- ── SCREENS ──────────────────────────────────────────── -->
+  <div id="screen-wrap">
+
+    <!-- LOGIN -->
+    <div id="screen-login" class="screen active">
+      <div class="login-logo">
+        <div class="login-logo-icon">⚜</div>
+        <div class="login-logo-title">Marktfahrer</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.0</div>
+      </div>
+      <div class="login-box">
+        <div class="field">
+          <label>E-Mail</label>
+          <input type="email" id="login-email" placeholder="deine@email.de" autocomplete="email">
+        </div>
+        <div class="field">
+          <label>Passwort</label>
+          <input type="password" id="login-pw" placeholder="••••••••" autocomplete="current-password" onkeydown="loginKeydown(event)">
+        </div>
+        <button class="btn btn-primary btn-full" onclick="doLogin()" id="btn-login">Anmelden</button>
+        <div id="login-error" style="color:var(--red2);font-size:13px;text-align:center;margin-top:10px;display:none;"></div>
+      </div>
+    </div>
+
+    <!-- MÄRKTE -->
+    <div id="screen-maerkte" class="screen">
+      <div style="padding:14px 16px 8px; display:flex; align-items:center; justify-content:space-between;">
+        <input type="search" id="markt-search" placeholder="🔍 Markt suchen…"
+          oninput="filterMaerkte()" style="flex:1; background:var(--bg3); border:1px solid var(--border); border-radius:20px; color:var(--text); padding:8px 14px; font-size:14px; outline:none; -webkit-appearance:none;">
+        <button class="btn btn-primary btn-sm" style="margin-left:10px; white-space:nowrap;" onclick="openNeuerMarktModal()">+ Neu</button>
+      </div>
+      <div id="markt-list" style="padding:0 16px 16px;"></div>
+    </div>
+
+    <!-- MARKT DETAIL -->
+    <div id="screen-markt-detail" class="screen">
+      <div class="tab-bar" id="markt-tabs">
+        <button class="tab-btn active" onclick="showMarktTab('planung')" id="tab-planung">Planung</button>
+        <button class="tab-btn" onclick="showMarktTab('kasse')" id="tab-kasse">Kasse</button>
+        <button class="tab-btn" onclick="showMarktTab('bestellung')" id="tab-bestellung">Bestellung</button>
+        <button class="tab-btn" onclick="showMarktTab('chronik')" id="tab-chronik">Chronik</button>
+      </div>
+      <div id="tab-content-planung" class="tab-content active"></div>
+      <div id="tab-content-kasse" class="tab-content"></div>
+      <div id="tab-content-bestellung" class="tab-content"></div>
+      <div id="tab-content-chronik" class="tab-content"></div>
+    </div>
+
+    <!-- KASSE DETAIL (Stand + Tag) -->
+    <div id="screen-kasse-detail" class="screen"></div>
+
+    <!-- SAISON -->
+    <div id="screen-saison" class="screen">
+      <div class="section">
+        <h2>Saison-Übersicht</h2>
+        <div id="saison-content">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STUNDEN -->
+    <div id="screen-stunden" class="screen">
+      <div class="section">
+        <h2>Stundenerfassung</h2>
+        <p style="color:var(--text3);font-size:14px;">Kommt in Ausbaustufe 2.</p>
+      </div>
+    </div>
+
+    <!-- EINSTELLUNGEN -->
+    <div id="screen-einstellungen" class="screen">
+      <div class="section">
+        <h2>Einstellungen</h2>
+        <div class="card" style="cursor:default;">
+          <div class="card-row">
+            <div>
+              <div class="card-title" id="settings-name">—</div>
+              <div class="card-sub" id="settings-email">—</div>
+            </div>
+            <div class="badge status-bestaetigt" id="settings-rolle">—</div>
+          </div>
+        </div>
+        <hr class="divider">
+        <button class="btn btn-danger btn-full" onclick="doLogout()">Abmelden</button>
+        <p style="color:var(--text3);font-size:11px;text-align:center;margin-top:12px;">Marktfahrer v6.0 · Beerenweine</p>
+      </div>
+    </div>
+
+  </div><!-- /screen-wrap -->
+
+  <!-- ── BOTTOM NAV ────────────────────────────────────────── -->
+  <nav id="bottom-nav">
+    <button class="nav-btn active" onclick="navTo('maerkte')" id="nav-maerkte">
+      <span class="nav-icon">🏰</span>Märkte
+    </button>
+    <button class="nav-btn" onclick="navTo('saison')" id="nav-saison">
+      <span class="nav-icon">📊</span>Saison
+    </button>
+    <button class="nav-btn" onclick="navTo('stunden')" id="nav-stunden">
+      <span class="nav-icon">⏱</span>Stunden
+    </button>
+    <button class="nav-btn" onclick="navTo('einstellungen')" id="nav-einstellungen">
+      <span class="nav-icon">⚙️</span>Einstellungen
+    </button>
+  </nav>
+
+</div><!-- /app -->
+
+<!-- ── MODALS ───────────────────────────────────────────────── -->
+<div id="modal-neuer-markt" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">⚜ Neuer Markt</div>
+    <div class="field">
+      <label>Marktname *</label>
+      <input type="text" id="nm-name" placeholder="z. B. Rastede MPS">
+    </div>
+    <div class="field-row">
+      <div class="field" style="margin-bottom:0">
+        <label>Ort *</label>
+        <input type="text" id="nm-ort" placeholder="Rastede">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>PLZ</label>
+        <input type="text" id="nm-plz" placeholder="26180" maxlength="10">
+      </div>
+    </div>
+    <div style="margin-top:14px;" class="field-row">
+      <div class="field" style="margin-bottom:0">
+        <label>Start *</label>
+        <input type="date" id="nm-start">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>Ende *</label>
+        <input type="date" id="nm-ende">
+      </div>
+    </div>
+    <div class="field" style="margin-top:14px;">
+      <label>Rhythmus</label>
+      <select id="nm-rhythmus">
+        <option value="einmalig">Einmalig</option>
+        <option value="jaehrlich" selected>Jährlich</option>
+        <option value="alle_2_jahre">Alle 2 Jahre</option>
+        <option value="alle_4_jahre">Alle 4 Jahre</option>
+        <option value="unregelmaessig">Unregelmäßig</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field" style="margin-bottom:0">
+        <label>km Süd</label>
+        <input type="number" id="nm-km-sued" placeholder="0" min="0">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>km Nord</label>
+        <input type="number" id="nm-km-nord" placeholder="0" min="0">
+      </div>
+    </div>
+    <div class="field" style="margin-top:14px;">
+      <label>Notiz</label>
+      <textarea id="nm-notiz" placeholder="Optional…"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-neuer-markt')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveNeuerMarkt()">Anlegen</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-neuer-stand" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">🐴 Kutsche hinzufügen</div>
+    <div class="field">
+      <label>Bezeichnung</label>
+      <input type="text" id="ns-bez" placeholder="K1, K2, …">
+    </div>
+    <div class="field">
+      <label>Anfangsbestand (€)</label>
+      <input type="number" id="ns-anfang" placeholder="400.00" step="0.01" min="0">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-neuer-stand')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveNeuerStand()">Hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-neue-buchung" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">💳 Buchung erfassen</div>
+    <div class="field">
+      <label>Typ</label>
+      <select id="buch-typ">
+        <option value="einnahme">Einnahme</option>
+        <option value="ausgabe">Ausgabe</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Zahlungsart</label>
+      <select id="buch-art">
+        <option value="ec">EC / Karte</option>
+        <option value="bar">Bar</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Betrag (€) *</label>
+      <input type="number" id="buch-betrag" placeholder="0.00" step="0.01" min="0">
+    </div>
+    <div class="field">
+      <label>Bezeichnung</label>
+      <input type="text" id="buch-bez" placeholder="z. B. EC-Einnahmen Tag 1">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-neue-buchung')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveBuchung()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+// ── CONFIG ───────────────────────────────────────────────────
+const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
+
+// ── STATE ────────────────────────────────────────────────────
+let sb, currentUser, currentProfil;
+let currentInstanzId = null;
+let currentInstanz   = null;
+let currentStandId   = null;
+let currentStand     = null;
+let currentKasseTag  = null;
+let activeNavTab     = 'maerkte';
+let activeMarktTab   = 'planung';
+let navHistory       = [];
+// Temporärer Kontext für Modals
+let _modalInstanzId  = null;
+let _modalStandId    = null;
+let _modalBuchungInstanzId = null;
+let _modalBuchungStandId   = null;
+
+// ── UTILS ─────────────────────────────────────────────────────
+const el = id => document.getElementById(id);
+
+function uuid() {
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+}
+
+function eur(cent) {
+  return (cent / 100).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €';
+}
+
+function dateFmt(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso + 'T12:00:00');
+  return d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit', year:'numeric'});
+}
+
+function isoToday() {
+  return new Date().toISOString().slice(0,10);
+}
+
+let toastTimer;
+function toast(msg, type='') {
+  const t = el('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 2800);
+}
+
+function closeModal(id) { el(id).classList.add('hidden'); }
+function openModal(id)  { el(id).classList.remove('hidden'); }
+
+// ── STATUS ────────────────────────────────────────────────────
+const STATUS_LABEL = {
+  interessent:   'Interessent',
+  angefragt:     'Angefragt',
+  bestaetigt:    'Bestätigt',
+  vorbereitung:  'Vorbereitung',
+  aktiv:         'Aktiv',
+  abgeschlossen: 'Abgeschlossen',
+  abgelehnt:     'Abgelehnt',
+};
+const STATUS_ORDER = ['interessent','angefragt','bestaetigt','vorbereitung','aktiv','abgeschlossen','abgelehnt'];
+
+// ── INIT ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    await loadProfil();
+    showApp();
+  }
+});
+
+// ── AUTH ──────────────────────────────────────────────────────
+function loginKeydown(e) { if (e.key === 'Enter') doLogin(); }
+
+async function doLogin() {
+  const email = el('login-email').value.trim();
+  const pw    = el('login-pw').value;
+  el('login-error').style.display = 'none';
+  el('btn-login').textContent = '…';
+  el('btn-login').disabled = true;
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+  el('btn-login').textContent = 'Anmelden';
+  el('btn-login').disabled = false;
+  if (error) {
+    el('login-error').textContent = 'Anmeldung fehlgeschlagen. E-Mail oder Passwort prüfen.';
+    el('login-error').style.display = 'block';
+    return;
+  }
+  currentUser = data.user;
+  await loadProfil();
+  showApp();
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  currentUser = null; currentProfil = null;
+  hideApp();
+}
+
+async function loadProfil() {
+  const { data } = await sb.from('profil').select('*').eq('id', currentUser.id).single();
+  currentProfil = data;
+  // Einstellungen befüllen
+  el('settings-name').textContent  = data?.anzeigename || currentUser.email;
+  el('settings-email').textContent = currentUser.email;
+  // Rolle laden
+  const { data: rollen } = await sb.from('user_rolle').select('rolle').eq('user_id', currentUser.id);
+  if (rollen?.length) el('settings-rolle').textContent = rollen[0].rolle;
+}
+
+function showApp() {
+  showScreen('maerkte');
+  el('main-header').classList.add('visible');
+  el('bottom-nav').classList.add('visible');
+  setHeader('Märkte', '');
+  navTo('maerkte');
+}
+
+function hideApp() {
+  el('main-header').classList.remove('visible');
+  el('bottom-nav').classList.remove('visible');
+  showScreen('login');
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const s = el('screen-' + name);
+  if (s) s.classList.add('active');
+}
+
+function setHeader(title, sub, showBack=false) {
+  el('header-title').textContent = title;
+  el('header-sub').textContent   = sub || '';
+  showBack ? el('btn-back').classList.add('visible')
+           : el('btn-back').classList.remove('visible');
+}
+
+function navTo(tab) {
+  activeNavTab = tab;
+  navHistory = [tab];
+  ['maerkte','saison','stunden','einstellungen'].forEach(t => {
+    el('nav-' + t)?.classList.toggle('active', t === tab);
+  });
+  if (tab === 'maerkte') {
+    showScreen('maerkte');
+    setHeader('Märkte', '');
+    el('btn-back').classList.remove('visible');
+    loadMaerkte();
+  } else if (tab === 'saison') {
+    showScreen('saison');
+    setHeader('Saison', new Date().getFullYear());
+    el('btn-back').classList.remove('visible');
+    loadSaison();
+  } else if (tab === 'stunden') {
+    showScreen('stunden');
+    setHeader('Stunden', '');
+    el('btn-back').classList.remove('visible');
+  } else if (tab === 'einstellungen') {
+    showScreen('einstellungen');
+    setHeader('Einstellungen', '');
+    el('btn-back').classList.remove('visible');
+  }
+}
+
+function goBack() {
+  if (navHistory.length > 1) {
+    navHistory.pop();
+    const prev = navHistory[navHistory.length - 1];
+    if (prev === 'maerkte') { navTo('maerkte'); }
+    else if (prev === 'markt-detail') { openMarktDetail(currentInstanzId); }
+    else { navTo(activeNavTab); }
+  } else {
+    navTo('maerkte');
+  }
+}
+
+// ── MÄRKTE LADEN ──────────────────────────────────────────────
+let alleMaerkte = [];
+
+async function loadMaerkte() {
+  el('markt-list').innerHTML = '<div class="spinner"></div>';
+  const { data, error } = await sb
+    .from('event_instanz')
+    .select('*, event_template(name, ort, plz, km_minden, km_schoellkrippen)')
+    .is('geloescht_am', null)
+    .order('start_datum', { ascending: false });
+  if (error) { toast('Fehler beim Laden', 'err'); return; }
+  alleMaerkte = data || [];
+  renderMaerkte(alleMaerkte);
+}
+
+function filterMaerkte() {
+  const q = el('markt-search').value.toLowerCase();
+  if (!q) { renderMaerkte(alleMaerkte); return; }
+  renderMaerkte(alleMaerkte.filter(m =>
+    (m.name || m.event_template?.name || '').toLowerCase().includes(q) ||
+    (m.event_template?.ort || '').toLowerCase().includes(q)
+  ));
+}
+
+function renderMaerkte(liste) {
+  const wrap = el('markt-list');
+  if (!liste.length) {
+    wrap.innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon">🏰</div>
+      <div class="empty-state-text">Noch keine Märkte angelegt.<br>Tippe auf „+ Neu" um den ersten anzulegen.</div>
+    </div>`;
+    return;
+  }
+
+  // Gruppieren nach Status
+  const gruppen = {};
+  STATUS_ORDER.forEach(s => gruppen[s] = []);
+  liste.forEach(m => {
+    const st = m.status || 'interessent';
+    if (gruppen[st]) gruppen[st].push(m);
+  });
+
+  let html = '';
+  STATUS_ORDER.forEach(status => {
+    const gruppe = gruppen[status];
+    if (!gruppe.length) return;
+    html += `<h3 style="margin-top:14px;">${STATUS_LABEL[status]} (${gruppe.length})</h3>`;
+    gruppe.forEach(m => { html += renderMarktCard(m); });
+  });
+  wrap.innerHTML = html;
+}
+
+function renderMarktCard(m) {
+  const name  = m.name || m.event_template?.name || '(Kein Name)';
+  const ort   = m.event_template?.ort || '';
+  const plz   = m.event_template?.plz ? m.event_template.plz + ' ' : '';
+  const start = dateFmt(m.start_datum);
+  const ende  = dateFmt(m.end_datum);
+  const dauer = m.dauer_tage ? m.dauer_tage + ' Tage' : '';
+  return `<div class="card" onclick="openMarktDetail('${m.id}')">
+    <div class="card-row">
+      <div class="card-title">${name}</div>
+      <span class="badge status-${m.status || 'interessent'}">${STATUS_LABEL[m.status] || '?'}</span>
+    </div>
+    <div class="card-sub">${plz}${ort}${dauer ? ' · ' + dauer : ''}</div>
+    <div class="card-sub" style="margin-top:4px;">${start}${m.end_datum ? ' – ' + ende : ''}</div>
+  </div>`;
+}
+
+// ── MARKT DETAIL ──────────────────────────────────────────────
+async function openMarktDetail(instanzId) {
+  currentInstanzId = instanzId;
+  navHistory.push('markt-detail');
+
+  const { data: instanz } = await sb
+    .from('event_instanz')
+    .select('*, event_template(name, ort, plz, km_minden, km_schoellkrippen, wiederholung)')
+    .eq('id', instanzId)
+    .single();
+  currentInstanz = instanz;
+
+  const name = instanz.name || instanz.event_template?.name || '(Kein Name)';
+  setHeader(name, dateFmt(instanz.start_datum) + (instanz.end_datum ? ' – ' + dateFmt(instanz.end_datum) : ''), true);
+  showScreen('markt-detail');
+  showMarktTab('planung');
+}
+
+function showMarktTab(tab) {
+  activeMarktTab = tab;
+  ['planung','kasse','bestellung','chronik'].forEach(t => {
+    el('tab-' + t).classList.toggle('active', t === tab);
+    el('tab-content-' + t).classList.toggle('active', t === tab);
+  });
+  if (tab === 'planung')   renderPlanungTab();
+  if (tab === 'kasse')     renderKasseTab();
+  if (tab === 'bestellung') renderBestellungTab();
+  if (tab === 'chronik')   renderChronikTab();
+}
+
+// ── PLANUNG TAB ───────────────────────────────────────────────
+async function renderPlanungTab() {
+  const wrap = el('tab-content-planung');
+  wrap.innerHTML = '<div class="spinner"></div>';
+  const inst = currentInstanz;
+  if (!inst) return;
+
+  // Stände laden
+  const { data: staende } = await sb
+    .from('stand')
+    .select('*')
+    .eq('event_instanz_id', currentInstanzId)
+    .is('geloescht_am', null)
+    .order('bezeichnung');
+
+  const statusOptions = STATUS_ORDER.map(s =>
+    `<option value="${s}" ${inst.status === s ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`
+  ).join('');
+
+  wrap.innerHTML = `
+    <div class="section">
+      <h2>Planung</h2>
+      <div class="field">
+        <label>Status</label>
+        <select id="plan-status" onchange="saveInstanzStatus()">
+          ${statusOptions}
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field" style="margin-bottom:0">
+          <label>Start</label>
+          <input type="date" id="plan-start" value="${inst.start_datum || ''}" onchange="savePlanungDaten()">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>Ende</label>
+          <input type="date" id="plan-ende" value="${inst.end_datum || ''}" onchange="savePlanungDaten()">
+        </div>
+      </div>
+      <div class="field" style="margin-top:14px;">
+        <label>Notiz</label>
+        <textarea id="plan-notiz" onchange="savePlanungNotiz()">${inst.notiz || ''}</textarea>
+      </div>
+    </div>
+    <div class="section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <h2 style="margin:0;">Kutschen</h2>
+        <button class="btn btn-sm" onclick="openNeuerStandModal()">+ Kutsche</button>
+      </div>
+      <div id="stand-list">
+        ${staende && staende.length ? staende.map(renderStandCard).join('') : '<p style="color:var(--text3);font-size:14px;">Noch keine Kutschen angelegt.</p>'}
+      </div>
+    </div>
+  `;
+}
+
+function renderStandCard(s) {
+  const abg = s.abgeschlossen_am;
+  return `<div class="card" style="cursor:default;">
+    <div class="card-row">
+      <div class="card-title">🐴 ${s.bezeichnung}</div>
+      ${abg ? '<span class="badge status-abgeschlossen">✓ Abgeschlossen</span>' : '<span class="badge status-aktiv">Offen</span>'}
+    </div>
+    <div class="card-sub">Anfang: ${eur(s.anfangsbestand_cent || 0)}</div>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn btn-sm" onclick="deleteStand('${s.id}')">Löschen</button>
+    </div>
+  </div>`;
+}
+
+async function saveInstanzStatus() {
+  const status = el('plan-status').value;
+  await sb.from('event_instanz').update({ status, geaendert_am: new Date().toISOString() }).eq('id', currentInstanzId);
+  toast('Status gespeichert', 'ok');
+}
+
+async function savePlanungDaten() {
+  const start = el('plan-start').value;
+  const ende  = el('plan-ende').value;
+  if (!start) return;
+  const dauer = start && ende
+    ? Math.round((new Date(ende) - new Date(start)) / 86400000) + 1
+    : null;
+  await sb.from('event_instanz').update({
+    start_datum: start, end_datum: ende || null,
+    dauer_tage: dauer, geaendert_am: new Date().toISOString()
+  }).eq('id', currentInstanzId);
+  toast('Daten gespeichert', 'ok');
+}
+
+async function savePlanungNotiz() {
+  const notiz = el('plan-notiz').value;
+  await sb.from('event_instanz').update({ notiz, geaendert_am: new Date().toISOString() }).eq('id', currentInstanzId);
+  toast('Notiz gespeichert', 'ok');
+}
+
+// ── KUTSCHEN MODAL ────────────────────────────────────────────
+function openNeuerStandModal() {
+  _modalInstanzId = currentInstanzId;
+  el('ns-bez').value = '';
+  el('ns-anfang').value = '400';
+  openModal('modal-neuer-stand');
+}
+
+async function saveNeuerStand() {
+  const bez    = el('ns-bez').value.trim();
+  const anfang = parseFloat(el('ns-anfang').value) || 0;
+  if (!bez) { toast('Bezeichnung fehlt', 'err'); return; }
+  const id = uuid();
+  const now = new Date().toISOString();
+  const { error } = await sb.from('stand').insert({
+    id, event_instanz_id: _modalInstanzId,
+    bezeichnung: bez,
+    anfangsbestand_cent: Math.round(anfang * 100),
+    erstellt_am: now, geaendert_am: now
+  });
+  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  closeModal('modal-neuer-stand');
+  toast('Kutsche angelegt', 'ok');
+  renderPlanungTab();
+}
+
+async function deleteStand(standId) {
+  if (!confirm('Kutsche wirklich löschen?')) return;
+  await sb.from('stand').update({ geloescht_am: new Date().toISOString() }).eq('id', standId);
+  toast('Kutsche gelöscht');
+  renderPlanungTab();
+}
+
+// ── KASSE TAB ─────────────────────────────────────────────────
+async function renderKasseTab() {
+  const wrap = el('tab-content-kasse');
+  wrap.innerHTML = '<div class="spinner"></div>';
+
+  const { data: staende } = await sb
+    .from('stand')
+    .select('*')
+    .eq('event_instanz_id', currentInstanzId)
+    .is('geloescht_am', null)
+    .order('bezeichnung');
+
+  if (!staende || !staende.length) {
+    wrap.innerHTML = `<div class="section"><div class="empty-state">
+      <div class="empty-state-icon">🐴</div>
+      <div class="empty-state-text">Erst Kutschen anlegen (im Planung-Tab).</div>
+    </div></div>`;
+    return;
+  }
+
+  let html = '<div class="section"><h2>Kasse</h2>';
+
+  for (const stand of staende) {
+    // Kassenzählungen für diesen Stand laden
+    const { data: zaehlungen } = await sb
+      .from('kassenzaehlung')
+      .select('*')
+      .eq('stand_id', stand.id)
+      .is('geloescht_am', null)
+      .order('datum');
+
+    // Buchungen für diesen Stand
+    const { data: buchungen } = await sb
+      .from('buchung')
+      .select('*')
+      .eq('stand_id', stand.id)
+      .is('geloescht_am', null)
+      .order('datum');
+
+    const barUmsatz = (zaehlungen || []).reduce((s, z) => {
+      if (z.modus === 'zaehlen') return s + ((z.ist_bestand_cent || 0) - (z.anfangsbestand_cent || 0));
+      return s + (z.tagesumsatz_bar_cent || 0);
+    }, 0);
+    const ecEinnahmen = (buchungen || []).filter(b => b.typ === 'einnahme' && b.zahlungsart === 'ec').reduce((s, b) => s + (b.betrag_cent || 0), 0);
+    const barAusgaben = (buchungen || []).filter(b => b.typ === 'ausgabe' && b.zahlungsart === 'bar').reduce((s, b) => s + (b.betrag_cent || 0), 0);
+    const gesamtUmsatz = barUmsatz + ecEinnahmen;
+
+    html += `<div class="card" style="cursor:default;margin-bottom:14px;">
+      <div class="card-row">
+        <div class="card-title">🐴 ${stand.bezeichnung}</div>
+        ${stand.abgeschlossen_am ? '<span class="badge status-abgeschlossen">✓ Abgeschlossen</span>' : ''}
+      </div>
+      <div class="stat-chips" style="margin-top:8px;">
+        <div class="stat-chip">Bar <span>${eur(barUmsatz)}</span></div>
+        <div class="stat-chip">EC <span>${eur(ecEinnahmen)}</span></div>
+        <div class="stat-chip">Gesamt <span>${eur(gesamtUmsatz)}</span></div>
+      </div>
+      <hr class="divider">
+      <h3>Tageszählungen</h3>
+      ${renderZaehlungenListe(zaehlungen || [], stand)}
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn btn-sm btn-primary" onclick="openKasseDetail('${stand.id}', '${isoToday()}')">+ Tageszählung</button>
+        <button class="btn btn-sm" onclick="openNeueBuchungModal('${currentInstanzId}','${stand.id}')">+ Buchung</button>
+      </div>
+      ${!stand.abgeschlossen_am ? `
+      <hr class="divider">
+      <h3>Marktabschluss</h3>
+      ${renderAbschlussVorschau(barUmsatz, barAusgaben, ecEinnahmen)}
+      <button class="btn btn-success btn-full" style="margin-top:10px;" onclick="doMarktabschluss('${stand.id}', ${barUmsatz}, ${barAusgaben})">
+        ✓ Kasse stimmt – Abschluss bestätigen
+      </button>` : ''}
+    </div>`;
+  }
+
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+function renderZaehlungenListe(zaehlungen, stand) {
+  if (!zaehlungen.length) return '<p style="color:var(--text3);font-size:13px;">Noch keine Zählungen.</p>';
+  return zaehlungen.map(z => {
+    const umsatz = z.modus === 'zaehlen'
+      ? (z.ist_bestand_cent || 0) - (z.anfangsbestand_cent || 0)
+      : (z.tagesumsatz_bar_cent || 0);
+    return `<div class="abschluss-row" onclick="openKasseDetail('${stand.id}', '${z.datum}')" style="cursor:pointer;">
+      <span class="abschluss-label">${dateFmt(z.datum)}</span>
+      <span class="abschluss-val">${eur(umsatz)}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderAbschlussVorschau(barUmsatz, barAusgaben, ecEinnahmen) {
+  const abgabe = barUmsatz - barAusgaben;
+  return `<div style="background:var(--bg3);border-radius:var(--radius);padding:12px;margin-top:8px;">
+    <div class="abschluss-row"><span class="abschluss-label">Bar-Umsatz gesamt</span><span class="abschluss-val">${eur(barUmsatz)}</span></div>
+    <div class="abschluss-row"><span class="abschluss-label">– Bar-Ausgaben</span><span class="abschluss-val red">– ${eur(barAusgaben)}</span></div>
+    <div class="abschluss-row" style="border:none;padding-top:8px;"><span class="abschluss-label" style="font-weight:700;">= Abgabe-Betrag</span><span class="abschluss-val green" style="font-size:17px;">${eur(abgabe)}</span></div>
+  </div>`;
+}
+
+async function doMarktabschluss(standId, barUmsatz, barAusgaben) {
+  const abgabe = barUmsatz - barAusgaben;
+  if (!confirm(`Marktabschluss bestätigen?\n\nAbgabe-Betrag: ${eur(abgabe)}\n\nDies sperrt die Kasse für diesen Stand.`)) return;
+  const now = new Date().toISOString();
+  const { error } = await sb.from('stand').update({
+    abgeschlossen_am: now,
+    abgeschlossen_von: currentUser.id,
+    geaendert_am: now
+  }).eq('id', standId);
+  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  toast('✓ Marktabschluss gespeichert', 'ok');
+  renderKasseTab();
+}
+
+// ── KASSE DETAIL (Tageszählung) ───────────────────────────────
+async function openKasseDetail(standId, datum) {
+  currentStandId  = standId;
+  currentKasseTag = datum;
+  navHistory.push('kasse-detail');
+
+  // Stand laden
+  const { data: stand } = await sb.from('stand').select('*').eq('id', standId).single();
+  currentStand = stand;
+
+  // Vorhandene Zählung laden
+  const { data: vorh } = await sb
+    .from('kassenzaehlung')
+    .select('*')
+    .eq('stand_id', standId)
+    .eq('datum', datum)
+    .is('geloescht_am', null)
+    .maybeSingle();
+
+  setHeader('Tageszählung', `${stand.bezeichnung} · ${dateFmt(datum)}`, true);
+  showScreen('kasse-detail');
+  renderKasseDetailScreen(stand, datum, vorh);
+}
+
+function renderKasseDetailScreen(stand, datum, vorh) {
+  const wrap = el('screen-kasse-detail');
+  const modus = vorh?.modus || 'zaehlen';
+  const anfang = vorh?.anfangsbestand_cent ?? stand.anfangsbestand_cent ?? 0;
+
+  // Stückelung aus vorhandener Zählung oder leer
+  const stu = vorh?.stueckelung || {};
+  const muenzen = stu.muenzen || {};
+  const scheine = stu.scheine || {};
+
+  const muenzWerte  = ['2.00','1.00','0.50','0.20','0.10','0.05','0.02','0.01'];
+  const scheinWerte = ['500','200','100','50','20','10','5'];
+
+  const renderZahlRow = (typ, wert, labelStr) => {
+    const stored = typ === 'muenze' ? (muenzen[wert] || 0) : (scheine[wert] || 0);
+    const inputId = `zahl-${typ}-${wert.replace('.','_')}`;
+    return `<div class="kasse-zahl-item">
+      <span class="kasse-zahl-label">${labelStr}</span>
+      <input type="number" class="kasse-zahl-input" id="${inputId}"
+        value="${stored}" min="0" step="1" oninput="calcKasseSumme()">
+    </div>`;
+  };
+
+  const schnellUmsatz = vorh?.tagesumsatz_bar_cent
+    ? (vorh.tagesumsatz_bar_cent / 100).toFixed(2) : '';
+
+  wrap.innerHTML = `
+    <div class="section">
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button class="btn btn-sm ${modus==='zaehlen'?'btn-primary':''}" onclick="switchKasseModus('zaehlen')" id="modus-btn-zaehlen">Zählen</button>
+        <button class="btn btn-sm ${modus==='schnell'?'btn-primary':''}" onclick="switchKasseModus('schnell')" id="modus-btn-schnell">Schnell</button>
+      </div>
+
+      <div id="modus-zaehlen" style="display:${modus==='zaehlen'?'block':'none'}">
+        <div class="field">
+          <label>Anfangsbestand (€)</label>
+          <input type="number" id="kasse-anfang" value="${(anfang/100).toFixed(2)}" step="0.01" oninput="calcKasseSumme()">
+        </div>
+        <h3 style="margin-top:8px;">Münzen</h3>
+        <div class="kasse-zahl-grid">
+          ${muenzWerte.map(w => renderZahlRow('muenze', w, w.replace('.',',') + ' €')).join('')}
+        </div>
+        <h3 style="margin-top:14px;">Scheine</h3>
+        <div class="kasse-zahl-grid">
+          ${scheinWerte.map(w => renderZahlRow('schein', w, w + ' €')).join('')}
+        </div>
+        <div class="kasse-summe-bar" style="margin-top:16px;">
+          <div class="kasse-summe-label">Ist-Bestand</div>
+          <div class="kasse-summe-val" id="kasse-ist-display">${eur(vorh?.ist_bestand_cent || 0)}</div>
+          <div class="kasse-summe-label" style="margin-top:6px;">Bar-Tagesumsatz</div>
+          <div class="kasse-summe-val" id="kasse-umsatz-display" style="font-size:22px;color:var(--green2);">
+            ${eur(vorh ? (vorh.ist_bestand_cent - anfang) : 0)}
+          </div>
+        </div>
+      </div>
+
+      <div id="modus-schnell" style="display:${modus==='schnell'?'block':'none'}">
+        <div class="field">
+          <label>Bar-Tagesumsatz (€)</label>
+          <input type="number" id="kasse-schnell-umsatz" value="${schnellUmsatz}" step="0.01" placeholder="0.00">
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:14px;">
+        <label>Notiz</label>
+        <input type="text" id="kasse-notiz" value="${vorh?.notiz || ''}" placeholder="Optional…">
+      </div>
+
+      <button class="btn btn-primary btn-full" style="margin-top:6px;" onclick="saveKassenzaehlung()">
+        💾 Zählung speichern
+      </button>
+      ${vorh ? `<button class="btn btn-danger btn-full" style="margin-top:8px;" onclick="deleteKassenzaehlung('${vorh.id}')">Zählung löschen</button>` : ''}
+    </div>
+  `;
+
+  calcKasseSumme();
+}
+
+function switchKasseModus(modus) {
+  el('modus-zaehlen').style.display = modus === 'zaehlen' ? 'block' : 'none';
+  el('modus-schnell').style.display = modus === 'schnell' ? 'block' : 'none';
+  el('modus-btn-zaehlen').classList.toggle('btn-primary', modus === 'zaehlen');
+  el('modus-btn-schnell').classList.toggle('btn-primary', modus === 'schnell');
+}
+
+function calcKasseSumme() {
+  const muenzWerte  = ['2.00','1.00','0.50','0.20','0.10','0.05','0.02','0.01'];
+  const scheinWerte = ['500','200','100','50','20','10','5'];
+  let summe = 0;
+  muenzWerte.forEach(w => {
+    const inp = el('zahl-muenze-' + w.replace('.','_'));
+    if (inp) summe += (parseInt(inp.value) || 0) * Math.round(parseFloat(w) * 100);
+  });
+  scheinWerte.forEach(w => {
+    const inp = el('zahl-schein-' + w);
+    if (inp) summe += (parseInt(inp.value) || 0) * parseInt(w) * 100;
+  });
+  const anfangCent = Math.round((parseFloat(el('kasse-anfang')?.value) || 0) * 100);
+  const umsatz = summe - anfangCent;
+  const istEl = el('kasse-ist-display');
+  const umsEl = el('kasse-umsatz-display');
+  if (istEl) istEl.textContent = eur(summe);
+  if (umsEl) {
+    umsEl.textContent = eur(umsatz);
+    umsEl.style.color = umsatz >= 0 ? 'var(--green2)' : 'var(--red2)';
+  }
+}
+
+async function saveKassenzaehlung() {
+  const muenzWerte  = ['2.00','1.00','0.50','0.20','0.10','0.05','0.02','0.01'];
+  const scheinWerte = ['500','200','100','50','20','10','5'];
+  const modusBtnZ   = el('modus-btn-zaehlen');
+  const modus       = modusBtnZ?.classList.contains('btn-primary') ? 'zaehlen' : 'schnell';
+
+  const now = new Date().toISOString();
+  let payload = {
+    stand_id: currentStandId,
+    event_instanz_id: currentInstanzId,
+    datum: currentKasseTag,
+    modus,
+    notiz: el('kasse-notiz')?.value || '',
+    geaendert_am: now,
+  };
+
+  if (modus === 'zaehlen') {
+    const anfangCent = Math.round((parseFloat(el('kasse-anfang')?.value) || 0) * 100);
+    const muenzen = {}, scheine = {};
+    let istBestand = 0;
+    muenzWerte.forEach(w => {
+      const v = parseInt(el('zahl-muenze-' + w.replace('.','_'))?.value) || 0;
+      muenzen[w] = v;
+      istBestand += v * Math.round(parseFloat(w) * 100);
+    });
+    scheinWerte.forEach(w => {
+      const v = parseInt(el('zahl-schein-' + w)?.value) || 0;
+      scheine[w] = v;
+      istBestand += v * parseInt(w) * 100;
+    });
+    payload.anfangsbestand_cent = anfangCent;
+    payload.ist_bestand_cent    = istBestand;
+    payload.stueckelung         = { muenzen, scheine };
+    payload.tagesumsatz_bar_cent = null;
+  } else {
+    const val = parseFloat(el('kasse-schnell-umsatz')?.value) || 0;
+    payload.tagesumsatz_bar_cent = Math.round(val * 100);
+    payload.ist_bestand_cent    = null;
+    payload.anfangsbestand_cent = null;
+    payload.stueckelung         = null;
+  }
+
+  // Upsert auf (stand_id, datum)
+  const { data: vorh } = await sb.from('kassenzaehlung')
+    .select('id').eq('stand_id', currentStandId).eq('datum', currentKasseTag)
+    .is('geloescht_am', null).maybeSingle();
+
+  let error;
+  if (vorh) {
+    ({ error } = await sb.from('kassenzaehlung').update(payload).eq('id', vorh.id));
+  } else {
+    payload.id = uuid();
+    payload.erstellt_am = now;
+    ({ error } = await sb.from('kassenzaehlung').insert(payload));
+  }
+  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  toast('✓ Zählung gespeichert', 'ok');
+  goBack();
+}
+
+async function deleteKassenzaehlung(id) {
+  if (!confirm('Zählung wirklich löschen?')) return;
+  await sb.from('kassenzaehlung').update({ geloescht_am: new Date().toISOString() }).eq('id', id);
+  toast('Zählung gelöscht');
+  goBack();
+}
+
+// ── BUCHUNGEN MODAL ───────────────────────────────────────────
+function openNeueBuchungModal(instanzId, standId) {
+  _modalBuchungInstanzId = instanzId;
+  _modalBuchungStandId   = standId;
+  el('buch-typ').value    = 'einnahme';
+  el('buch-art').value    = 'ec';
+  el('buch-betrag').value = '';
+  el('buch-bez').value    = '';
+  openModal('modal-neue-buchung');
+}
+
+async function saveBuchung() {
+  const betrag = parseFloat(el('buch-betrag').value) || 0;
+  if (!betrag) { toast('Betrag fehlt', 'err'); return; }
+  const now = new Date().toISOString();
+  const { error } = await sb.from('buchung').insert({
+    id: uuid(),
+    event_instanz_id: _modalBuchungInstanzId,
+    stand_id: _modalBuchungStandId || null,
+    datum: isoToday(),
+    typ: el('buch-typ').value,
+    zahlungsart: el('buch-art').value,
+    betrag_cent: Math.round(betrag * 100),
+    bezeichnung: el('buch-bez').value || '',
+    erstellt_am: now, geaendert_am: now,
+  });
+  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  closeModal('modal-neue-buchung');
+  toast('✓ Buchung gespeichert', 'ok');
+  renderKasseTab();
+}
+
+// ── BESTELLUNG TAB ────────────────────────────────────────────
+function renderBestellungTab() {
+  el('tab-content-bestellung').innerHTML = `<div class="section">
+    <h2>Bestellung</h2>
+    <p style="color:var(--text3);font-size:14px;">Kommt in Ausbaustufe 3.<br>Der Produktkatalog ist bereits vollständig in Supabase hinterlegt.</p>
+  </div>`;
+}
+
+// ── CHRONIK TAB ───────────────────────────────────────────────
+async function renderChronikTab() {
+  const wrap = el('tab-content-chronik');
+  wrap.innerHTML = '<div class="section"><div class="spinner"></div></div>';
+
+  // Kassenzählungen + Buchungen zusammenführen
+  const { data: staende } = await sb.from('stand').select('*')
+    .eq('event_instanz_id', currentInstanzId).is('geloescht_am', null);
+  const standIds = (staende || []).map(s => s.id);
+
+  let barGesamt = 0, ecGesamt = 0;
+  const tage = {};
+
+  if (standIds.length) {
+    const { data: zaehlungen } = await sb.from('kassenzaehlung')
+      .select('*').in('stand_id', standIds).is('geloescht_am', null).order('datum');
+    (zaehlungen || []).forEach(z => {
+      const u = z.modus === 'zaehlen'
+        ? (z.ist_bestand_cent || 0) - (z.anfangsbestand_cent || 0)
+        : (z.tagesumsatz_bar_cent || 0);
+      barGesamt += u;
+      tage[z.datum] = (tage[z.datum] || 0) + u;
+    });
+
+    const { data: buchungen } = await sb.from('buchung')
+      .select('*').in('stand_id', standIds).is('geloescht_am', null);
+    (buchungen || []).forEach(b => {
+      if (b.typ === 'einnahme' && b.zahlungsart === 'ec') ecGesamt += (b.betrag_cent || 0);
+    });
+  }
+
+  const gesamt = barGesamt + ecGesamt;
+  const tageList = Object.entries(tage).sort(([a],[b]) => a.localeCompare(b));
+
+  wrap.innerHTML = `<div class="section">
+    <h2>Chronik</h2>
+    <div class="stat-chips" style="margin-bottom:16px;">
+      <div class="stat-chip">Bar <span>${eur(barGesamt)}</span></div>
+      <div class="stat-chip">EC <span>${eur(ecGesamt)}</span></div>
+      <div class="stat-chip">Gesamt <span>${eur(gesamt)}</span></div>
+    </div>
+    <h3>Tagesumsätze</h3>
+    ${tageList.length ? tageList.map(([datum, cent]) =>
+      `<div class="abschluss-row">
+        <span class="abschluss-label">${dateFmt(datum)}</span>
+        <span class="abschluss-val">${eur(cent)}</span>
+      </div>`
+    ).join('') : '<p style="color:var(--text3);font-size:13px;">Noch keine Zählungen.</p>'}
+  </div>`;
+}
+
+// ── NEUER MARKT MODAL ─────────────────────────────────────────
+function openNeuerMarktModal() {
+  el('nm-name').value     = '';
+  el('nm-ort').value      = '';
+  el('nm-plz').value      = '';
+  el('nm-start').value    = '';
+  el('nm-ende').value     = '';
+  el('nm-km-sued').value  = '';
+  el('nm-km-nord').value  = '';
+  el('nm-notiz').value    = '';
+  el('nm-rhythmus').value = 'jaehrlich';
+  openModal('modal-neuer-markt');
+}
+
+async function saveNeuerMarkt() {
+  const name   = el('nm-name').value.trim();
+  const ort    = el('nm-ort').value.trim();
+  const start  = el('nm-start').value;
+  if (!name || !ort || !start) { toast('Name, Ort und Start sind Pflicht', 'err'); return; }
+
+  const now   = new Date().toISOString();
+  const jahr  = parseInt(start.slice(0,4));
+  const ende  = el('nm-ende').value || null;
+  const dauer = ende ? Math.round((new Date(ende) - new Date(start)) / 86400000) + 1 : null;
+  const kmS   = parseInt(el('nm-km-sued').value) || null;
+  const kmN   = parseInt(el('nm-km-nord').value) || null;
+  const plz   = el('nm-plz').value.trim() || null;
+  const rhyt  = el('nm-rhythmus').value;
+  const notiz = el('nm-notiz').value.trim() || null;
+
+  // 1) Template anlegen
+  const templateId = uuid();
+  const { error: tErr } = await sb.from('event_template').insert({
+    id: templateId, name, ort, plz,
+    km_schoellkrippen: kmS, km_minden: kmN,
+    wiederholung: rhyt,
+    favorit: false,
+    erstellt_am: now, geaendert_am: now,
+    erstellt_von: currentUser.id, geaendert_von: currentUser.id,
+  });
+  if (tErr) { toast('Fehler (Template): ' + tErr.message, 'err'); return; }
+
+  // 2) Instanz anlegen
+  const instanzId = uuid();
+  const { error: iErr } = await sb.from('event_instanz').insert({
+    id: instanzId, template_id: templateId,
+    saison_jahr: jahr, name,
+    status: 'angefragt',
+    start_datum: start, end_datum: ende,
+    dauer_tage: dauer, notiz,
+    erstellt_am: now, geaendert_am: now,
+    erstellt_von: currentUser.id, geaendert_von: currentUser.id,
+  });
+  if (iErr) { toast('Fehler (Instanz): ' + iErr.message, 'err'); return; }
+
+  closeModal('modal-neuer-markt');
+  toast('✓ Markt angelegt', 'ok');
+  await loadMaerkte();
+}
+
+// ── SAISON ────────────────────────────────────────────────────
+async function loadSaison() {
+  const jahr = new Date().getFullYear();
+  const { data } = await sb.from('event_instanz')
+    .select('*, event_template(name,ort)')
+    .eq('saison_jahr', jahr)
+    .is('geloescht_am', null);
+
+  const maerkte = data || [];
+  const abg = maerkte.filter(m => m.status === 'abgeschlossen').length;
+
+  el('saison-content').innerHTML = `
+    <div class="stat-chips" style="margin-bottom:16px;">
+      <div class="stat-chip">Märkte <span>${maerkte.length}</span></div>
+      <div class="stat-chip">Abgeschlossen <span>${abg}</span></div>
+    </div>
+    <p style="color:var(--text3);font-size:14px;">Saison-Auswertungen kommen in Ausbaustufe 2.</p>
+  `;
+}
+
+</script>
+</body>
+</html>
