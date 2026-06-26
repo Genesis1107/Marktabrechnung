@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.9</title>
+<title>Marktfahrer · v6.10</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -190,7 +190,29 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
 .spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; margin: 32px auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── STUNDEN ────────────────────────────────────────────────── */
+/* ── BESTELLUNG ─────────────────────────────────────────────── */
+.best-topbar { position: sticky; top: 0; z-index: 10; background: var(--bg2); border-bottom: 1px solid var(--border); padding: 10px 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.best-topbar-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--text2); white-space: nowrap; }
+.best-topbar-chip.gold { border-color: var(--gold); color: var(--gold); }
+.best-senden-btn { margin-left: auto; background: var(--gold); border: none; border-radius: 20px; padding: 7px 16px; font-size: 13px; font-weight: 700; color: var(--bg); cursor: pointer; white-space: nowrap; }
+.best-senden-btn:active { background: var(--gold2); }
+.best-kat-tabs { display: flex; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--border); background: var(--bg2); }
+.best-kat-tabs::-webkit-scrollbar { display: none; }
+.best-kat-btn { flex: none; padding: 10px 14px; background: none; border: none; color: var(--text3); font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: color .15s; }
+.best-kat-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+.best-produkt { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.best-prod-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.best-var-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.best-var-groesse { font-size: 12px; color: var(--text2); min-width: 70px; }
+.best-var-preis { font-size: 12px; color: var(--text3); min-width: 52px; text-align: right; }
+.best-var-controls { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.best-qty-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg3); color: var(--text); font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.best-qty-btn:active { background: var(--surface2); }
+.best-qty-val { min-width: 44px; text-align: center; font-size: 13px; font-weight: 600; color: var(--text); }
+.best-qty-val.aktiv { color: var(--gold2); }
+.best-qty-einheit { font-size: 10px; color: var(--text3); min-width: 32px; }
+.best-setup { padding: 20px 16px; }
+.best-versendet { background: rgba(76,175,80,.1); border: 1px solid var(--green2); border-radius: var(--radius); padding: 10px 14px; margin: 12px 14px; font-size: 13px; color: var(--green2); }
 .std-fahrer-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
 .std-fahrer-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); }
 .std-fahrer-name { font-size: 14px; font-weight: 600; color: var(--text); }
@@ -311,7 +333,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.9</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.10</div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -400,7 +422,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         <div id="marktfahrer-list"><div class="spinner"></div></div>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.9 · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.10 · Beerenweine</p>
       </div>
     </div>
 
@@ -1605,11 +1627,330 @@ async function saveBuchung() {
 }
 
 // ── BESTELLUNG TAB ────────────────────────────────────────────
-function renderBestellungTab() {
-  el('tab-content-bestellung').innerHTML = `<div class="section">
-    <h2>Bestellung</h2>
-    <p style="color:var(--text3);font-size:14px;">Kommt in Ausbaustufe 3.<br>Der Produktkatalog ist bereits vollständig in Supabase hinterlegt.</p>
+const BEST_LAGER = [
+  { id: 'a1b2c3d4-0001-0001-0001-000000000001', code: 'Süd', email: 'Bestellung-Sued@beerenweine.eu' },
+  { id: 'a1b2c3d4-0002-0002-0002-000000000002', code: 'Nord', email: 'Bestellung-nord@beerenweine.eu' },
+];
+const FAHRZEUGE = [
+  { id: 'solo',    label: 'Iveco Solo (1 Palette, ~750 kg)',    maxKg: 750 },
+  { id: 'haenger', label: 'Mit Anhänger (5 Paletten, ~3.750 kg)', maxKg: 3750 },
+];
+const KG_KISTE = 30;
+const PALETTE_KG = 750;
+
+// Bestellung-State
+let bst = {
+  bestellung: null, positionen: {}, // varId → {id, menge}
+  kategorien: [], produkte: [],
+  katPreisMap: {}, // `${katId}_${groesse}` → preis_cent
+  aktKatIdx: 0,
+  lagerId: BEST_LAGER[0].id,
+  fahrzeug: 'solo',
+};
+
+async function renderBestellungTab() {
+  const wrap = el('tab-content-bestellung');
+  wrap.innerHTML = '<div style="padding:20px"><div class="spinner"></div></div>';
+
+  // Paralleles Laden
+  const [
+    { data: bestellungen },
+    { data: kategorien },
+    { data: produkte },
+    { data: varianten },
+    { data: katPreise },
+  ] = await Promise.all([
+    sb.from('bestellung').select('id, lager_id, status, versendet_am')
+      .eq('event_instanz_id', currentInstanzId).is('geloescht_am', null).order('erstellt_am', {ascending:false}),
+    sb.from('kategorie').select('id, name, reihenfolge, preis_modus').order('reihenfolge'),
+    sb.from('produkt').select('id, name, artikelnr, kategorie_id').eq('aktiv', true).order('name'),
+    sb.from('produkt_variante').select('id, produkt_id, groesse, preis_cent, pro_kiste, gewicht_kg').is('geloescht_am', null),
+    sb.from('kategorie_preis').select('kategorie_id, groesse, preis_cent'),
+  ]);
+
+  // State aufbauen
+  bst.kategorien = kategorien || [];
+  bst.katPreisMap = {};
+  (katPreise || []).forEach(kp => { bst.katPreisMap[`${kp.kategorie_id}_${kp.groesse}`] = kp.preis_cent; });
+
+  // Produkte + Varianten zusammenführen
+  const varMap = {};
+  (varianten || []).forEach(v => { if (!varMap[v.produkt_id]) varMap[v.produkt_id] = []; varMap[v.produkt_id].push(v); });
+  bst.produkte = (produkte || []).map(p => ({ ...p, varianten: (varMap[p.id] || []).sort((a,b) => a.groesse.localeCompare(b.groesse)) }))
+    .filter(p => p.varianten.length > 0);
+
+  // Aktive Bestellung
+  bst.bestellung = bestellungen?.[0] || null;
+  bst.positionen = {};
+  if (bst.bestellung) {
+    const { data: pos } = await sb.from('bestellposition').select('id, variante_id, menge')
+      .eq('bestellung_id', bst.bestellung.id).is('geloescht_am', null);
+    (pos || []).forEach(p => { bst.positionen[p.variante_id] = { id: p.id, menge: p.menge }; });
+    bst.lagerId = bst.bestellung.lager_id;
+  }
+  if (bst.aktKatIdx >= bst.kategorien.length) bst.aktKatIdx = 0;
+
+  renderBestellungUI(wrap);
+}
+
+function renderBestellungUI(wrap) {
+  if (!bst.bestellung) {
+    renderBestellungSetup(wrap); return;
+  }
+  const lager  = BEST_LAGER.find(l => l.id === bst.lagerId) || BEST_LAGER[0];
+  const fzg    = FAHRZEUGE.find(f => f.id === bst.fahrzeug) || FAHRZEUGE[0];
+  const { kgGesamt, kistenGesamt } = bestGewicht();
+  const pal    = (kgGesamt / PALETTE_KG).toFixed(1);
+  const versendet = bst.bestellung?.status === 'versendet';
+
+  wrap.innerHTML = `
+    <div class="best-topbar">
+      <span class="best-topbar-chip">🏪 ${lager.code}</span>
+      <span class="best-topbar-chip gold">⚖ ${kgGesamt} kg</span>
+      <span class="best-topbar-chip">${kistenGesamt} Kisten · ${pal} Pal.</span>
+      <button class="best-senden-btn" onclick="openBestellungSendenModal()">📧 Senden</button>
+    </div>
+    ${versendet ? `<div class="best-versendet">✓ Versendet am ${dateFmt(bst.bestellung.versendet_am?.slice(0,10))}</div>` : ''}
+    <div class="best-kat-tabs" id="best-kat-tabs">
+      ${bst.kategorien.map((k,i) => {
+        const anzahl = bestKatAnzahl(k.id);
+        return `<button class="best-kat-btn ${i===bst.aktKatIdx?'active':''}" onclick="bestWechselKat(${i})">${k.name}${anzahl>0?` (${anzahl})`:''}</button>`;
+      }).join('')}
+    </div>
+    <div id="best-produkt-liste"></div>`;
+
+  renderBestProduktListe();
+}
+
+function renderBestellungSetup(wrap) {
+  const lagerOptionen = BEST_LAGER.map(l =>
+    `<option value="${l.id}" ${l.id === bst.lagerId ? 'selected' : ''}>${l.code} – ${l.email}</option>`
+  ).join('');
+  const fzgOptionen = FAHRZEUGE.map(f =>
+    `<option value="${f.id}" ${f.id === bst.fahrzeug ? 'selected' : ''}>${f.label}</option>`
+  ).join('');
+  wrap.innerHTML = `<div class="best-setup">
+    <h2>Bestellung anlegen</h2>
+    <div class="field" style="margin-top:14px;">
+      <label>Lager</label>
+      <select id="best-setup-lager">${lagerOptionen}</select>
+    </div>
+    <div class="field">
+      <label>Fahrzeug</label>
+      <select id="best-setup-fzg">${fzgOptionen}</select>
+    </div>
+    <button class="btn btn-primary btn-full" style="margin-top:8px;" onclick="bestellungAnlegen()">+ Bestellung anlegen</button>
   </div>`;
+}
+
+function renderBestProduktListe() {
+  const listWrap = el('best-produkt-liste');
+  if (!listWrap) return;
+  const kat = bst.kategorien[bst.aktKatIdx];
+  if (!kat) return;
+  const prods = bst.produkte.filter(p => p.kategorie_id === kat.id);
+  if (!prods.length) {
+    listWrap.innerHTML = '<p style="padding:16px;color:var(--text3);font-size:13px;">Keine Produkte in dieser Kategorie.</p>';
+    return;
+  }
+  listWrap.innerHTML = prods.map(p => {
+    const varHtml = p.varianten.map(v => {
+      const preis = bestPreis(v, kat);
+      const pos   = bst.positionen[v.id];
+      const menge = pos?.menge || 0;
+      const einheit = (v.pro_kiste && v.pro_kiste > 0) ? 'Kiste' : 'Stk';
+      return `<div class="best-var-row">
+        <span class="best-var-groesse">${v.groesse} l</span>
+        <span class="best-var-preis">${preis != null ? eur(preis) : '—'}</span>
+        <div class="best-var-controls">
+          <button class="best-qty-btn" onclick="bestMengeAendern('${v.id}', ${v.pro_kiste||0}, -1)">−</button>
+          <span class="best-qty-val ${menge>0?'aktiv':''}" id="bqv-${v.id.slice(0,8)}">${menge}</span>
+          <span class="best-qty-einheit">${einheit}</span>
+          <button class="best-qty-btn" onclick="bestMengeAendern('${v.id}', ${v.pro_kiste||0}, 1)">+</button>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="best-produkt"><div class="best-prod-name">${p.name}</div>${varHtml}</div>`;
+  }).join('');
+}
+
+function bestPreis(variante, kat) {
+  if (variante.preis_cent != null) return variante.preis_cent;
+  return bst.katPreisMap[`${kat.id}_${variante.groesse}`] ?? null;
+}
+
+function bestKatAnzahl(katId) {
+  const prods = bst.produkte.filter(p => p.kategorie_id === katId);
+  return prods.reduce((s,p) => s + p.varianten.reduce((s2,v) => s2 + (bst.positionen[v.id]?.menge || 0), 0), 0);
+}
+
+function bestGewicht() {
+  let kgGesamt = 0, kistenGesamt = 0;
+  Object.entries(bst.positionen).forEach(([varId, pos]) => {
+    if (!pos.menge) return;
+    // Alle Varianten durchsuchen
+    for (const p of bst.produkte) {
+      const v = p.varianten.find(vv => vv.id === varId);
+      if (v) {
+        if (v.pro_kiste && v.pro_kiste > 0) {
+          kgGesamt += pos.menge * KG_KISTE;
+          kistenGesamt += pos.menge;
+        }
+        break;
+      }
+    }
+  });
+  return { kgGesamt, kistenGesamt };
+}
+
+function bestWechselKat(idx) {
+  bst.aktKatIdx = idx;
+  // Tabs neu rendern
+  const tabsEl = el('best-kat-tabs');
+  if (tabsEl) {
+    tabsEl.querySelectorAll('.best-kat-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
+  }
+  renderBestProduktListe();
+}
+
+async function bestellungAnlegen() {
+  const lagerId = el('best-setup-lager')?.value || bst.lagerId;
+  const fzg     = el('best-setup-fzg')?.value   || bst.fahrzeug;
+  bst.lagerId   = lagerId;
+  bst.fahrzeug  = fzg;
+  const now = new Date().toISOString();
+  const { data, error } = await sb.from('bestellung').insert({
+    id: uuid(), event_instanz_id: currentInstanzId, lager_id: lagerId,
+    status: 'entwurf', erstellt_am: now, geaendert_am: now,
+    erstellt_von: currentUser.id, geaendert_von: currentUser.id,
+  }).select().single();
+  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  bst.bestellung = data;
+  bst.positionen = {};
+  renderBestellungUI(el('tab-content-bestellung'));
+}
+
+async function bestMengeAendern(varId, proKiste, delta) {
+  if (!bst.bestellung) return;
+  const pos  = bst.positionen[varId];
+  const alt  = pos?.menge || 0;
+  const neu  = Math.max(0, alt + delta);
+  const now  = new Date().toISOString();
+
+  // Optimistisch UI aktualisieren
+  const qEl = el('bqv-' + varId.slice(0,8));
+  if (neu === 0) {
+    delete bst.positionen[varId];
+    if (qEl) { qEl.textContent = '0'; qEl.classList.remove('aktiv'); }
+  } else {
+    bst.positionen[varId] = { ...(bst.positionen[varId] || {}), menge: neu };
+    if (qEl) { qEl.textContent = neu; qEl.classList.add('aktiv'); }
+  }
+
+  // Topbar aktualisieren
+  const { kgGesamt, kistenGesamt } = bestGewicht();
+  const pal = (kgGesamt / PALETTE_KG).toFixed(1);
+  const chips = document.querySelectorAll('.best-topbar-chip');
+  if (chips[1]) chips[1].textContent = `⚖ ${kgGesamt} kg`;
+  if (chips[2]) chips[2].textContent = `${kistenGesamt} Kisten · ${pal} Pal.`;
+
+  // Kategorie-Tab-Zahlen aktualisieren
+  const kat = bst.kategorien[bst.aktKatIdx];
+  const tabBtn = el('best-kat-tabs')?.querySelectorAll('.best-kat-btn')[bst.aktKatIdx];
+  if (tabBtn && kat) {
+    const n = bestKatAnzahl(kat.id);
+    tabBtn.textContent = kat.name + (n > 0 ? ` (${n})` : '');
+  }
+
+  // DB schreiben
+  if (neu === 0 && pos?.id) {
+    await sb.from('bestellposition').update({ geloescht_am: now }).eq('id', pos.id);
+  } else if (neu > 0 && pos?.id) {
+    await sb.from('bestellposition').update({ menge: neu, geaendert_am: now }).eq('id', pos.id);
+  } else if (neu > 0) {
+    const { data: newPos } = await sb.from('bestellposition').insert({
+      id: uuid(), bestellung_id: bst.bestellung.id, variante_id: varId,
+      menge: neu, erstellt_am: now, geaendert_am: now,
+    }).select().single();
+    if (newPos) bst.positionen[varId] = { id: newPos.id, menge: neu };
+  }
+}
+
+function openBestellungSendenModal() {
+  const lager  = BEST_LAGER.find(l => l.id === bst.lagerId) || BEST_LAGER[0];
+  const inst   = currentInstanz;
+  const name   = inst?.name || inst?.event_template?.name || 'Markt';
+  const datum  = inst?.start_datum ? dateFmt(inst.start_datum) + (inst.end_datum ? ' – ' + dateFmt(inst.end_datum) : '') : '';
+
+  // Bestelltext aufbauen
+  let zeilen = [];
+  zeilen.push(`BESTELLUNG – ${name}${datum ? ' | ' + datum : ''}`);
+  zeilen.push(`Lager: ${lager.code}`);
+  zeilen.push('');
+
+  bst.kategorien.forEach(kat => {
+    const prods = bst.produkte.filter(p => p.kategorie_id === kat.id);
+    let katZeilen = [];
+    prods.forEach(p => {
+      p.varianten.forEach(v => {
+        const menge = bst.positionen[v.id]?.menge || 0;
+        if (!menge) return;
+        const einheit = (v.pro_kiste && v.pro_kiste > 0) ? 'Kisten' : 'Stk';
+        const preis   = bestPreis(v, kat);
+        const preisStr = preis != null ? ` (${eur(preis)})` : '';
+        katZeilen.push(`  ${p.name} ${v.groesse}: ${menge} ${einheit}${preisStr}`);
+      });
+    });
+    if (katZeilen.length) {
+      zeilen.push(`--- ${kat.name.toUpperCase()} ---`);
+      zeilen.push(...katZeilen);
+      zeilen.push('');
+    }
+  });
+
+  const { kgGesamt, kistenGesamt } = bestGewicht();
+  zeilen.push(`Gewicht gesamt: ${kgGesamt} kg (${kistenGesamt} Kisten, ca. ${(kgGesamt/PALETTE_KG).toFixed(1)} Paletten)`);
+  zeilen.push('');
+  zeilen.push('Viele Grüße');
+
+  const bestellText = zeilen.join('\n');
+  const betreff  = encodeURIComponent(`Bestellung ${name}${datum ? ' ' + datum : ''}`);
+  const body     = encodeURIComponent(bestellText);
+  const mailto   = `mailto:${lager.email}?subject=${betreff}&body=${body}`;
+
+  // Modal mit Vorschau + Senden
+  const mod = document.createElement('div');
+  mod.className = 'modal-overlay';
+  mod.id = 'modal-best-senden';
+  mod.innerHTML = `<div class="modal-box">
+    <div class="modal-title">📧 Bestellung senden</div>
+    <div class="field">
+      <label>Empfänger</label>
+      <div style="font-size:14px;color:var(--text2);padding:4px 0;">${lager.email}</div>
+    </div>
+    <div class="field">
+      <label>Vorschau</label>
+      <textarea readonly style="font-size:11px;font-family:monospace;height:160px;color:var(--text2);">${bestellText}</textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="this.closest('.modal-overlay').remove()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="bestSendenBestaetigt('${mailto}', this)">📧 Senden</button>
+    </div>
+  </div>`;
+  document.body.appendChild(mod);
+}
+
+async function bestSendenBestaetigt(mailto, btn) {
+  window.open(mailto, '_blank');
+  // Status auf versendet setzen
+  const now = new Date().toISOString();
+  await sb.from('bestellung').update({ status: 'versendet', versendet_am: now, geaendert_am: now })
+    .eq('id', bst.bestellung.id);
+  bst.bestellung.status     = 'versendet';
+  bst.bestellung.versendet_am = now;
+  btn.closest('.modal-overlay').remove();
+  toast('✓ Bestellung als versendet markiert', 'ok');
+  renderBestellungUI(el('tab-content-bestellung'));
 }
 
 // ── CHRONIK TAB ───────────────────────────────────────────────
@@ -1858,7 +2199,7 @@ function exportChronikPDF() {
 <div class="pdf-header"><div style="font-size:20px;margin-bottom:6px">⚜</div>
 <h1>${marktName}</h1><div class="sub">Marktchronik · Saison ${aktJahr}</div></div>
 ${contentHtml}
-<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.9 · Erstellt am ${heute}</p></div>
+<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.10 · Erstellt am ${heute}</p></div>
 </body></html>`;
   let old2 = document.getElementById('chr-pdf-frame');
   if (old2) old2.remove();
