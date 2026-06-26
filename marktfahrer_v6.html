@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.2</title>
+<title>Marktfahrer · v6.3</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -219,7 +219,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.2</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.3</div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -399,6 +399,10 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
   <div class="modal-box">
     <div class="modal-title">💳 Buchung erfassen</div>
     <div class="field">
+      <label>Datum</label>
+      <input type="date" id="buch-datum">
+    </div>
+    <div class="field">
       <label>Typ</label>
       <select id="buch-typ">
         <option value="einnahme">Einnahme</option>
@@ -414,7 +418,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
     </div>
     <div class="field">
       <label>Betrag (€) *</label>
-      <input type="number" id="buch-betrag" placeholder="0.00" step="0.01" min="0">
+      <input type="number" id="buch-betrag" placeholder="0.00" step="0.01" min="0" onfocus="clearZero(this)">
     </div>
     <div class="field">
       <label>Bezeichnung</label>
@@ -1183,6 +1187,7 @@ async function deleteKassenzaehlung(id) {
 function openNeueBuchungModal(instanzId, standId) {
   _modalBuchungInstanzId = instanzId;
   _modalBuchungStandId   = standId;
+  el('buch-datum').value  = isoToday();
   el('buch-typ').value    = 'einnahme';
   el('buch-art').value    = 'ec';
   el('buch-betrag').value = '';
@@ -1192,13 +1197,14 @@ function openNeueBuchungModal(instanzId, standId) {
 
 async function saveBuchung() {
   const betrag = parseFloat(el('buch-betrag').value) || 0;
+  const datum  = el('buch-datum').value || isoToday();
   if (!betrag) { toast('Betrag fehlt', 'err'); return; }
   const now = new Date().toISOString();
   const { error } = await sb.from('buchung').insert({
     id: uuid(),
     event_instanz_id: _modalBuchungInstanzId,
     stand_id: _modalBuchungStandId || null,
-    datum: isoToday(),
+    datum,
     typ: el('buch-typ').value,
     zahlungsart: el('buch-art').value,
     betrag_cent: Math.round(betrag * 100),
