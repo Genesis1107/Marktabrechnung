@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.7</title>
+<title>Marktfahrer · v6.8</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -287,7 +287,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.7</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.8</div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -363,7 +363,16 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         </div>
         <hr class="divider">
         <button class="btn btn-danger btn-full" onclick="doLogout()">Abmelden</button>
-        <p style="color:var(--text3);font-size:11px;text-align:center;margin-top:12px;">Marktfahrer v6.0 · Beerenweine</p>
+      </div>
+      <div class="section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <h2 style="margin:0;">Marktfahrer</h2>
+          <button class="btn btn-sm btn-primary" onclick="openNeuerMarktfahrerModal()">+ Neu</button>
+        </div>
+        <div id="marktfahrer-list"><div class="spinner"></div></div>
+      </div>
+      <div class="section">
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.8 · Beerenweine</p>
       </div>
     </div>
 
@@ -523,6 +532,35 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
     </div>
   </div>
 </div>
+
+<div id="modal-neuer-marktfahrer" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">🧑‍🤝‍🧑 Marktfahrer anlegen</div>
+    <div class="field">
+      <label>Name *</label>
+      <input type="text" id="mf-name" placeholder="z. B. Karo">
+    </div>
+    <div class="field">
+      <label>Telefon</label>
+      <input type="tel" id="mf-telefon" placeholder="Optional">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-neuer-marktfahrer')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveNeuerMarktfahrer()">Anlegen</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-fahrer-zuordnen" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">👤 Fahrer zuordnen</div>
+    <div id="fahrer-picker-list" style="max-height:300px;overflow-y:auto;"></div>
+    <div class="modal-actions" style="margin-top:8px;">
+      <button class="btn btn-full" onclick="closeModal('modal-fahrer-zuordnen')">Schließen</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -701,6 +739,7 @@ function navTo(tab) {
     showScreen('einstellungen');
     setHeader('Einstellungen', '');
     el('btn-back').classList.remove('visible');
+    loadMarktfahrerListe();
   }
 }
 
@@ -829,17 +868,25 @@ async function renderPlanungTab() {
   const inst = currentInstanz;
   if (!inst) return;
 
-  // Stände laden
-  const { data: staende } = await sb
-    .from('stand')
-    .select('*')
-    .eq('event_instanz_id', currentInstanzId)
-    .is('geloescht_am', null)
-    .order('bezeichnung');
+  // Stände + Fahrer parallel laden
+  const [{ data: staende }, zugeordneteFahrer] = await Promise.all([
+    sb.from('stand').select('*')
+      .eq('event_instanz_id', currentInstanzId)
+      .is('geloescht_am', null).order('bezeichnung'),
+    loadFahrerFuerInstanz(currentInstanzId),
+  ]);
 
   const statusOptions = STATUS_ORDER.map(s =>
     `<option value="${s}" ${inst.status === s ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`
   ).join('');
+
+  const fahrerHtml = zugeordneteFahrer.length
+    ? zugeordneteFahrer.map(z => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
+          <span style="font-size:14px;">👤 ${z.marktfahrer.name}</span>
+          <button class="btn btn-sm" onclick="fahrerEntfernen('${z.id}')">✕</button>
+        </div>`).join('')
+    : '<p style="color:var(--text3);font-size:13px;">Noch keine Fahrer zugeordnet.</p>';
 
   wrap.innerHTML = `
     <div class="section">
@@ -864,6 +911,13 @@ async function renderPlanungTab() {
         <label>Notiz</label>
         <textarea id="plan-notiz" onchange="savePlanungNotiz()">${inst.notiz || ''}</textarea>
       </div>
+    </div>
+    <div class="section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <h2 style="margin:0;">Fahrer</h2>
+        <button class="btn btn-sm" onclick="openFahrerZuordnenModal()">+ Zuordnen</button>
+      </div>
+      ${fahrerHtml}
     </div>
     <div class="section">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -1753,7 +1807,7 @@ function exportChronikPDF() {
 <div class="pdf-header"><div style="font-size:20px;margin-bottom:6px">⚜</div>
 <h1>${marktName}</h1><div class="sub">Marktchronik · Saison ${aktJahr}</div></div>
 ${contentHtml}
-<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.7 · Erstellt am ${heute}</p></div>
+<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.8 · Erstellt am ${heute}</p></div>
 </body></html>`;
   let old2 = document.getElementById('chr-pdf-frame');
   if (old2) old2.remove();
@@ -1767,6 +1821,122 @@ ${contentHtml}
   setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 800);
 }
 
+
+// ── MARKTFAHRER-VERWALTUNG ────────────────────────────────────
+let allMarktfahrer = []; // Cache
+
+async function loadMarktfahrerListe() {
+  const wrap = el('marktfahrer-list');
+  if (!wrap) return;
+  const { data } = await sb.from('marktfahrer').select('*')
+    .eq('aktiv', true).is('geloescht_am', null).order('name');
+  allMarktfahrer = data || [];
+  if (!allMarktfahrer.length) {
+    wrap.innerHTML = '<p style="color:var(--text3);font-size:14px;">Noch keine Marktfahrer angelegt.</p>';
+    return;
+  }
+  wrap.innerHTML = allMarktfahrer.map(mf => `
+    <div class="card" style="cursor:default;margin-bottom:8px;">
+      <div class="card-row">
+        <div>
+          <div class="card-title">${mf.name}</div>
+          ${mf.telefon ? `<div class="card-sub">📞 ${mf.telefon}</div>` : ''}
+          ${mf.user_id ? '<div class="card-sub" style="color:var(--green2);">✓ Login verknüpft</div>' : ''}
+        </div>
+        <button class="btn btn-sm btn-danger" onclick="deleteMarktfahrer('${mf.id}')">✕</button>
+      </div>
+    </div>`
+  ).join('');
+}
+
+function openNeuerMarktfahrerModal() {
+  el('mf-name').value    = '';
+  el('mf-telefon').value = '';
+  openModal('modal-neuer-marktfahrer');
+}
+
+async function saveNeuerMarktfahrer() {
+  const name = el('mf-name').value.trim();
+  if (!name) { toast('Name fehlt', 'err'); return; }
+  const now = new Date().toISOString();
+  const { error } = await sb.from('marktfahrer').insert({
+    id: uuid(), name,
+    telefon: el('mf-telefon').value.trim() || null,
+    aktiv: true,
+    erstellt_am: now, geaendert_am: now,
+    erstellt_von: currentUser.id, geaendert_von: currentUser.id,
+  });
+  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  closeModal('modal-neuer-marktfahrer');
+  toast('✓ Marktfahrer angelegt', 'ok');
+  loadMarktfahrerListe();
+}
+
+async function deleteMarktfahrer(id) {
+  if (!confirm('Marktfahrer wirklich löschen?')) return;
+  await sb.from('marktfahrer').update({ geloescht_am: new Date().toISOString() }).eq('id', id);
+  toast('Gelöscht');
+  loadMarktfahrerListe();
+}
+
+// ── FAHRER-ZUORDNUNG (Planung-Tab) ────────────────────────────
+async function loadFahrerFuerInstanz(instanzId) {
+  const { data } = await sb.from('event_marktfahrer')
+    .select('id, marktfahrer:marktfahrer_id(id, name)')
+    .eq('event_instanz_id', instanzId)
+    .is('geloescht_am', null);
+  return data || [];
+}
+
+async function openFahrerZuordnenModal() {
+  // Alle Marktfahrer laden + bereits zugeordnete markieren
+  if (!allMarktfahrer.length) {
+    const { data } = await sb.from('marktfahrer').select('*')
+      .eq('aktiv', true).is('geloescht_am', null).order('name');
+    allMarktfahrer = data || [];
+  }
+  const zugeordnet = await loadFahrerFuerInstanz(currentInstanzId);
+  const zugeordnetIds = zugeordnet.map(z => z.marktfahrer.id);
+
+  const wrap = el('fahrer-picker-list');
+  if (!allMarktfahrer.length) {
+    wrap.innerHTML = '<p style="color:var(--text3);padding:12px;">Keine Marktfahrer angelegt. Bitte zuerst in Einstellungen anlegen.</p>';
+  } else {
+    wrap.innerHTML = allMarktfahrer.map(mf => {
+      const istZugeordnet = zugeordnetIds.includes(mf.id);
+      const zuordnungId = istZugeordnet ? zugeordnet.find(z => z.marktfahrer.id === mf.id)?.id : null;
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:14px;color:var(--text);">${mf.name}</span>
+        ${istZugeordnet
+          ? `<button class="btn btn-sm btn-danger" onclick="fahrerEntfernen('${zuordnungId}')">Entfernen</button>`
+          : `<button class="btn btn-sm btn-primary" onclick="fahrerZuordnen('${mf.id}')">Zuordnen</button>`
+        }
+      </div>`;
+    }).join('');
+  }
+  openModal('modal-fahrer-zuordnen');
+}
+
+async function fahrerZuordnen(marktfahrerId) {
+  const now = new Date().toISOString();
+  const { error } = await sb.from('event_marktfahrer').insert({
+    id: uuid(),
+    event_instanz_id: currentInstanzId,
+    marktfahrer_id: marktfahrerId,
+    erstellt_am: now,
+  });
+  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  toast('✓ Fahrer zugeordnet', 'ok');
+  openFahrerZuordnenModal(); // Modal aktualisieren
+  renderPlanungTab();
+}
+
+async function fahrerEntfernen(zuordnungId) {
+  await sb.from('event_marktfahrer').update({ geloescht_am: new Date().toISOString() }).eq('id', zuordnungId);
+  toast('Fahrer entfernt');
+  openFahrerZuordnenModal();
+  renderPlanungTab();
+}
 
 // ── NEUER MARKT MODAL ─────────────────────────────────────────
 function openNeuerMarktModal() {
