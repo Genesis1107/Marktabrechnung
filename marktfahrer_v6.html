@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.3</title>
+<title>Marktfahrer · v6.4</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -194,6 +194,14 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
 .stat-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .stat-chip { background: var(--bg3); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--text2); }
 .stat-chip span { color: var(--gold); font-weight: 600; }
+
+/* ── STÜCKELUNG DETAIL ──────────────────────────────────────── */
+.stu-box { background: var(--bg3); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; }
+.stu-gruppe { margin-bottom: 10px; }
+.stu-titel { font-size: 11px; font-weight: 600; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+.stu-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text); padding: 2px 0; }
+.stu-summe { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--gold); border-top: 1px solid var(--border); margin-top: 4px; padding-top: 4px; }
+.stu-gesamt { border-top: 1px solid var(--border2); margin-top: 8px; padding-top: 8px; }
 </style>
 </head>
 <body>
@@ -219,7 +227,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.3</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.4</div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -431,7 +439,30 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
   </div>
 </div>
 
-<!-- TOAST -->
+<div id="modal-neues-jahr" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">📅 Neues Jahr anlegen</div>
+    <p style="color:var(--text3);font-size:13px;margin-bottom:14px;" id="nj-marktname">—</p>
+    <div class="field-row">
+      <div class="field" style="margin-bottom:0">
+        <label>Start *</label>
+        <input type="date" id="nj-start">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>Ende</label>
+        <input type="date" id="nj-ende">
+      </div>
+    </div>
+    <div class="field" style="margin-top:14px;">
+      <label>Notiz</label>
+      <input type="text" id="nj-notiz" placeholder="Optional…">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-neues-jahr')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveNeuesJahr()">Anlegen</button>
+    </div>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -772,6 +803,11 @@ async function renderPlanungTab() {
         ${staende && staende.length ? staende.map(renderStandCard).join('') : '<p style="color:var(--text3);font-size:14px;">Noch keine Kutschen angelegt.</p>'}
       </div>
     </div>
+    <div class="section">
+      <h2>Weiteres Jahr</h2>
+      <p style="color:var(--text3);font-size:13px;margin-bottom:12px;">Selben Markt für ein anderes Jahr anlegen (z.B. für Vorjahresdaten).</p>
+      <button class="btn btn-sm btn-full" onclick="openNeuesJahrModal()">+ Neues Jahr anlegen</button>
+    </div>
   `;
 }
 
@@ -932,11 +968,87 @@ function renderZaehlungenListe(zaehlungen, stand) {
     const umsatz = z.modus === 'zaehlen'
       ? (z.ist_bestand_cent || 0) - (z.anfangsbestand_cent || 0)
       : (z.tagesumsatz_bar_cent || 0);
-    return `<div class="abschluss-row" onclick="openKasseDetail('${stand.id}', '${z.datum}')" style="cursor:pointer;">
-      <span class="abschluss-label">${dateFmt(z.datum)}</span>
-      <span class="abschluss-val">${eur(umsatz)}</span>
+    const zid = z.id.replace(/-/g,'').slice(0,8);
+
+    // Stückelung aufbauen wenn vorhanden
+    let stuDetail = '';
+    if (z.modus === 'zaehlen' && z.stueckelung) {
+      const mu = z.stueckelung.muenzen || {};
+      const sc = z.stueckelung.scheine || {};
+      const muenzWerte  = ['2.00','1.00','0.50'];
+      const scheinWerte = ['5','10','20','50','100','200'];
+
+      let muenzSumme = 0, scheinSumme = 0;
+      const muenzRows = muenzWerte
+        .filter(w => (mu[w] || 0) > 0)
+        .map(w => {
+          const v = mu[w] || 0;
+          const s = v * Math.round(parseFloat(w) * 100);
+          muenzSumme += s;
+          return `<div class="stu-row"><span>${w.replace('.',',')} €  ×  ${v}</span><span>${eur(s)}</span></div>`;
+        }).join('');
+      const scheinRows = scheinWerte
+        .filter(w => (sc[w] || 0) > 0)
+        .map(w => {
+          const v = sc[w] || 0;
+          const s = v * parseInt(w) * 100;
+          scheinSumme += s;
+          return `<div class="stu-row"><span>${w} €  ×  ${v}</span><span>${eur(s)}</span></div>`;
+        }).join('');
+
+      const anfang = z.anfangsbestand_cent || 0;
+      stuDetail = `<div class="stu-box" id="stu-${zid}" style="display:none;">
+        ${muenzRows || scheinRows ? `
+          ${muenzRows ? `<div class="stu-gruppe">
+            <div class="stu-titel">Münzen</div>
+            ${muenzRows}
+            <div class="stu-summe"><span>Summe Münzen</span><span>${eur(muenzSumme)}</span></div>
+          </div>` : ''}
+          ${scheinRows ? `<div class="stu-gruppe">
+            <div class="stu-titel">Scheine</div>
+            ${scheinRows}
+            <div class="stu-summe"><span>Summe Scheine</span><span>${eur(scheinSumme)}</span></div>
+          </div>` : ''}
+          <div class="stu-gesamt">
+            <div class="stu-row" style="color:var(--text2)"><span>Ist-Bestand</span><span>${eur(z.ist_bestand_cent || 0)}</span></div>
+            <div class="stu-row" style="color:var(--text2)"><span>– Anfang</span><span>– ${eur(anfang)}</span></div>
+            <div class="stu-row" style="font-weight:700;color:var(--gold2);font-size:15px;padding-top:6px;border-top:1px solid var(--border);margin-top:4px;">
+              <span>Tagesumsatz Bar</span><span>${eur(umsatz)}</span>
+            </div>
+          </div>
+        ` : '<p style="color:var(--text3);font-size:12px;padding:4px 0;">Keine Stückelung erfasst.</p>'}
+      </div>`;
+    }
+
+    const hasDetail = z.modus === 'zaehlen' && z.stueckelung;
+    return `<div style="border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;padding:8px 0;cursor:pointer;"
+           onclick="toggleStueckelung('${zid}', '${stand.id}', '${z.datum}')">
+        <div style="flex:1;">
+          <span style="font-size:13px;color:var(--text2);">${dateFmt(z.datum)}</span>
+          ${z.modus === 'schnell' ? '<span style="font-size:10px;color:var(--text3);margin-left:6px;">Schnell</span>' : ''}
+        </div>
+        <span style="font-size:15px;font-weight:600;color:var(--text);margin-right:8px;">${eur(umsatz)}</span>
+        ${hasDetail
+          ? `<span id="stu-arr-${zid}" style="color:var(--gold);font-size:16px;transition:transform .2s;">›</span>`
+          : `<span style="color:var(--gold);font-size:13px;">✏️</span>`}
+      </div>
+      ${stuDetail}
     </div>`;
   }).join('');
+}
+
+function toggleStueckelung(zid, standId, datum) {
+  const box = el('stu-' + zid);
+  const arr = el('stu-arr-' + zid);
+  if (box) {
+    const open = box.style.display !== 'none';
+    box.style.display = open ? 'none' : 'block';
+    if (arr) arr.style.transform = open ? '' : 'rotate(90deg)';
+  } else {
+    // Schnell-Modus oder kein Detail: direkt zum Bearbeiten
+    openKasseDetail(standId, datum);
+  }
 }
 
 function renderAbschlussVorschau(barUmsatz, barAusgaben, ecEinnahmen) {
@@ -1336,7 +1448,45 @@ async function saveNeuerMarkt() {
   await loadMaerkte();
 }
 
-// ── SAISON ────────────────────────────────────────────────────
+// ── NEUES JAHR MODAL ──────────────────────────────────────────
+function openNeuesJahrModal() {
+  const inst = currentInstanz;
+  const name = inst?.name || inst?.event_template?.name || '(Kein Name)';
+  el('nj-marktname').textContent = name;
+  el('nj-start').value  = '';
+  el('nj-ende').value   = '';
+  el('nj-notiz').value  = '';
+  openModal('modal-neues-jahr');
+}
+
+async function saveNeuesJahr() {
+  const start = el('nj-start').value;
+  if (!start) { toast('Start-Datum fehlt', 'err'); return; }
+  const ende  = el('nj-ende').value || null;
+  const dauer = ende ? Math.round((new Date(ende) - new Date(start)) / 86400000) + 1 : null;
+  const jahr  = parseInt(start.slice(0, 4));
+  const now   = new Date().toISOString();
+
+  const instanzId = uuid();
+  const { error } = await sb.from('event_instanz').insert({
+    id: instanzId,
+    template_id: currentInstanz.template_id,
+    saison_jahr: jahr,
+    name: currentInstanz.name || currentInstanz.event_template?.name,
+    status: 'abgeschlossen',
+    start_datum: start,
+    end_datum: ende,
+    dauer_tage: dauer,
+    notiz: el('nj-notiz').value || null,
+    erstellt_am: now, geaendert_am: now,
+    erstellt_von: currentUser.id, geaendert_von: currentUser.id,
+  });
+  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  closeModal('modal-neues-jahr');
+  toast('✓ Jahr angelegt', 'ok');
+  // Zur neuen Instanz wechseln
+  await openMarktDetail(instanzId);
+}
 async function loadSaison() {
   const jahr = new Date().getFullYear();
   const { data } = await sb.from('event_instanz')
