@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.10</title>
+<title>Marktfahrer · v6.11</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -333,7 +333,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.10</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.11</div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -422,7 +422,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         <div id="marktfahrer-list"><div class="spinner"></div></div>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.10 · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.11 · Beerenweine</p>
       </div>
     </div>
 
@@ -1646,6 +1646,7 @@ let bst = {
   aktKatIdx: 0,
   lagerId: BEST_LAGER[0].id,
   fahrzeug: 'solo',
+  expandedProds: new Set(), // expandierte Produkt-IDs
 };
 
 async function renderBestellungTab() {
@@ -1689,6 +1690,11 @@ async function renderBestellungTab() {
     bst.lagerId = bst.bestellung.lager_id;
   }
   if (bst.aktKatIdx >= bst.kategorien.length) bst.aktKatIdx = 0;
+  // Produkte mit vorhandenen Bestellmengen auto-aufklappen
+  bst.expandedProds = new Set();
+  bst.produkte.forEach(p => {
+    if (p.varianten.some(v => bst.positionen[v.id]?.menge > 0)) bst.expandedProds.add(p.id);
+  });
 
   renderBestellungUI(wrap);
 }
@@ -1699,15 +1705,15 @@ function renderBestellungUI(wrap) {
   }
   const lager  = BEST_LAGER.find(l => l.id === bst.lagerId) || BEST_LAGER[0];
   const fzg    = FAHRZEUGE.find(f => f.id === bst.fahrzeug) || FAHRZEUGE[0];
-  const { kgGesamt, kistenGesamt } = bestGewicht();
+  const { kgGesamt, kistenBerechnet, umsatzCent } = bestGewicht();
   const pal    = (kgGesamt / PALETTE_KG).toFixed(1);
   const versendet = bst.bestellung?.status === 'versendet';
 
   wrap.innerHTML = `
     <div class="best-topbar">
       <span class="best-topbar-chip">🏪 ${lager.code}</span>
-      <span class="best-topbar-chip gold">⚖ ${kgGesamt} kg</span>
-      <span class="best-topbar-chip">${kistenGesamt} Kisten · ${pal} Pal.</span>
+      <span class="best-topbar-chip gold" id="best-chip-kg">⚖ ${kgGesamt} kg · ${kistenBerechnet} Kisten · ${pal} Pal.</span>
+      <span class="best-topbar-chip gold" id="best-chip-umsatz">💰 ${eur(umsatzCent)}</span>
       <button class="best-senden-btn" onclick="openBestellungSendenModal()">📧 Senden</button>
     </div>
     ${versendet ? `<div class="best-versendet">✓ Versendet am ${dateFmt(bst.bestellung.versendet_am?.slice(0,10))}</div>` : ''}
@@ -1750,28 +1756,42 @@ function renderBestProduktListe() {
   if (!kat) return;
   const prods = bst.produkte.filter(p => p.kategorie_id === kat.id);
   if (!prods.length) {
-    listWrap.innerHTML = '<p style="padding:16px;color:var(--text3);font-size:13px;">Keine Produkte in dieser Kategorie.</p>';
+    listWrap.innerHTML = '<p style="padding:16px;color:var(--text3);font-size:13px;">Keine Produkte.</p>';
     return;
   }
   listWrap.innerHTML = prods.map(p => {
-    const varHtml = p.varianten.map(v => {
-      const preis = bestPreis(v, kat);
-      const pos   = bst.positionen[v.id];
-      const menge = pos?.menge || 0;
-      const einheit = (v.pro_kiste && v.pro_kiste > 0) ? 'Kiste' : 'Stk';
+    const expanded   = bst.expandedProds.has(p.id);
+    const gesamt     = p.varianten.reduce((s,v) => s + (bst.positionen[v.id]?.menge || 0), 0);
+    const badge      = gesamt > 0 ? `<span style="background:var(--gold);color:var(--bg);border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700;margin-left:6px;">${gesamt} Stk</span>` : '';
+    const varHtml = expanded ? p.varianten.map(v => {
+      const preis  = bestPreis(v, kat);
+      const pos    = bst.positionen[v.id];
+      const menge  = pos?.menge || 0;
       return `<div class="best-var-row">
-        <span class="best-var-groesse">${v.groesse} l</span>
+        <span class="best-var-groesse">${v.groesse}</span>
         <span class="best-var-preis">${preis != null ? eur(preis) : '—'}</span>
         <div class="best-var-controls">
-          <button class="best-qty-btn" onclick="bestMengeAendern('${v.id}', ${v.pro_kiste||0}, -1)">−</button>
+          <button class="best-qty-btn" onclick="bestMengeAendern('${v.id}','${p.id}',${v.pro_kiste||0},-1)">−</button>
           <span class="best-qty-val ${menge>0?'aktiv':''}" id="bqv-${v.id.slice(0,8)}">${menge}</span>
-          <span class="best-qty-einheit">${einheit}</span>
-          <button class="best-qty-btn" onclick="bestMengeAendern('${v.id}', ${v.pro_kiste||0}, 1)">+</button>
+          <span class="best-qty-einheit">Stk</span>
+          <button class="best-qty-btn" onclick="bestMengeAendern('${v.id}','${p.id}',${v.pro_kiste||0},1)">+</button>
         </div>
       </div>`;
-    }).join('');
-    return `<div class="best-produkt"><div class="best-prod-name">${p.name}</div>${varHtml}</div>`;
+    }).join('') : '';
+    return `<div class="best-produkt">
+      <div class="best-prod-name" onclick="toggleBestProdukt('${p.id}')" style="cursor:pointer;display:flex;align-items:center;user-select:none;">
+        <span style="color:var(--text3);margin-right:6px;font-size:12px;">${expanded ? '▼' : '▶'}</span>
+        ${p.name}${badge}
+      </div>
+      ${varHtml}
+    </div>`;
   }).join('');
+}
+
+function toggleBestProdukt(prodId) {
+  if (bst.expandedProds.has(prodId)) bst.expandedProds.delete(prodId);
+  else bst.expandedProds.add(prodId);
+  renderBestProduktListe();
 }
 
 function bestPreis(variante, kat) {
@@ -1785,22 +1805,25 @@ function bestKatAnzahl(katId) {
 }
 
 function bestGewicht() {
-  let kgGesamt = 0, kistenGesamt = 0;
+  let kgGesamt = 0, kistenBerechnet = 0, umsatzCent = 0;
   Object.entries(bst.positionen).forEach(([varId, pos]) => {
     if (!pos.menge) return;
-    // Alle Varianten durchsuchen
     for (const p of bst.produkte) {
       const v = p.varianten.find(vv => vv.id === varId);
       if (v) {
+        const kat = bst.kategorien.find(k => k.id === p.kategorie_id);
         if (v.pro_kiste && v.pro_kiste > 0) {
-          kgGesamt += pos.menge * KG_KISTE;
-          kistenGesamt += pos.menge;
+          const kisten = Math.ceil(pos.menge / v.pro_kiste);
+          kgGesamt     += kisten * KG_KISTE;
+          kistenBerechnet += kisten;
         }
+        const preis = bestPreis(v, kat);
+        if (preis != null) umsatzCent += pos.menge * preis;
         break;
       }
     }
   });
-  return { kgGesamt, kistenGesamt };
+  return { kgGesamt, kistenBerechnet, umsatzCent };
 }
 
 function bestWechselKat(idx) {
@@ -1830,7 +1853,7 @@ async function bestellungAnlegen() {
   renderBestellungUI(el('tab-content-bestellung'));
 }
 
-async function bestMengeAendern(varId, proKiste, delta) {
+async function bestMengeAendern(varId, prodId, proKiste, delta) {
   if (!bst.bestellung) return;
   const pos  = bst.positionen[varId];
   const alt  = pos?.menge || 0;
@@ -1841,20 +1864,24 @@ async function bestMengeAendern(varId, proKiste, delta) {
   const qEl = el('bqv-' + varId.slice(0,8));
   if (neu === 0) {
     delete bst.positionen[varId];
+    bst.expandedProds.delete(prodId); // Auto-einklappen wenn leer... nein, lieber offen lassen
+    bst.expandedProds.add(prodId);
     if (qEl) { qEl.textContent = '0'; qEl.classList.remove('aktiv'); }
   } else {
     bst.positionen[varId] = { ...(bst.positionen[varId] || {}), menge: neu };
+    bst.expandedProds.add(prodId);
     if (qEl) { qEl.textContent = neu; qEl.classList.add('aktiv'); }
   }
 
-  // Topbar aktualisieren
-  const { kgGesamt, kistenGesamt } = bestGewicht();
+  // Topbar-Chips aktualisieren
+  const { kgGesamt, kistenBerechnet, umsatzCent } = bestGewicht();
   const pal = (kgGesamt / PALETTE_KG).toFixed(1);
-  const chips = document.querySelectorAll('.best-topbar-chip');
-  if (chips[1]) chips[1].textContent = `⚖ ${kgGesamt} kg`;
-  if (chips[2]) chips[2].textContent = `${kistenGesamt} Kisten · ${pal} Pal.`;
+  const kgEl  = el('best-chip-kg');
+  const usEl  = el('best-chip-umsatz');
+  if (kgEl)  kgEl.textContent  = `⚖ ${kgGesamt} kg · ${kistenBerechnet} Kisten · ${pal} Pal.`;
+  if (usEl)  usEl.textContent  = `💰 ${eur(umsatzCent)}`;
 
-  // Kategorie-Tab-Zahlen aktualisieren
+  // Kategorie-Tab-Badge
   const kat = bst.kategorien[bst.aktKatIdx];
   const tabBtn = el('best-kat-tabs')?.querySelectorAll('.best-kat-btn')[bst.aktKatIdx];
   if (tabBtn && kat) {
@@ -1895,10 +1922,11 @@ function openBestellungSendenModal() {
       p.varianten.forEach(v => {
         const menge = bst.positionen[v.id]?.menge || 0;
         if (!menge) return;
-        const einheit = (v.pro_kiste && v.pro_kiste > 0) ? 'Kisten' : 'Stk';
-        const preis   = bestPreis(v, kat);
-        const preisStr = preis != null ? ` (${eur(preis)})` : '';
-        katZeilen.push(`  ${p.name} ${v.groesse}: ${menge} ${einheit}${preisStr}`);
+        const einheit  = 'Stk';
+        const kisten   = (v.pro_kiste && v.pro_kiste > 0) ? ` (${Math.ceil(menge/v.pro_kiste)} Kisten)` : '';
+        const preis2   = bestPreis(v, kat);
+        const preisStr = preis2 != null ? ` | ${eur(preis2)}` : '';
+        katZeilen.push(`  ${p.name} ${v.groesse}: ${menge} ${einheit}${kisten}${preisStr}`);
       });
     });
     if (katZeilen.length) {
@@ -1908,8 +1936,9 @@ function openBestellungSendenModal() {
     }
   });
 
-  const { kgGesamt, kistenGesamt } = bestGewicht();
-  zeilen.push(`Gewicht gesamt: ${kgGesamt} kg (${kistenGesamt} Kisten, ca. ${(kgGesamt/PALETTE_KG).toFixed(1)} Paletten)`);
+  const { kgGesamt, kistenBerechnet, umsatzCent } = bestGewicht();
+  zeilen.push(`Gewicht gesamt: ${kgGesamt} kg (${kistenBerechnet} Kisten, ca. ${(kgGesamt/PALETTE_KG).toFixed(1)} Paletten)`);
+  zeilen.push(`Möglicher VK-Umsatz: ${eur(umsatzCent)}`);
   zeilen.push('');
   zeilen.push('Viele Grüße');
 
@@ -2199,7 +2228,7 @@ function exportChronikPDF() {
 <div class="pdf-header"><div style="font-size:20px;margin-bottom:6px">⚜</div>
 <h1>${marktName}</h1><div class="sub">Marktchronik · Saison ${aktJahr}</div></div>
 ${contentHtml}
-<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.10 · Erstellt am ${heute}</p></div>
+<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.11 · Erstellt am ${heute}</p></div>
 </body></html>`;
   let old2 = document.getElementById('chr-pdf-frame');
   if (old2) old2.remove();
@@ -2630,18 +2659,27 @@ async function openNeueStundenModal() {
     `<option value="${z.marktfahrer.id}">${z.marktfahrer.name}</option>`
   ).join('');
 
-  // Datum-Select befüllen
+  // Datum-Select befüllen: 1 Tag vor Start bis 1 Tag nach Ende
   const datumSel = el('std-datum');
   if (inst?.start_datum) {
     const start = new Date(inst.start_datum + 'T12:00:00');
     const ende  = inst.end_datum ? new Date(inst.end_datum + 'T12:00:00') : start;
-    const tage  = [];
-    for (let d = new Date(start); d <= ende; d.setDate(d.getDate()+1)) {
-      tage.push(d.toISOString().slice(0,10));
+    // ±1 Tag für Vor- und Nachbereitung
+    const startMinus1 = new Date(start); startMinus1.setDate(startMinus1.getDate() - 1);
+    const endePlus1   = new Date(ende);  endePlus1.setDate(endePlus1.getDate() + 1);
+    const tage = [];
+    for (let d = new Date(startMinus1); d <= endePlus1; d.setDate(d.getDate() + 1)) {
+      tage.push(d.toISOString().slice(0, 10));
     }
+    const startIso = start.toISOString().slice(0,10);
+    const endeIso  = ende.toISOString().slice(0,10);
     datumSel.innerHTML = tage.map(t => {
-      const d2 = new Date(t+'T12:00:00');
-      return `<option value="${t}">${WD[d2.getDay()]}, ${dateFmt(t)}</option>`;
+      const d2   = new Date(t + 'T12:00:00');
+      const label = `${WD[d2.getDay()]}, ${dateFmt(t)}`;
+      let suffix = '';
+      if (t < startIso)  suffix = ' ↑ Vorbereitung';
+      if (t > endeIso)   suffix = ' ↓ Nachbereitung';
+      return `<option value="${t}">${label}${suffix}</option>`;
     }).join('');
   } else {
     datumSel.innerHTML = `<option value="${isoToday()}">${dateFmt(isoToday())}</option>`;
