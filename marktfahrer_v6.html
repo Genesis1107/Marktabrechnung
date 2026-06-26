@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Marktfahrer · v6.0</title>
+<title>Marktfahrer · v6.1</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -18,9 +18,9 @@
   --gold:      #c9942a;
   --gold2:     #e8b84b;
   --gold3:     #f5d070;
-  --text:      #f0e6c8;
-  --text2:     #c8b888;
-  --text3:     #8a7858;
+  --text:      #f5eed8;
+  --text2:     #dbc898;
+  --text3:     #a89868;
   --red:       #c0392b;
   --red2:      #e74c3c;
   --green:     #2e7d32;
@@ -34,7 +34,7 @@
   --safe-bot:  env(safe-area-inset-bottom, 0px);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; overscroll-behavior: none; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; overscroll-behavior: none; overflow-x: hidden; max-width: 100vw; }
 
 /* ── LAYOUT ─────────────────────────────────────────────────── */
 #app { display: flex; flex-direction: column; height: 100%; }
@@ -99,8 +99,9 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
 .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: .5px; }
 
 /* ── STATUS-FARBEN ──────────────────────────────────────────── */
-.status-interessent  { background: #2c2c2c; color: #888; }
-.status-angefragt    { background: #1a2a3a; color: var(--blue2); }
+.status-interessent  { background: #2c2c2c; color: #aaa; }
+.status-beworben     { background: #1a2a3a; color: var(--blue2); }
+.status-akzeptiert   { background: #1a2a2a; color: #4dd0e1; }
 .status-bestaetigt   { background: #1a2e1a; color: var(--green2); }
 .status-vorbereitung { background: #2a1a00; color: var(--amber2); }
 .status-aktiv        { background: #2a1500; color: #ff9800; }
@@ -114,9 +115,9 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
 #toast.ok  { border-color: var(--green2); color: var(--green2); }
 
 /* ── MODAL ──────────────────────────────────────────────────── */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 800; display: flex; align-items: flex-end; justify-content: center; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 800; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; }
 .modal-overlay.hidden { display: none; }
-.modal-box { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius2) var(--radius2) 0 0; padding: 20px 16px calc(20px + var(--safe-bot)); width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; }
+.modal-box { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius2) var(--radius2) 0 0; padding: 20px 16px calc(20px + var(--safe-bot)); width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; overflow-x: hidden; }
 .modal-title { font-size: 16px; font-weight: 700; color: var(--gold); margin-bottom: 16px; }
 .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
 .modal-actions .btn { flex: 1; }
@@ -152,7 +153,8 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
 .tab-content.active { display: block; }
 
 /* ── LOGIN SCREEN ───────────────────────────────────────────── */
-#screen-login { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 32px 24px; }
+#screen-login { flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 32px 24px; }
+#screen-login.active { display: flex; }
 .login-logo { text-align: center; margin-bottom: 40px; }
 .login-logo-icon { font-size: 52px; margin-bottom: 8px; }
 .login-logo-title { font-size: 24px; font-weight: 700; color: var(--gold); letter-spacing: 3px; text-transform: uppercase; }
@@ -197,7 +199,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.0</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.1</div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -332,7 +334,6 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         <option value="jaehrlich" selected>Jährlich</option>
         <option value="alle_2_jahre">Alle 2 Jahre</option>
         <option value="alle_4_jahre">Alle 4 Jahre</option>
-        <option value="unregelmaessig">Unregelmäßig</option>
       </select>
     </div>
     <div class="field-row">
@@ -469,14 +470,15 @@ function openModal(id)  { el(id).classList.remove('hidden'); }
 // ── STATUS ────────────────────────────────────────────────────
 const STATUS_LABEL = {
   interessent:   'Interessent',
-  angefragt:     'Angefragt',
+  beworben:      'Beworben',
+  akzeptiert:    'Akzeptiert',
   bestaetigt:    'Bestätigt',
   vorbereitung:  'Vorbereitung',
   aktiv:         'Aktiv',
   abgeschlossen: 'Abgeschlossen',
   abgelehnt:     'Abgelehnt',
 };
-const STATUS_ORDER = ['interessent','angefragt','bestaetigt','vorbereitung','aktiv','abgeschlossen','abgelehnt'];
+const STATUS_ORDER = ['interessent','beworben','akzeptiert','bestaetigt','vorbereitung','aktiv','abgeschlossen','abgelehnt'];
 
 // ── INIT ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -1273,7 +1275,7 @@ async function saveNeuerMarkt() {
   const { error: iErr } = await sb.from('event_instanz').insert({
     id: instanzId, template_id: templateId,
     saison_jahr: jahr, name,
-    status: 'angefragt',
+    status: 'beworben',
     start_datum: start, end_datum: ende,
     dauer_tage: dauer, notiz,
     erstellt_am: now, geaendert_am: now,
