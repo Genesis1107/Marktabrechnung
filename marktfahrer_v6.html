@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.8</title>
+<title>Marktfahrer · v6.9</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -190,6 +190,30 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
 .spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; margin: 32px auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── STUNDEN ────────────────────────────────────────────────── */
+.std-fahrer-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
+.std-fahrer-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.std-fahrer-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.std-fahrer-total { font-size: 13px; color: var(--gold); font-weight: 600; }
+.std-eintrag { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; border-bottom: 1px solid var(--border); }
+.std-eintrag:last-child { border-bottom: none; }
+.std-eintrag-datum { font-size: 12px; color: var(--text2); }
+.std-eintrag-h { font-size: 14px; font-weight: 600; color: var(--text); }
+/* ── SAISON ─────────────────────────────────────────────────── */
+.saison-kpi-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 14px; }
+.saison-kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; text-align: center; }
+.saison-kpi-val { font-size: 22px; font-weight: 700; color: var(--gold2); line-height: 1; }
+.saison-kpi-label { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--text3); margin-top: 4px; }
+.saison-markt-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+.saison-markt-row:last-child { border-bottom: none; }
+.saison-markt-row:active { opacity: .7; }
+.saison-markt-info { flex: 1; min-width: 0; }
+.saison-markt-name { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.saison-markt-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.saison-markt-umsatz { font-size: 14px; font-weight: 700; color: var(--text); text-align: right; white-space: nowrap; }
+.saison-markt-tage { font-size: 10px; color: var(--text3); text-align: right; }
+.saison-jahr-btn { padding: 5px 16px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg3); color: var(--text2); font-size: 13px; font-weight: 500; cursor: pointer; margin: 0 4px 8px 0; }
+.saison-jahr-btn.active { background: var(--gold); border-color: var(--gold2); color: var(--bg); font-weight: 700; }
 /* ── STAT CHIPS ─────────────────────────────────────────────── */
 .stat-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .stat-chip { background: var(--bg3); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--text2); }
@@ -287,7 +311,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.8</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.9</div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -332,19 +356,23 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
 
     <!-- SAISON -->
     <div id="screen-saison" class="screen">
+      <div style="padding:14px 16px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;" id="saison-jahr-tabs"></div>
       <div class="section">
-        <h2>Saison-Übersicht</h2>
-        <div id="saison-content">
-          <div class="spinner"></div>
-        </div>
+        <div id="saison-content"><div class="spinner"></div></div>
       </div>
     </div>
 
     <!-- STUNDEN -->
     <div id="screen-stunden" class="screen">
-      <div class="section">
-        <h2>Stundenerfassung</h2>
-        <p style="color:var(--text3);font-size:14px;">Kommt in Ausbaustufe 2.</p>
+      <div style="padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between;">
+        <select id="stunden-markt-select" onchange="stundenMarktGewaehlt()"
+          style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:20px;color:var(--text);padding:8px 14px;font-size:14px;outline:none;-webkit-appearance:none;appearance:none;">
+          <option value="">— Markt wählen —</option>
+        </select>
+        <button class="btn btn-primary btn-sm" style="margin-left:10px;white-space:nowrap;" onclick="openNeueStundenModal()" id="btn-stunden-add" disabled>+ Stunden</button>
+      </div>
+      <div id="stunden-content" style="padding:0 16px 16px;">
+        <p style="color:var(--text3);font-size:14px;padding-top:16px;">Bitte zuerst einen Markt wählen.</p>
       </div>
     </div>
 
@@ -372,7 +400,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         <div id="marktfahrer-list"><div class="spinner"></div></div>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.8 · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.9 · Beerenweine</p>
       </div>
     </div>
 
@@ -529,6 +557,28 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('modal-neues-jahr')">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveNeuesJahr()">Anlegen</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-neue-stunden" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">⏱ Stunden erfassen</div>
+    <div class="field">
+      <label>Marktfahrer *</label>
+      <select id="std-fahrer"></select>
+    </div>
+    <div class="field">
+      <label>Tag</label>
+      <select id="std-datum"></select>
+    </div>
+    <div class="field">
+      <label>Stunden *</label>
+      <input type="number" id="std-stunden" placeholder="8.0" step="0.5" min="0" max="24" onfocus="clearZero(this)">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-neue-stunden')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveStunden()">Speichern</button>
     </div>
   </div>
 </div>
@@ -728,13 +778,14 @@ function navTo(tab) {
     loadMaerkte();
   } else if (tab === 'saison') {
     showScreen('saison');
-    setHeader('Saison', new Date().getFullYear());
+    setHeader('Saison', '');
     el('btn-back').classList.remove('visible');
     loadSaison();
   } else if (tab === 'stunden') {
     showScreen('stunden');
     setHeader('Stunden', '');
     el('btn-back').classList.remove('visible');
+    ladeStundenMarktSelector();
   } else if (tab === 'einstellungen') {
     showScreen('einstellungen');
     setHeader('Einstellungen', '');
@@ -1807,7 +1858,7 @@ function exportChronikPDF() {
 <div class="pdf-header"><div style="font-size:20px;margin-bottom:6px">⚜</div>
 <h1>${marktName}</h1><div class="sub">Marktchronik · Saison ${aktJahr}</div></div>
 ${contentHtml}
-<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.8 · Erstellt am ${heute}</p></div>
+<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.9 · Erstellt am ${heute}</p></div>
 </body></html>`;
   let old2 = document.getElementById('chr-pdf-frame');
   if (old2) old2.remove();
@@ -2037,23 +2088,255 @@ async function saveNeuesJahr() {
   // Direkt zur neuen Instanz wechseln (Stack-Eintrag für aktuelle bleibt erhalten)
   await openMarktDetail(instanzId);
 }
-async function loadSaison() {
-  const jahr = new Date().getFullYear();
-  const { data } = await sb.from('event_instanz')
-    .select('*, event_template(name,ort)')
-    .eq('saison_jahr', jahr)
-    .is('geloescht_am', null);
+// ── SAISON ────────────────────────────────────────────────────
+let saisonJahr = new Date().getFullYear();
 
+async function loadSaison() {
+  // Verfügbare Jahre ermitteln
+  const { data: jahre } = await sb.from('event_instanz')
+    .select('saison_jahr').is('geloescht_am', null).order('saison_jahr', { ascending: false });
+  const jahreSet = [...new Set((jahre || []).map(j => j.saison_jahr))].filter(Boolean);
+  if (!jahreSet.includes(saisonJahr)) saisonJahr = jahreSet[0] || saisonJahr;
+
+  // Jahr-Tabs rendern
+  const tabsWrap = el('saison-jahr-tabs');
+  if (tabsWrap) {
+    tabsWrap.innerHTML = jahreSet.map(j =>
+      `<button class="saison-jahr-btn ${j === saisonJahr ? 'active' : ''}" onclick="saisonJahrWechseln(${j})">${j}</button>`
+    ).join('');
+  }
+  setHeader('Saison', saisonJahr);
+
+  // Märkte dieses Jahres laden
+  const { data } = await sb.from('event_instanz')
+    .select('id, name, status, start_datum, end_datum, dauer_tage, event_template(name, ort)')
+    .eq('saison_jahr', saisonJahr).is('geloescht_am', null)
+    .order('start_datum');
   const maerkte = data || [];
+
+  // Umsätze für abgeschlossene Märkte laden
+  const ids = maerkte.map(m => m.id);
+  let umsatzMap = {};
+  if (ids.length) {
+    // Kassenzählungen aggregieren
+    const [{ data: zaehl }, { data: buch }] = await Promise.all([
+      sb.from('kassenzaehlung').select('event_instanz_id, modus, ist_bestand_cent, anfangsbestand_cent, tagesumsatz_bar_cent')
+        .in('event_instanz_id', ids).is('geloescht_am', null),
+      sb.from('buchung').select('event_instanz_id, betrag_cent')
+        .in('event_instanz_id', ids).eq('typ','einnahme').eq('zahlungsart','ec').is('geloescht_am', null),
+    ]);
+    (zaehl || []).forEach(z => {
+      const bar = z.modus === 'zaehlen' ? (z.ist_bestand_cent||0)-(z.anfangsbestand_cent||0) : (z.tagesumsatz_bar_cent||0);
+      umsatzMap[z.event_instanz_id] = (umsatzMap[z.event_instanz_id] || 0) + bar;
+    });
+    (buch || []).forEach(b => { umsatzMap[b.event_instanz_id] = (umsatzMap[b.event_instanz_id] || 0) + (b.betrag_cent||0); });
+  }
+
+  const gesamtUmsatz = Object.values(umsatzMap).reduce((s,v) => s+v, 0);
   const abg = maerkte.filter(m => m.status === 'abgeschlossen').length;
+  const tageGesamt = maerkte.reduce((s,m) => s + (m.dauer_tage || 0), 0);
+
+  // Status-Gruppen (aktiv/aktuell oben, dann nach Datum)
+  const sortiert = [...maerkte].sort((a,b) => {
+    const prio = {aktiv:0, vorbereitung:1, bestaetigt:2, beworben:3, akzeptiert:2};
+    const pa = prio[a.status] ?? 9;
+    const pb = prio[b.status] ?? 9;
+    if (pa !== pb) return pa - pb;
+    return (a.start_datum||'').localeCompare(b.start_datum||'');
+  });
+
+  const listeHtml = sortiert.length ? sortiert.map(m => {
+    const name  = m.name || m.event_template?.name || '(Kein Name)';
+    const ort   = m.event_template?.ort || '';
+    const daten = m.start_datum ? dateFmt(m.start_datum) + (m.end_datum ? '–'+dateFmt(m.end_datum) : '') : '';
+    const umsatz = umsatzMap[m.id];
+    return `<div class="saison-markt-row" onclick="openMarktDetail('${m.id}')">
+      <span class="badge status-${m.status || 'interessent'}" style="min-width:80px;text-align:center;">${STATUS_LABEL[m.status] || '?'}</span>
+      <div class="saison-markt-info">
+        <div class="saison-markt-name">${name}</div>
+        <div class="saison-markt-sub">${ort}${daten ? ' · ' + daten : ''}</div>
+      </div>
+      <div>
+        <div class="saison-markt-umsatz">${umsatz != null ? eur(umsatz) : '—'}</div>
+        <div class="saison-markt-tage">${m.dauer_tage ? m.dauer_tage + 'T' : ''}</div>
+      </div>
+    </div>`;
+  }).join('') : '<p style="color:var(--text3);font-size:14px;">Keine Märkte für ' + saisonJahr + '.</p>';
 
   el('saison-content').innerHTML = `
-    <div class="stat-chips" style="margin-bottom:16px;">
-      <div class="stat-chip">Märkte <span>${maerkte.length}</span></div>
-      <div class="stat-chip">Abgeschlossen <span>${abg}</span></div>
+    <div class="saison-kpi-row">
+      <div class="saison-kpi">
+        <div class="saison-kpi-val">${maerkte.length}</div>
+        <div class="saison-kpi-label">Märkte</div>
+      </div>
+      <div class="saison-kpi">
+        <div class="saison-kpi-val">${tageGesamt}</div>
+        <div class="saison-kpi-label">Tage</div>
+      </div>
+      <div class="saison-kpi">
+        <div class="saison-kpi-val" style="font-size:16px;">${gesamtUmsatz > 0 ? eur(gesamtUmsatz) : '—'}</div>
+        <div class="saison-kpi-label">Umsatz</div>
+      </div>
     </div>
-    <p style="color:var(--text3);font-size:14px;">Saison-Auswertungen kommen in Ausbaustufe 2.</p>
-  `;
+    <div class="chr-block">
+      <div class="chr-block-titel">Märkte ${saisonJahr}</div>
+      ${listeHtml}
+    </div>`;
+}
+
+function saisonJahrWechseln(jahr) {
+  saisonJahr = jahr;
+  loadSaison();
+}
+
+// ── STUNDEN-ERFASSUNG ─────────────────────────────────────────
+let stundenInstanzId = null;
+
+async function ladeStundenMarktSelector() {
+  const { data } = await sb.from('event_instanz')
+    .select('id, name, saison_jahr, start_datum, event_template(name)')
+    .is('geloescht_am', null)
+    .order('start_datum', { ascending: false });
+  const instanzen = (data || []).slice(0, 30);
+  const sel = el('stunden-markt-select');
+  sel.innerHTML = '<option value="">— Markt wählen —</option>' +
+    instanzen.map(i => {
+      const name = i.name || i.event_template?.name || '(Kein Name)';
+      const dat  = i.start_datum ? ' · ' + dateFmt(i.start_datum) : '';
+      const selected = i.id === stundenInstanzId ? 'selected' : '';
+      return `<option value="${i.id}" ${selected}>${name}${dat} (${i.saison_jahr})</option>`;
+    }).join('');
+  if (stundenInstanzId) stundenMarktGewaehlt();
+}
+
+async function stundenMarktGewaehlt() {
+  const sel  = el('stunden-markt-select');
+  stundenInstanzId = sel.value || null;
+  const btnAdd = el('btn-stunden-add');
+  if (btnAdd) btnAdd.disabled = !stundenInstanzId;
+  if (!stundenInstanzId) {
+    el('stunden-content').innerHTML = '<p style="color:var(--text3);font-size:14px;padding-top:16px;">Bitte zuerst einen Markt wählen.</p>';
+    return;
+  }
+  renderStundenContent();
+}
+
+async function renderStundenContent() {
+  const wrap = el('stunden-content');
+  wrap.innerHTML = '<div class="spinner" style="margin-top:16px;"></div>';
+
+  const { data: eintraege } = await sb.from('stunde')
+    .select('id, datum, stunden, marktfahrer:marktfahrer_id(id, name)')
+    .eq('event_instanz_id', stundenInstanzId)
+    .is('geloescht_am', null)
+    .order('datum');
+
+  if (!eintraege?.length) {
+    wrap.innerHTML = '<p style="color:var(--text3);font-size:14px;padding-top:16px;">Noch keine Stunden erfasst.</p>';
+    return;
+  }
+
+  // Pro Fahrer gruppieren
+  const fahrerMap = {};
+  eintraege.forEach(e => {
+    const name = e.marktfahrer?.name || 'Unbekannt';
+    if (!fahrerMap[name]) fahrerMap[name] = { eintraege: [], total: 0 };
+    fahrerMap[name].eintraege.push(e);
+    fahrerMap[name].total += parseFloat(e.stunden || 0);
+  });
+
+  const gesamtStunden = Object.values(fahrerMap).reduce((s,f) => s + f.total, 0);
+
+  wrap.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0 8px;">
+      <span style="font-size:12px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;">Gesamt</span>
+      <span style="font-size:18px;font-weight:700;color:var(--gold2);">${gesamtStunden.toFixed(1)} h</span>
+    </div>
+    ${Object.entries(fahrerMap).map(([name, data]) => `
+      <div class="std-fahrer-block">
+        <div class="std-fahrer-header">
+          <span class="std-fahrer-name">👤 ${name}</span>
+          <span class="std-fahrer-total">${data.total.toFixed(1)} h</span>
+        </div>
+        ${data.eintraege.map(e => `
+          <div class="std-eintrag">
+            <span class="std-eintrag-datum">${WD[new Date(e.datum+'T12:00:00').getDay()]}, ${dateFmt(e.datum)}</span>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span class="std-eintrag-h">${parseFloat(e.stunden).toFixed(1)} h</span>
+              <button class="btn btn-sm" style="padding:4px 8px;" onclick="deleteStunden('${e.id}')">✕</button>
+            </div>
+          </div>`).join('')}
+      </div>`).join('')}`;
+}
+
+async function openNeueStundenModal() {
+  if (!stundenInstanzId) return;
+
+  // Fahrer für diese Instanz laden
+  const zugeordnet = await loadFahrerFuerInstanz(stundenInstanzId);
+  if (!zugeordnet.length) {
+    toast('Zuerst Fahrer im Planung-Tab zuordnen', 'err');
+    return;
+  }
+
+  // Instanz-Daten für Tage
+  const { data: inst } = await sb.from('event_instanz')
+    .select('start_datum, end_datum').eq('id', stundenInstanzId).single();
+
+  // Fahrer-Select befüllen
+  const fahrerSel = el('std-fahrer');
+  fahrerSel.innerHTML = zugeordnet.map(z =>
+    `<option value="${z.marktfahrer.id}">${z.marktfahrer.name}</option>`
+  ).join('');
+
+  // Datum-Select befüllen
+  const datumSel = el('std-datum');
+  if (inst?.start_datum) {
+    const start = new Date(inst.start_datum + 'T12:00:00');
+    const ende  = inst.end_datum ? new Date(inst.end_datum + 'T12:00:00') : start;
+    const tage  = [];
+    for (let d = new Date(start); d <= ende; d.setDate(d.getDate()+1)) {
+      tage.push(d.toISOString().slice(0,10));
+    }
+    datumSel.innerHTML = tage.map(t => {
+      const d2 = new Date(t+'T12:00:00');
+      return `<option value="${t}">${WD[d2.getDay()]}, ${dateFmt(t)}</option>`;
+    }).join('');
+  } else {
+    datumSel.innerHTML = `<option value="${isoToday()}">${dateFmt(isoToday())}</option>`;
+  }
+
+  el('std-stunden').value = '';
+  openModal('modal-neue-stunden');
+}
+
+async function saveStunden() {
+  const marktfahrerId = el('std-fahrer').value;
+  const datum         = el('std-datum').value;
+  const stunden       = parseFloat(el('std-stunden').value);
+  if (!marktfahrerId || !datum || !stunden || stunden <= 0) {
+    toast('Alle Felder ausfüllen', 'err'); return;
+  }
+  const now = new Date().toISOString();
+  const { error } = await sb.from('stunde').insert({
+    id: uuid(),
+    marktfahrer_id: marktfahrerId,
+    event_instanz_id: stundenInstanzId,
+    datum, stunden,
+    erstellt_am: now, geaendert_am: now,
+    erstellt_von: currentUser.id, geaendert_von: currentUser.id,
+  });
+  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  closeModal('modal-neue-stunden');
+  toast('✓ Stunden gespeichert', 'ok');
+  renderStundenContent();
+}
+
+async function deleteStunden(id) {
+  if (!confirm('Eintrag löschen?')) return;
+  await sb.from('stunde').update({ geloescht_am: new Date().toISOString() }).eq('id', id);
+  toast('Gelöscht');
+  renderStundenContent();
 }
 
 </script>
