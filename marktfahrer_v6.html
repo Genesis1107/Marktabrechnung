@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.11</title>
+<title>Marktfahrer · v6.12</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -206,11 +206,10 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
 .best-var-groesse { font-size: 12px; color: var(--text2); min-width: 70px; }
 .best-var-preis { font-size: 12px; color: var(--text3); min-width: 52px; text-align: right; }
 .best-var-controls { margin-left: auto; display: flex; align-items: center; gap: 6px; }
-.best-qty-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg3); color: var(--text); font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.best-qty-btn:active { background: var(--surface2); }
-.best-qty-val { min-width: 44px; text-align: center; font-size: 13px; font-weight: 600; color: var(--text); }
-.best-qty-val.aktiv { color: var(--gold2); }
-.best-qty-einheit { font-size: 10px; color: var(--text3); min-width: 32px; }
+.best-qty-input { width: 64px; text-align: center; background: var(--surface); border: 1px solid var(--border2); border-radius: 6px; color: var(--text); padding: 5px 6px; font-size: 16px; font-weight: 600; -webkit-appearance: none; appearance: none; }
+.best-qty-input:focus { border-color: var(--gold); outline: none; }
+.best-qty-input.aktiv { border-color: var(--gold); color: var(--gold2); }
+.best-qty-einheit { font-size: 10px; color: var(--text3); min-width: 26px; }
 .best-setup { padding: 20px 16px; }
 .best-versendet { background: rgba(76,175,80,.1); border: 1px solid var(--green2); border-radius: var(--radius); padding: 10px 14px; margin: 12px 14px; font-size: 13px; color: var(--green2); }
 .std-fahrer-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
@@ -333,7 +332,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.11</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.12</div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -422,7 +421,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         <div id="marktfahrer-list"><div class="spinner"></div></div>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.11 · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.12 · Beerenweine</p>
       </div>
     </div>
 
@@ -1714,7 +1713,7 @@ function renderBestellungUI(wrap) {
       <span class="best-topbar-chip">🏪 ${lager.code}</span>
       <span class="best-topbar-chip gold" id="best-chip-kg">⚖ ${kgGesamt} kg · ${kistenBerechnet} Kisten · ${pal} Pal.</span>
       <span class="best-topbar-chip gold" id="best-chip-umsatz">💰 ${eur(umsatzCent)}</span>
-      <button class="best-senden-btn" onclick="openBestellungSendenModal()">📧 Senden</button>
+      <button class="best-senden-btn" onclick="exportBestellungPDF()">📄 PDF</button>
     </div>
     ${versendet ? `<div class="best-versendet">✓ Versendet am ${dateFmt(bst.bestellung.versendet_am?.slice(0,10))}</div>` : ''}
     <div class="best-kat-tabs" id="best-kat-tabs">
@@ -1771,10 +1770,13 @@ function renderBestProduktListe() {
         <span class="best-var-groesse">${v.groesse}</span>
         <span class="best-var-preis">${preis != null ? eur(preis) : '—'}</span>
         <div class="best-var-controls">
-          <button class="best-qty-btn" onclick="bestMengeAendern('${v.id}','${p.id}',${v.pro_kiste||0},-1)">−</button>
-          <span class="best-qty-val ${menge>0?'aktiv':''}" id="bqv-${v.id.slice(0,8)}">${menge}</span>
+          <input type="number" class="best-qty-input ${menge>0?'aktiv':''}"
+            id="bqv-${v.id.slice(0,8)}" value="${menge||''}" min="0" step="1"
+            placeholder="0"
+            oninput="bestQtyLive('${v.id}','${p.id}',${v.pro_kiste||0},this.value)"
+            onchange="bestMengeSetzen('${v.id}','${p.id}',${v.pro_kiste||0},this.value)"
+            onfocus="this.select()">
           <span class="best-qty-einheit">Stk</span>
-          <button class="best-qty-btn" onclick="bestMengeAendern('${v.id}','${p.id}',${v.pro_kiste||0},1)">+</button>
         </div>
       </div>`;
     }).join('') : '';
@@ -1805,25 +1807,35 @@ function bestKatAnzahl(katId) {
 }
 
 function bestGewicht() {
-  let kgGesamt = 0, kistenBerechnet = 0, umsatzCent = 0;
+  // Stücke nach Größe zusammenfassen → dann Kisten pro Größe berechnen
+  const groesseMap = {}; // groesse → {stueck, proKiste}
+  let umsatzCent = 0;
+
   Object.entries(bst.positionen).forEach(([varId, pos]) => {
     if (!pos.menge) return;
     for (const p of bst.produkte) {
       const v = p.varianten.find(vv => vv.id === varId);
       if (v) {
-        const kat = bst.kategorien.find(k => k.id === p.kategorie_id);
         if (v.pro_kiste && v.pro_kiste > 0) {
-          const kisten = Math.ceil(pos.menge / v.pro_kiste);
-          kgGesamt     += kisten * KG_KISTE;
-          kistenBerechnet += kisten;
+          if (!groesseMap[v.groesse]) groesseMap[v.groesse] = { stueck: 0, proKiste: v.pro_kiste };
+          groesseMap[v.groesse].stueck += pos.menge;
         }
+        const kat = bst.kategorien.find(k => k.id === p.kategorie_id);
         const preis = bestPreis(v, kat);
         if (preis != null) umsatzCent += pos.menge * preis;
         break;
       }
     }
   });
-  return { kgGesamt, kistenBerechnet, umsatzCent };
+
+  let kistenBerechnet = 0, kgGesamt = 0;
+  Object.values(groesseMap).forEach(({ stueck, proKiste }) => {
+    const kisten = Math.ceil(stueck / proKiste);
+    kistenBerechnet += kisten;
+    kgGesamt        += kisten * KG_KISTE;
+  });
+
+  return { kgGesamt, kistenBerechnet, umsatzCent, groesseMap };
 }
 
 function bestWechselKat(idx) {
@@ -1853,133 +1865,153 @@ async function bestellungAnlegen() {
   renderBestellungUI(el('tab-content-bestellung'));
 }
 
-async function bestMengeAendern(varId, prodId, proKiste, delta) {
-  if (!bst.bestellung) return;
-  const pos  = bst.positionen[varId];
-  const alt  = pos?.menge || 0;
-  const neu  = Math.max(0, alt + delta);
-  const now  = new Date().toISOString();
-
-  // Optimistisch UI aktualisieren
-  const qEl = el('bqv-' + varId.slice(0,8));
-  if (neu === 0) {
-    delete bst.positionen[varId];
-    bst.expandedProds.delete(prodId); // Auto-einklappen wenn leer... nein, lieber offen lassen
+// Live-Update Topbar beim Tippen (kein DB-Write)
+function bestQtyLive(varId, prodId, proKiste, val) {
+  const menge = Math.max(0, parseInt(val) || 0);
+  if (menge > 0) {
+    bst.positionen[varId] = { ...(bst.positionen[varId] || {}), menge };
     bst.expandedProds.add(prodId);
-    if (qEl) { qEl.textContent = '0'; qEl.classList.remove('aktiv'); }
   } else {
-    bst.positionen[varId] = { ...(bst.positionen[varId] || {}), menge: neu };
-    bst.expandedProds.add(prodId);
-    if (qEl) { qEl.textContent = neu; qEl.classList.add('aktiv'); }
+    delete bst.positionen[varId];
   }
-
-  // Topbar-Chips aktualisieren
+  const inp = el('bqv-' + varId.slice(0,8));
+  if (inp) inp.classList.toggle('aktiv', menge > 0);
+  // Topbar
   const { kgGesamt, kistenBerechnet, umsatzCent } = bestGewicht();
   const pal = (kgGesamt / PALETTE_KG).toFixed(1);
-  const kgEl  = el('best-chip-kg');
-  const usEl  = el('best-chip-umsatz');
-  if (kgEl)  kgEl.textContent  = `⚖ ${kgGesamt} kg · ${kistenBerechnet} Kisten · ${pal} Pal.`;
-  if (usEl)  usEl.textContent  = `💰 ${eur(umsatzCent)}`;
-
-  // Kategorie-Tab-Badge
+  const kgEl = el('best-chip-kg'); const usEl = el('best-chip-umsatz');
+  if (kgEl) kgEl.textContent = `⚖ ${kgGesamt} kg · ${kistenBerechnet} Kisten · ${pal} Pal.`;
+  if (usEl) usEl.textContent = `💰 ${eur(umsatzCent)}`;
+  // Tab-Badge
   const kat = bst.kategorien[bst.aktKatIdx];
   const tabBtn = el('best-kat-tabs')?.querySelectorAll('.best-kat-btn')[bst.aktKatIdx];
-  if (tabBtn && kat) {
-    const n = bestKatAnzahl(kat.id);
-    tabBtn.textContent = kat.name + (n > 0 ? ` (${n})` : '');
-  }
+  if (tabBtn && kat) { const n = bestKatAnzahl(kat.id); tabBtn.textContent = kat.name + (n > 0 ? ` (${n})` : ''); }
+}
 
-  // DB schreiben
-  if (neu === 0 && pos?.id) {
+// DB-Write beim Verlassen des Feldes
+async function bestMengeSetzen(varId, prodId, proKiste, val) {
+  const menge = Math.max(0, parseInt(val) || 0);
+  const pos   = bst.positionen[varId];
+  const now   = new Date().toISOString();
+  // State aktualisieren
+  bestQtyLive(varId, prodId, proKiste, menge);
+  // DB
+  if (menge === 0 && pos?.id) {
     await sb.from('bestellposition').update({ geloescht_am: now }).eq('id', pos.id);
-  } else if (neu > 0 && pos?.id) {
-    await sb.from('bestellposition').update({ menge: neu, geaendert_am: now }).eq('id', pos.id);
-  } else if (neu > 0) {
+    delete bst.positionen[varId];
+  } else if (menge > 0 && pos?.id) {
+    await sb.from('bestellposition').update({ menge, geaendert_am: now }).eq('id', pos.id);
+  } else if (menge > 0 && !pos?.id) {
     const { data: newPos } = await sb.from('bestellposition').insert({
       id: uuid(), bestellung_id: bst.bestellung.id, variante_id: varId,
-      menge: neu, erstellt_am: now, geaendert_am: now,
+      menge, erstellt_am: now, geaendert_am: now,
     }).select().single();
-    if (newPos) bst.positionen[varId] = { id: newPos.id, menge: neu };
+    if (newPos) bst.positionen[varId] = { id: newPos.id, menge };
   }
 }
 
-function openBestellungSendenModal() {
+function exportBestellungPDF() {
   const lager  = BEST_LAGER.find(l => l.id === bst.lagerId) || BEST_LAGER[0];
   const inst   = currentInstanz;
   const name   = inst?.name || inst?.event_template?.name || 'Markt';
+  const ort    = inst?.event_template?.ort || '';
   const datum  = inst?.start_datum ? dateFmt(inst.start_datum) + (inst.end_datum ? ' – ' + dateFmt(inst.end_datum) : '') : '';
+  const heute  = new Date().toLocaleDateString('de-DE');
+  const { kgGesamt, kistenBerechnet, umsatzCent, groesseMap } = bestGewicht();
+  const pal    = (kgGesamt / PALETTE_KG).toFixed(1);
 
-  // Bestelltext aufbauen
-  let zeilen = [];
-  zeilen.push(`BESTELLUNG – ${name}${datum ? ' | ' + datum : ''}`);
-  zeilen.push(`Lager: ${lager.code}`);
-  zeilen.push('');
-
+  // Produktzeilen aufbauen
+  let katBlöcke = '';
   bst.kategorien.forEach(kat => {
     const prods = bst.produkte.filter(p => p.kategorie_id === kat.id);
-    let katZeilen = [];
+    let zeilen = '';
     prods.forEach(p => {
       p.varianten.forEach(v => {
         const menge = bst.positionen[v.id]?.menge || 0;
         if (!menge) return;
-        const einheit  = 'Stk';
-        const kisten   = (v.pro_kiste && v.pro_kiste > 0) ? ` (${Math.ceil(menge/v.pro_kiste)} Kisten)` : '';
-        const preis2   = bestPreis(v, kat);
-        const preisStr = preis2 != null ? ` | ${eur(preis2)}` : '';
-        katZeilen.push(`  ${p.name} ${v.groesse}: ${menge} ${einheit}${kisten}${preisStr}`);
+        const preis = bestPreis(v, kat);
+        const preisStr = preis != null ? eur(preis) : '—';
+        const gesamt   = preis != null ? eur(menge * preis) : '—';
+        zeilen += `<tr>
+          <td>${p.name}</td><td>${v.groesse}</td>
+          <td class="r">${menge}</td>
+          <td class="r">${preisStr}</td>
+          <td class="r">${gesamt}</td>
+        </tr>`;
       });
     });
-    if (katZeilen.length) {
-      zeilen.push(`--- ${kat.name.toUpperCase()} ---`);
-      zeilen.push(...katZeilen);
-      zeilen.push('');
-    }
+    if (zeilen) katBlöcke += `<tr class="kat-header"><td colspan="5">${kat.name.toUpperCase()}</td></tr>${zeilen}`;
   });
 
-  const { kgGesamt, kistenBerechnet, umsatzCent } = bestGewicht();
-  zeilen.push(`Gewicht gesamt: ${kgGesamt} kg (${kistenBerechnet} Kisten, ca. ${(kgGesamt/PALETTE_KG).toFixed(1)} Paletten)`);
-  zeilen.push(`Möglicher VK-Umsatz: ${eur(umsatzCent)}`);
-  zeilen.push('');
-  zeilen.push('Viele Grüße');
+  // Ladevolumen-Tabelle
+  const grSorted = Object.entries(groesseMap).sort(([a],[b]) => a.localeCompare(b));
+  const ladevolumen = grSorted.map(([gr, {stueck, proKiste}]) => {
+    const kisten = Math.ceil(stueck / proKiste);
+    return `<tr><td>${gr}</td><td class="r">${stueck} Stk</td><td class="r">${proKiste}/Kiste</td><td class="r">${kisten} Kisten</td><td class="r">${kisten * KG_KISTE} kg</td></tr>`;
+  }).join('');
 
-  const bestellText = zeilen.join('\n');
-  const betreff  = encodeURIComponent(`Bestellung ${name}${datum ? ' ' + datum : ''}`);
-  const body     = encodeURIComponent(bestellText);
-  const mailto   = `mailto:${lager.email}?subject=${betreff}&body=${body}`;
+  const printHtml = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">
+<title>Bestellung ${name} ${datum}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,sans-serif;color:#1a1208;background:#fff;padding:18px 22px;font-size:12px}
+.header{text-align:center;padding:12px 0 16px;border-bottom:2px solid #c9942a;margin-bottom:16px}
+.header h1{font-family:Cinzel,serif;font-size:20px;font-weight:700;color:#3d1f08}
+.header .sub{font-family:"Crimson Text",serif;font-style:italic;font-size:13px;color:#7a5c3a;margin-top:3px}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.sum-box{border:1px solid #d0b888;border-top:3px solid #c9942a;border-radius:4px;padding:8px 10px;text-align:center}
+.sum-val{font-size:18px;font-weight:700;color:#1a1208}
+.sum-label{font-size:8px;letter-spacing:1px;text-transform:uppercase;color:#9a7a4a;margin-top:3px}
+table{width:100%;border-collapse:collapse;margin-bottom:16px}
+th{font-size:8px;letter-spacing:1px;text-transform:uppercase;color:#9a7a4a;padding:4px 6px;border-bottom:2px solid #c9942a;text-align:left}
+th.r,td.r{text-align:right}
+td{padding:4px 6px;border-bottom:1px solid #eee;font-size:12px}
+tr.kat-header td{font-size:10px;font-weight:700;background:#fdf3e3;color:#8b4513;padding:5px 6px;letter-spacing:.5px;border-top:1px solid #d0b888;border-bottom:1px solid #d0b888}
+tr:last-child td{border-bottom:none}
+.section-title{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#9a7a4a;margin-bottom:6px;margin-top:14px}
+.footer{margin-top:16px;padding-top:10px;border-top:1px solid #e0d0b0;text-align:center;font-family:"Crimson Text",serif;font-style:italic;font-size:10px;color:#9a7a4a}
+@media print{body{padding:10px 14px}}
+</style></head><body>
+<div class="header">
+  <div style="font-size:18px;margin-bottom:4px">⚜</div>
+  <h1>Bestellung – ${name}</h1>
+  <div class="sub">${ort ? ort + ' · ' : ''}${datum} · Lager ${lager.code} · Erstellt ${heute}</div>
+</div>
+<div class="summary">
+  <div class="sum-box"><div class="sum-val">${kistenBerechnet}</div><div class="sum-label">Kisten</div></div>
+  <div class="sum-box"><div class="sum-val">${kgGesamt} kg</div><div class="sum-label">Gewicht</div></div>
+  <div class="sum-box"><div class="sum-val">${pal}</div><div class="sum-label">Paletten</div></div>
+  <div class="sum-box"><div class="sum-val" style="font-size:14px">${eur(umsatzCent)}</div><div class="sum-label">VK-Umsatz</div></div>
+</div>
+<div class="section-title">Bestellpositionen</div>
+<table>
+  <thead><tr><th>Artikel</th><th>Größe</th><th class="r">Stück</th><th class="r">VK</th><th class="r">Gesamt</th></tr></thead>
+  <tbody>${katBlöcke}</tbody>
+</table>
+${grSorted.length ? `<div class="section-title">Ladevolumen nach Größe</div>
+<table>
+  <thead><tr><th>Größe</th><th class="r">Stück</th><th class="r">pro Kiste</th><th class="r">Kisten</th><th class="r">Gewicht</th></tr></thead>
+  <tbody>${ladevolumen}
+  <tr style="font-weight:700;border-top:2px solid #c9942a">
+    <td>Gesamt</td><td></td><td></td>
+    <td class="r">${kistenBerechnet} Kisten</td>
+    <td class="r">${kgGesamt} kg</td>
+  </tr></tbody>
+</table>` : ''}
+<div class="footer">Marktfahrer App · Beerenweine · v6.12</div>
+</body></html>`;
 
-  // Modal mit Vorschau + Senden
-  const mod = document.createElement('div');
-  mod.className = 'modal-overlay';
-  mod.id = 'modal-best-senden';
-  mod.innerHTML = `<div class="modal-box">
-    <div class="modal-title">📧 Bestellung senden</div>
-    <div class="field">
-      <label>Empfänger</label>
-      <div style="font-size:14px;color:var(--text2);padding:4px 0;">${lager.email}</div>
-    </div>
-    <div class="field">
-      <label>Vorschau</label>
-      <textarea readonly style="font-size:11px;font-family:monospace;height:160px;color:var(--text2);">${bestellText}</textarea>
-    </div>
-    <div class="modal-actions">
-      <button class="btn" onclick="this.closest('.modal-overlay').remove()">Abbrechen</button>
-      <button class="btn btn-primary" onclick="bestSendenBestaetigt('${mailto}', this)">📧 Senden</button>
-    </div>
-  </div>`;
-  document.body.appendChild(mod);
-}
-
-async function bestSendenBestaetigt(mailto, btn) {
-  window.open(mailto, '_blank');
-  // Status auf versendet setzen
-  const now = new Date().toISOString();
-  await sb.from('bestellung').update({ status: 'versendet', versendet_am: now, geaendert_am: now })
-    .eq('id', bst.bestellung.id);
-  bst.bestellung.status     = 'versendet';
-  bst.bestellung.versendet_am = now;
-  btn.closest('.modal-overlay').remove();
-  toast('✓ Bestellung als versendet markiert', 'ok');
-  renderBestellungUI(el('tab-content-bestellung'));
+  let old = document.getElementById('best-pdf-frame');
+  if (old) old.remove();
+  const iframe = document.createElement('iframe');
+  iframe.id = 'best-pdf-frame';
+  iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:820px;height:600px;border:none;';
+  document.body.appendChild(iframe);
+  iframe.contentDocument.open();
+  iframe.contentDocument.write(printHtml);
+  iframe.contentDocument.close();
+  setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 700);
 }
 
 // ── CHRONIK TAB ───────────────────────────────────────────────
@@ -2228,7 +2260,7 @@ function exportChronikPDF() {
 <div class="pdf-header"><div style="font-size:20px;margin-bottom:6px">⚜</div>
 <h1>${marktName}</h1><div class="sub">Marktchronik · Saison ${aktJahr}</div></div>
 ${contentHtml}
-<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.11 · Erstellt am ${heute}</p></div>
+<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.12 · Erstellt am ${heute}</p></div>
 </body></html>`;
   let old2 = document.getElementById('chr-pdf-frame');
   if (old2) old2.remove();
