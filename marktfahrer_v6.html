@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.13</title>
+<title>Marktfahrer · v6.14</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -37,6 +37,33 @@
   --safe-bot:  env(safe-area-inset-bottom, 0px);
   --safe-l:    env(safe-area-inset-left, 0px);
   --safe-r:    env(safe-area-inset-right, 0px);
+}
+/* ── THEME: PERGAMENT ───────────────────────────────────────── */
+[data-theme="pergament"] {
+  --bg: #f0e6cc; --bg2: #e8dab8; --bg3: #ddd0a4; --surface: #d0c090;
+  --surface2: #c4b080; --border: #b09060; --border2: #907040;
+  --gold: #8b5e0a; --gold2: #a87010; --gold3: #c49020;
+  --text: #1c0e04; --text2: #3d2010; --text3: #785030;
+  --red: #8b1a1a; --red2: #c0392b; --green: #1e5c0a; --green2: #2e7d10;
+  --blue: #1a3a8b; --blue2: #2a5ab8; --amber: #c05000; --amber2: #e07020;
+}
+/* ── THEME: MITTERNACHT ─────────────────────────────────────── */
+[data-theme="mitternacht"] {
+  --bg: #141b2e; --bg2: #1c2540; --bg3: #232e52; --surface: #2c3862;
+  --surface2: #354070; --border: #3d4e7c; --border2: #506098;
+  --gold: #d4a830; --gold2: #e8c050; --gold3: #f0d070;
+  --text: #f0e8d8; --text2: #c8bca0; --text3: #908060;
+  --red: #c0392b; --red2: #e05040; --green: #2a7030; --green2: #4caa50;
+  --blue: #1a4090; --blue2: #60a8f0; --amber: #c06000; --amber2: #e08820;
+}
+/* ── THEME: WEINROT ─────────────────────────────────────────── */
+[data-theme="weinrot"] {
+  --bg: #1a0810; --bg2: #26101a; --bg3: #321424; --surface: #3d182e;
+  --surface2: #4a1e38; --border: #6a2848; --border2: #903860;
+  --gold: #c9942a; --gold2: #e8b84b; --gold3: #f5d070;
+  --text: #f5e8d5; --text2: #dcc8a8; --text3: #a08068;
+  --red: #c0392b; --red2: #e04040; --green: #2a6018; --green2: #50a030;
+  --blue: #1a3a8b; --blue2: #50a0e0; --amber: #b05000; --amber2: #e07820;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html { height: 100%; overflow: hidden; }
@@ -332,7 +359,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.13</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.14</div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -414,6 +441,10 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         <button class="btn btn-danger btn-full" onclick="doLogout()">Abmelden</button>
       </div>
       <div class="section">
+        <h2>Erscheinungsbild</h2>
+        <div id="theme-selector" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;"></div>
+      </div>
+      <div class="section">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
           <h2 style="margin:0;">Marktfahrer</h2>
           <button class="btn btn-sm btn-primary" onclick="openNeuerMarktfahrerModal()">+ Neu</button>
@@ -421,7 +452,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         <div id="marktfahrer-list"><div class="spinner"></div></div>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.13 · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.14 · Beerenweine</p>
       </div>
     </div>
 
@@ -707,6 +738,9 @@ const STATUS_ORDER = ['interessent','beworben','akzeptiert','bestaetigt','vorber
 
 // ── INIT ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  // Theme sofort anwenden (vor Login-Prüfung)
+  applyTheme(localStorage.getItem('mf_theme') || 'braun');
+
   sb = supabase.createClient(SUPA_URL, SUPA_KEY);
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
@@ -715,6 +749,65 @@ document.addEventListener('DOMContentLoaded', async () => {
     showApp();
   }
 });
+
+// ── THEME ─────────────────────────────────────────────────────
+const THEMES = [
+  {
+    id: 'braun', name: 'Braun', sub: 'Klassisch · Warm',
+    swatches: ['#1a1208','#3a2a14','#c9942a','#f5eed8'],
+  },
+  {
+    id: 'pergament', name: 'Pergament', sub: 'Hell · Tageslicht',
+    swatches: ['#f0e6cc','#d0c090','#8b5e0a','#1c0e04'],
+  },
+  {
+    id: 'mitternacht', name: 'Mitternacht', sub: 'Blau-Dunkel · Kontrast',
+    swatches: ['#141b2e','#2c3862','#d4a830','#f0e8d8'],
+  },
+  {
+    id: 'weinrot', name: 'Weinrot', sub: 'Burgund · Beerenweine',
+    swatches: ['#1a0810','#3d182e','#c9942a','#f5e8d5'],
+  },
+];
+
+function applyTheme(id) {
+  const root = document.documentElement;
+  if (id === 'braun' || !id) {
+    root.removeAttribute('data-theme');
+  } else {
+    root.setAttribute('data-theme', id);
+  }
+}
+
+function setTheme(id) {
+  applyTheme(id);
+  localStorage.setItem('mf_theme', id);
+  renderThemeSelector(); // Auswahl aktualisieren
+  toast('Theme gespeichert', 'ok');
+}
+
+function renderThemeSelector() {
+  const wrap = el('theme-selector');
+  if (!wrap) return;
+  const current = localStorage.getItem('mf_theme') || 'braun';
+  wrap.innerHTML = THEMES.map(t => {
+    const aktiv = t.id === current;
+    const swatchHtml = t.swatches.map(c =>
+      `<div style="flex:1;background:${c};border-radius:3px;"></div>`
+    ).join('');
+    return `<button onclick="setTheme('${t.id}')"
+      style="background:var(--surface);border:2px solid ${aktiv ? 'var(--gold)' : 'var(--border)'};
+             border-radius:var(--radius2);padding:10px;cursor:pointer;text-align:left;transition:border-color .2s;">
+      <div style="display:flex;gap:3px;height:32px;border-radius:5px;overflow:hidden;margin-bottom:8px;">
+        ${swatchHtml}
+      </div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px;">
+        ${aktiv ? '<span style="color:var(--gold);">✓</span>' : ''}${t.name}
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px;">${t.sub}</div>
+    </button>`;
+  }).join('');
+}
 
 // ── AUTH ──────────────────────────────────────────────────────
 function loginKeydown(e) { if (e.key === 'Enter') doLogin(); }
@@ -811,6 +904,7 @@ function navTo(tab) {
     showScreen('einstellungen');
     setHeader('Einstellungen', '');
     el('btn-back').classList.remove('visible');
+    renderThemeSelector();
     loadMarktfahrerListe();
   }
 }
@@ -2017,7 +2111,7 @@ tr{break-inside:avoid;page-break-inside:avoid}
   <div class="sum-box"><div class="sum-val" style="font-size:13px">${eur(umsatzCent)}</div><div class="sum-label">VK-Umsatz</div></div>
 </div>
 ${katBlöcke}
-<div class="footer">Marktfahrer App · Beerenweine · v6.13</div>
+<div class="footer">Marktfahrer App · Beerenweine · v6.14</div>
 </body></html>`;
 
   let old = document.getElementById('best-pdf-frame');
@@ -2323,7 +2417,7 @@ function exportChronikPDF() {
 <div class="pdf-header"><div style="font-size:20px;margin-bottom:6px">⚜</div>
 <h1>${marktName}</h1><div class="sub">Marktchronik · Saison ${aktJahr}</div></div>
 ${contentHtml}
-<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.13 · Erstellt am ${heute}</p></div>
+<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.14 · Erstellt am ${heute}</p></div>
 </body></html>`;
   let old2 = document.getElementById('chr-pdf-frame');
   if (old2) old2.remove();
