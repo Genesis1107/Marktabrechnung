@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.14</title>
+<title>Marktfahrer · v6.15</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -359,7 +359,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.14</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.15</div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -452,7 +452,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         <div id="marktfahrer-list"><div class="spinner"></div></div>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.14 · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.15 · Beerenweine</p>
       </div>
     </div>
 
@@ -1523,17 +1523,19 @@ function renderKasseDetailScreen(stand, datum, vorh) {
   loadEcVorhandener(standId, datum);
 }
 
-function switchKasseTag(datum) {
+async function switchKasseTag(datum) {
   currentKasseTag = datum;
-  // Alle Tag-Buttons deaktivieren, gewählten aktivieren
+  // Tag-Buttons visuell aktualisieren
   document.querySelectorAll('[id^="tag-btn-"]').forEach(b => {
     b.classList.toggle('btn-primary', b.id === 'tag-btn-' + datum);
-    b.classList.remove('btn-primary');
   });
-  const active = el('tag-btn-' + datum);
-  if (active) active.classList.add('btn-primary');
-  // Zählung für neuen Tag laden
-  openKasseDetail(currentStandId, datum);
+  // Zählung für neuen Tag laden — KEIN navStack-Push
+  const { data: vorh } = await sb.from('kassenzaehlung')
+    .select('*').eq('stand_id', currentStandId).eq('datum', datum)
+    .is('geloescht_am', null).maybeSingle();
+  renderKasseDetailScreen(currentStand, datum, vorh);
+  // EC-Buchung nachladen
+  loadEcVorhandener(currentStandId, datum);
 }
 
 async function loadEcVorhandener(standId, datum) {
@@ -2111,7 +2113,7 @@ tr{break-inside:avoid;page-break-inside:avoid}
   <div class="sum-box"><div class="sum-val" style="font-size:13px">${eur(umsatzCent)}</div><div class="sum-label">VK-Umsatz</div></div>
 </div>
 ${katBlöcke}
-<div class="footer">Marktfahrer App · Beerenweine · v6.14</div>
+<div class="footer">Marktfahrer App · Beerenweine · v6.15</div>
 </body></html>`;
 
   let old = document.getElementById('best-pdf-frame');
@@ -2303,10 +2305,12 @@ function renderChronikHTML(alleInstanzen, aktInst, datAkt, datPrev, prevInst, st
       const isBest = bestTag && t.datum===bestTag.datum;
       const d2 = new Date(t.datum+'T12:00:00');
       const ecPct = t.gesamt>0?Math.round(t.ec/t.gesamt*100):0;
+      const datStr = d2.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+      const betrag = (t.gesamt/100).toLocaleString('de-DE',{maximumFractionDigits:0});
       return '<div class="chr-tag-card '+( isBest?'best':'')+'">'+
         '<div class="chr-tag-wd">'+WD[d2.getDay()].toUpperCase()+(isBest?' ★':'')+'</div>'+
-        '<div class="chr-tag-dat">'+d2.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})+'</div>'+
-        '<div class="chr-tag-umsatz">'+eur(t.gesamt)+'</div>'+
+        '<div class="chr-tag-dat">'+datStr+'</div>'+
+        '<div class="chr-tag-umsatz">'+betrag+'</div>'+
         '<div class="chr-tag-ec">EC '+ecPct+' %</div></div>';
     }).join('')+'</div></div>' : '';
 
@@ -2417,7 +2421,7 @@ function exportChronikPDF() {
 <div class="pdf-header"><div style="font-size:20px;margin-bottom:6px">⚜</div>
 <h1>${marktName}</h1><div class="sub">Marktchronik · Saison ${aktJahr}</div></div>
 ${contentHtml}
-<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.14 · Erstellt am ${heute}</p></div>
+<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.15 · Erstellt am ${heute}</p></div>
 </body></html>`;
   let old2 = document.getElementById('chr-pdf-frame');
   if (old2) old2.remove();
@@ -2603,6 +2607,13 @@ async function saveNeuerMarkt() {
   });
   if (iErr) { toast('Fehler (Instanz): ' + iErr.message, 'err'); return; }
 
+  // 3) K1 automatisch anlegen
+  await sb.from('stand').insert({
+    id: uuid(), event_instanz_id: instanzId,
+    bezeichnung: 'K1', anfangsbestand_cent: 40000,
+    erstellt_am: now, geaendert_am: now,
+  });
+
   closeModal('modal-neuer-markt');
   toast('✓ Markt angelegt', 'ok');
   await loadMaerkte();
@@ -2642,9 +2653,16 @@ async function saveNeuesJahr() {
     erstellt_von: currentUser.id, geaendert_von: currentUser.id,
   });
   if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+
+  // K1 automatisch anlegen
+  await sb.from('stand').insert({
+    id: uuid(), event_instanz_id: instanzId,
+    bezeichnung: 'K1', anfangsbestand_cent: 40000,
+    erstellt_am: now, geaendert_am: now,
+  });
+
   closeModal('modal-neues-jahr');
   toast('✓ Jahr angelegt', 'ok');
-  // Direkt zur neuen Instanz wechseln (Stack-Eintrag für aktuelle bleibt erhalten)
   await openMarktDetail(instanzId);
 }
 // ── SAISON ────────────────────────────────────────────────────
