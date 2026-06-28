@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.17</title>
+<title>Marktfahrer · v6.18</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -401,7 +401,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.17</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.18</div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -502,7 +502,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         <div id="marktfahrer-list"><div class="spinner"></div></div>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.17 · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.18 · Beerenweine</p>
       </div>
     </div>
 
@@ -2201,7 +2201,7 @@ tr{break-inside:avoid;page-break-inside:avoid}
   <div class="sum-box"><div class="sum-val" style="font-size:13px">${eur(umsatzCent)}</div><div class="sum-label">VK-Umsatz</div></div>
 </div>
 ${katBlöcke}
-<div class="footer">Marktfahrer App · Beerenweine · v6.17</div>
+<div class="footer">Marktfahrer App · Beerenweine · v6.18</div>
 </body></html>`;
 
   let old = document.getElementById('best-pdf-frame');
@@ -2509,7 +2509,7 @@ function exportChronikPDF() {
 <div class="pdf-header"><div style="font-size:20px;margin-bottom:6px">⚜</div>
 <h1>${marktName}</h1><div class="sub">Marktchronik · Saison ${aktJahr}</div></div>
 ${contentHtml}
-<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.17 · Erstellt am ${heute}</p></div>
+<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.18 · Erstellt am ${heute}</p></div>
 </body></html>`;
   let old2 = document.getElementById('chr-pdf-frame');
   if (old2) old2.remove();
@@ -2686,6 +2686,10 @@ const PHASE_NEXT = {
 async function aufgabenAnlegen(instanzId, phase) {
   const vorlagen = AUFGABEN_VORLAGEN[phase] || [];
   if (!vorlagen.length) return;
+  // Prüfen ob Tasks für diese Phase schon existieren
+  const { data: existing } = await sb.from('markt_aufgabe')
+    .select('id').eq('event_instanz_id', instanzId).eq('phase', phase).limit(1);
+  if (existing?.length > 0) return; // Bereits angelegt
   const now = new Date().toISOString();
   const rows = vorlagen.map((v, i) => ({
     id: uuid(), event_instanz_id: instanzId,
@@ -2693,7 +2697,6 @@ async function aufgabenAnlegen(instanzId, phase) {
     extern: v.extern, reihenfolge: i,
     erstellt_am: now, geaendert_am: now,
   }));
-  // In Batches zu je 10
   for (let i = 0; i < rows.length; i += 10) {
     await sb.from('markt_aufgabe').insert(rows.slice(i, i + 10));
   }
@@ -2780,28 +2783,31 @@ async function renderAufgabenSection(instanz, aufgaben) {
   const phase   = instanz.status;
   const n       = aufgaben.length;
   const erledigt = aufgaben.filter(a => a.erledigt).length;
-  const allDone  = n > 0 && erledigt === n;
   const pflichtOffen = aufgaben.filter(a => a.pflicht && !a.erledigt);
+  const allPflichtDone = pflichtOffen.length === 0 && n > 0;
 
-  const badgeCls = allDone ? 'wf-badge-ok' : erledigt > 0 ? 'wf-badge-warn' : 'wf-badge-grey';
+  const badgeCls = n === 0 ? 'wf-badge-grey'
+    : erledigt === n ? 'wf-badge-ok'
+    : erledigt > 0   ? 'wf-badge-warn'
+    : 'wf-badge-grey';
   const badgeTxt = n ? `${erledigt} / ${n}` : '–';
 
   const taskHtml = aufgaben.map(a => {
-    const skHtml = (a.skaldenmet && a.erledigt === false) ? `
+    const isSkaldenmet = a.titel.toLowerCase().includes('skaldenmet');
+    const skHtml = isSkaldenmet && !a.erledigt ? `
       <div class="wf-skaldenmet">
         <label>Menge:</label>
         <input type="number" placeholder="Liter" step="0.1" min="0"
           id="skald-${a.id.slice(0,8)}"
-          value="${a.skaldenmet_liter || ''}"
-          style="width:80px;">
+          value="${a.skaldenmet_liter || ''}" style="width:80px;">
         <span style="font-size:11px;color:var(--text3);">l Skaldenmet</span>
-      </div>` : (a.skaldenmet && a.skaldenmet_liter) ?
+      </div>` : (isSkaldenmet && a.skaldenmet_liter) ?
       `<div class="wf-task-hint">Gemeldet: ${a.skaldenmet_liter} l</div>` : '';
 
     return `<div class="wf-task">
       <div class="wf-checkbox ${a.erledigt ? 'done' : ''} ${a.extern ? 'extern' : ''}"
-        onclick="aufgabeToggle('${a.id}', ${!a.erledigt}, '${a.id.slice(0,8)}', ${!!a.skaldenmet})"
-        title="${a.extern ? 'Externe Aufgabe' : ''}">
+        onclick="aufgabeToggle('${a.id}', ${!a.erledigt}, '${a.id.slice(0,8)}', ${isSkaldenmet})"
+        title="${a.extern ? 'Extern erledigen, dann hier abhaken' : a.pflicht ? 'Pflichtaufgabe' : 'Optionale Aufgabe'}">
         ${a.erledigt ? '✓' : ''}
       </div>
       <div class="wf-task-body">
@@ -2815,15 +2821,14 @@ async function renderAufgabenSection(instanz, aufgaben) {
   // Phasenwechsel-Button
   const nextPhase = PHASE_NEXT[phase];
   let phaseBtnHtml = '';
-  if (nextPhase) {
-    const ready = pflichtOffen.length === 0;
+  if (nextPhase && n > 0) { // Nur wenn Tasks existieren
     const nextLabel = STATUS_LABEL[nextPhase] || nextPhase;
     phaseBtnHtml = `
-      <div class="wf-phase-btn ${ready ? 'ready' : 'blocked'}"
-        onclick="${ready ? `phasenwechsel('${instanz.id}','${nextPhase}')` : 'void(0)'}">
+      <div class="wf-phase-btn ${allPflichtDone ? 'ready' : 'blocked'}"
+        ${allPflichtDone ? `onclick="phasenwechsel('${instanz.id}','${nextPhase}')"` : ''}>
         → Weiter zu: ${nextLabel}
       </div>
-      ${!ready ? `<div class="wf-phase-btn-hint">Warte auf: ${pflichtOffen.slice(0,2).map(a => a.titel).join(' · ')}${pflichtOffen.length > 2 ? ' …' : ''}</div>` : ''}`;
+      ${!allPflichtDone ? `<div class="wf-phase-btn-hint">Offen (Pflicht): ${pflichtOffen.slice(0,2).map(a => a.titel).join(' · ')}${pflichtOffen.length > 2 ? ' …' : ''}</div>` : ''}`;
   }
 
   return `<div class="wf-section">
@@ -2831,11 +2836,11 @@ async function renderAufgabenSection(instanz, aufgaben) {
       <span class="wf-section-title">📋 Aufgaben – ${STATUS_LABEL[phase] || phase}</span>
       <div class="wf-section-meta">
         <span class="wf-badge ${badgeCls}">${badgeTxt}</span>
-        <span class="wf-chevron">›</span>
+        <span class="wf-chevron open">›</span>
       </div>
     </div>
-    <div class="wf-body">
-      ${taskHtml || '<div style="padding:12px 14px;color:var(--text3);font-size:13px;">Keine Aufgaben für diese Phase.</div>'}
+    <div class="wf-body open">
+      ${taskHtml || '<div style="padding:12px 14px;color:var(--text3);font-size:13px;">Keine Aufgaben angelegt.</div>'}
     </div>
   </div>
   ${phaseBtnHtml}`;
@@ -2844,35 +2849,45 @@ async function renderAufgabenSection(instanz, aufgaben) {
 async function renderClSection(instanzId) {
   const { data: items } = await sb.from('user_checkliste_item')
     .select('*').eq('user_id', currentUser.id).is('geloescht_am', null).order('reihenfolge');
-  if (!items?.length) return `<div class="wf-section">
-    <div class="wf-section-header" onclick="toggleWfSection(this)">
-      <span class="wf-section-title">✅ Meine Checkliste</span>
-      <div class="wf-section-meta"><span class="wf-badge wf-badge-grey">leer</span><span class="wf-chevron">›</span></div>
-    </div>
-    <div class="wf-body">
-      <div style="padding:12px 14px;">
-        <p style="font-size:13px;color:var(--text3);margin-bottom:8px;">Noch keine Einträge. In Einstellungen anlegen.</p>
+
+  if (!items?.length) {
+    return `<div class="wf-section">
+      <div class="wf-section-header" onclick="toggleWfSection(this)">
+        <span class="wf-section-title">✅ Meine Checkliste</span>
+        <div class="wf-section-meta">
+          <span class="wf-badge wf-badge-grey">leer</span>
+          <span class="wf-chevron open">›</span>
+        </div>
       </div>
-    </div>
-  </div>`;
+      <div class="wf-body open">
+        <div style="padding:12px 14px;">
+          <p style="font-size:13px;color:var(--text3);margin-bottom:10px;">Noch keine Einträge. Hier direkt hinzufügen oder in Einstellungen pflegen.</p>
+          <button class="btn btn-sm btn-primary" onclick="openNeuesClItemModal()">+ Eintrag hinzufügen</button>
+        </div>
+      </div>
+    </div>`;
+  }
 
   const { data: checks } = await sb.from('user_checkliste_check')
     .select('item_id').eq('event_instanz_id', instanzId);
   const checkedIds = new Set((checks || []).map(c => c.item_id));
 
-  const n = items.length;
+  const n    = items.length;
   const done = items.filter(i => checkedIds.has(i.id)).length;
   const badgeCls = done === n ? 'wf-badge-ok' : done > 0 ? 'wf-badge-warn' : 'wf-badge-grey';
 
   const taskHtml = items.map(i => {
     const erd = checkedIds.has(i.id);
     return `<div class="wf-task">
-      <div class="wf-checkbox ${erd ? 'done' : ''}" onclick="clItemToggle('${i.id}', '${instanzId}', ${!erd})">
+      <div class="wf-checkbox ${erd ? 'done' : ''}" onclick="clItemToggle('${i.id}','${instanzId}',${!erd})">
         ${erd ? '✓' : ''}
       </div>
       <div class="wf-task-body">
         <div class="wf-task-titel ${erd ? 'done' : ''}">${i.titel}</div>
       </div>
+      <button onclick="deleteClItemDirect('${i.id}')"
+        style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:2px 6px;flex-shrink:0;"
+        title="Löschen">✕</button>
     </div>`;
   }).join('');
 
@@ -2881,10 +2896,15 @@ async function renderClSection(instanzId) {
       <span class="wf-section-title">✅ Meine Checkliste</span>
       <div class="wf-section-meta">
         <span class="wf-badge ${badgeCls}">${done} / ${n}</span>
-        <span class="wf-chevron">›</span>
+        <span class="wf-chevron open">›</span>
       </div>
     </div>
-    <div class="wf-body">${taskHtml}</div>
+    <div class="wf-body open">
+      ${taskHtml}
+      <div style="padding:8px 14px;border-top:1px solid var(--border);">
+        <button class="btn btn-sm" onclick="openNeuesClItemModal()">+ Hinzufügen</button>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -2940,6 +2960,13 @@ async function phasenwechsel(instanzId, neuePhase) {
   loadMaerkte();
 }
 
+async function deleteClItemDirect(id) {
+  if (!confirm('Eintrag aus der persönlichen Checkliste löschen?\n(Gilt für alle Märkte)')) return;
+  await sb.from('user_checkliste_item').update({ geloescht_am: new Date().toISOString() }).eq('id', id);
+  toast('Gelöscht');
+  renderPlanungTab(); // Abschnitt neu laden
+}
+
 // ── PERSÖNLICHE CHECKLISTE (Einstellungen) ────────────────────
 async function loadClItemList() {
   const wrap = el('cl-item-list');
@@ -2979,6 +3006,8 @@ async function saveClItem() {
   closeModal('modal-neues-cl-item');
   toast('✓ Eintrag hinzugefügt', 'ok');
   loadClItemList();
+  // Planung-Tab aktualisieren falls gerade ein Markt offen
+  if (currentInstanzId) renderPlanungTab();
 }
 
 async function deleteClItem(id) {
