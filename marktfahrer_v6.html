@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.15</title>
+<title>Marktfahrer · v6.16</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -359,7 +359,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.15</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.16</div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -452,7 +452,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         <div id="marktfahrer-list"><div class="spinner"></div></div>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.15 · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.16 · Beerenweine</p>
       </div>
     </div>
 
@@ -540,10 +540,6 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
     <div class="field">
       <label>Bezeichnung</label>
       <input type="text" id="ns-bez" placeholder="K1, K2, …">
-    </div>
-    <div class="field">
-      <label>Anfangsbestand (€)</label>
-      <input type="number" id="ns-anfang" placeholder="400.00" step="0.01" min="0">
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('modal-neuer-stand')">Abbrechen</button>
@@ -1109,7 +1105,6 @@ function renderStandCard(s) {
       <div class="card-title">🐴 ${s.bezeichnung}</div>
       ${abg ? '<span class="badge status-abgeschlossen">✓ Abgeschlossen</span>' : '<span class="badge status-aktiv">Offen</span>'}
     </div>
-    <div class="card-sub">Anfang: ${eur(s.anfangsbestand_cent || 0)}</div>
     <div style="display:flex;gap:8px;margin-top:10px;">
       <button class="btn btn-sm" onclick="deleteStand('${s.id}')">Löschen</button>
     </div>
@@ -1146,20 +1141,17 @@ async function savePlanungNotiz() {
 function openNeuerStandModal() {
   _modalInstanzId = currentInstanzId;
   el('ns-bez').value = '';
-  el('ns-anfang').value = '400';
   openModal('modal-neuer-stand');
 }
 
 async function saveNeuerStand() {
-  const bez    = el('ns-bez').value.trim();
-  const anfang = parseFloat(el('ns-anfang').value) || 0;
+  const bez = el('ns-bez').value.trim();
   if (!bez) { toast('Bezeichnung fehlt', 'err'); return; }
-  const id = uuid();
   const now = new Date().toISOString();
   const { error } = await sb.from('stand').insert({
-    id, event_instanz_id: _modalInstanzId,
+    id: uuid(), event_instanz_id: _modalInstanzId,
     bezeichnung: bez,
-    anfangsbestand_cent: Math.round(anfang * 100),
+    anfangsbestand_cent: 0,
     erstellt_am: now, geaendert_am: now
   });
   if (error) { toast('Fehler: ' + error.message, 'err'); return; }
@@ -1391,7 +1383,7 @@ async function openKasseDetail(standId, datum) {
 function renderKasseDetailScreen(stand, datum, vorh) {
   const wrap = el('screen-kasse-detail');
   const modus = vorh?.modus || 'zaehlen';
-  const anfang = vorh?.anfangsbestand_cent ?? stand.anfangsbestand_cent ?? 0;
+  const anfang = vorh?.anfangsbestand_cent ?? 0;
 
   const stu = vorh?.stueckelung || {};
   const muenzen = stu.muenzen || {};
@@ -1470,10 +1462,14 @@ function renderKasseDetailScreen(stand, datum, vorh) {
       </div>
 
       <div id="modus-zaehlen" style="display:${modus==='zaehlen'?'block':'none'}">
-        <div class="field">
-          <label>Anfangsbestand (€)</label>
-          <input type="number" id="kasse-anfang" value="${(anfang/100).toFixed(2)}" step="0.01"
+        <div class="field" style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;">
+          <label style="color:var(--gold);">Kassenanfangsbestand (€) *</label>
+          <input type="number" id="kasse-anfang"
+            value="${anfang > 0 ? (anfang/100).toFixed(2) : ''}"
+            placeholder="z. B. 400.00"
+            step="0.01"
             oninput="calcKasseSumme()" onfocus="clearZero(this)">
+          <div style="font-size:11px;color:var(--text3);margin-top:4px;">Pflichtfeld · wird pro Zählung einmalig erfasst</div>
         </div>
         <h3 style="margin-top:4px;">Münzen</h3>
         <div class="kasse-zahl-grid">
@@ -1608,7 +1604,9 @@ async function saveKassenzaehlung() {
   };
 
   if (modus === 'zaehlen') {
-    const anfangCent = Math.round((parseFloat(el('kasse-anfang')?.value) || 0) * 100);
+    const anfangStr = el('kasse-anfang')?.value;
+    if (!anfangStr && anfangStr !== '0') { toast('Kassenanfangsbestand eingeben', 'err'); el('kasse-anfang')?.focus(); return; }
+    const anfangCent = Math.round((parseFloat(anfangStr) || 0) * 100);
     const muenzen = {}, scheine = {};
     let istBestand = 0;
     muenzWerte.forEach(w => {
@@ -2113,7 +2111,7 @@ tr{break-inside:avoid;page-break-inside:avoid}
   <div class="sum-box"><div class="sum-val" style="font-size:13px">${eur(umsatzCent)}</div><div class="sum-label">VK-Umsatz</div></div>
 </div>
 ${katBlöcke}
-<div class="footer">Marktfahrer App · Beerenweine · v6.15</div>
+<div class="footer">Marktfahrer App · Beerenweine · v6.16</div>
 </body></html>`;
 
   let old = document.getElementById('best-pdf-frame');
@@ -2421,7 +2419,7 @@ function exportChronikPDF() {
 <div class="pdf-header"><div style="font-size:20px;margin-bottom:6px">⚜</div>
 <h1>${marktName}</h1><div class="sub">Marktchronik · Saison ${aktJahr}</div></div>
 ${contentHtml}
-<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.15 · Erstellt am ${heute}</p></div>
+<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.16 · Erstellt am ${heute}</p></div>
 </body></html>`;
   let old2 = document.getElementById('chr-pdf-frame');
   if (old2) old2.remove();
@@ -2610,7 +2608,7 @@ async function saveNeuerMarkt() {
   // 3) K1 automatisch anlegen
   await sb.from('stand').insert({
     id: uuid(), event_instanz_id: instanzId,
-    bezeichnung: 'K1', anfangsbestand_cent: 40000,
+    bezeichnung: 'K1', anfangsbestand_cent: 0,
     erstellt_am: now, geaendert_am: now,
   });
 
@@ -2657,7 +2655,7 @@ async function saveNeuesJahr() {
   // K1 automatisch anlegen
   await sb.from('stand').insert({
     id: uuid(), event_instanz_id: instanzId,
-    bezeichnung: 'K1', anfangsbestand_cent: 40000,
+    bezeichnung: 'K1', anfangsbestand_cent: 0,
     erstellt_am: now, geaendert_am: now,
   });
 
