@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.16</title>
+<title>Marktfahrer · v6.17</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -217,7 +217,49 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
 .spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; margin: 32px auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── BESTELLUNG ─────────────────────────────────────────────── */
+/* ── WORKFLOW / AUFGABEN ────────────────────────────────────── */
+.wf-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
+.wf-section-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; cursor: pointer; user-select: none; }
+.wf-section-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.wf-section-meta { display: flex; align-items: center; gap: 8px; }
+.wf-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+.wf-badge-ok   { background: rgba(76,175,80,.2);  color: var(--green2); }
+.wf-badge-warn { background: rgba(255,152,0,.2);  color: var(--amber2); }
+.wf-badge-err  { background: rgba(231,76,60,.2);  color: var(--red2); }
+.wf-badge-grey { background: var(--bg3); color: var(--text3); }
+.wf-chevron { color: var(--text3); font-size: 14px; transition: transform .2s; }
+.wf-chevron.open { transform: rotate(90deg); }
+.wf-body { display: none; border-top: 1px solid var(--border); }
+.wf-body.open { display: block; }
+.wf-task { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.wf-task:last-child { border-bottom: none; }
+.wf-checkbox { width: 22px; height: 22px; border: 2px solid var(--border2); border-radius: 5px; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all .15s; margin-top: 1px; }
+.wf-checkbox.done { background: var(--green); border-color: var(--green2); }
+.wf-checkbox.extern { border-style: dashed; }
+.wf-task-body { flex: 1; min-width: 0; }
+.wf-task-titel { font-size: 13px; color: var(--text); line-height: 1.4; }
+.wf-task-titel.done { text-decoration: line-through; color: var(--text3); }
+.wf-task-hint { font-size: 10px; color: var(--text3); margin-top: 2px; }
+.wf-task-extern { font-size: 10px; color: var(--blue2); background: rgba(66,165,245,.1); padding: 1px 6px; border-radius: 8px; display: inline-block; margin-top: 3px; }
+.wf-skaldenmet { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.wf-skaldenmet input { width: 80px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 6px; color: var(--text); padding: 4px 8px; font-size: 13px; }
+.wf-skaldenmet label { font-size: 11px; color: var(--text3); }
+/* Phasenwechsel-Button */
+.wf-phase-btn { width: calc(100% - 28px); margin: 10px 14px; padding: 12px; border-radius: var(--radius); border: none; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity .2s; }
+.wf-phase-btn.ready { background: var(--gold); color: var(--bg); }
+.wf-phase-btn.blocked { background: var(--bg3); color: var(--text3); cursor: default; }
+.wf-phase-btn-hint { font-size: 11px; color: var(--text3); text-align: center; margin-bottom: 12px; }
+/* Deadline-Banner */
+.wf-deadline-banner { background: rgba(231,76,60,.12); border: 1px solid rgba(231,76,60,.3); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 10px; }
+.wf-deadline-banner.warn { background: rgba(255,152,0,.1); border-color: rgba(255,152,0,.3); }
+.wf-deadline-title { font-size: 12px; font-weight: 700; color: var(--red2); }
+.wf-deadline-banner.warn .wf-deadline-title { color: var(--amber2); }
+.wf-deadline-text { font-size: 11px; color: var(--text2); margin-top: 3px; }
+/* Ampel-Badge in Markt-Cards */
+.ampel { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.ampel-gruen  { background: var(--green2); }
+.ampel-gelb   { background: var(--amber2); box-shadow: 0 0 4px var(--amber2); }
+.ampel-rot    { background: var(--red2); box-shadow: 0 0 4px var(--red2); }
 .best-topbar { position: sticky; top: 0; z-index: 10; background: var(--bg2); border-bottom: 1px solid var(--border); padding: 10px 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .best-topbar-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--text2); white-space: nowrap; }
 .best-topbar-chip.gold { border-color: var(--gold); color: var(--gold); }
@@ -359,7 +401,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.16</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.17</div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -446,13 +488,21 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       </div>
       <div class="section">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <h2 style="margin:0;">Meine Checkliste</h2>
+          <button class="btn btn-sm btn-primary" onclick="openNeuesClItemModal()">+ Hinzufügen</button>
+        </div>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:10px;">Persönliche Erinnerungsliste für jeden Markt. Wird im Planung-Tab jedes Marktes angezeigt.</p>
+        <div id="cl-item-list"><div class="spinner"></div></div>
+      </div>
+      <div class="section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
           <h2 style="margin:0;">Marktfahrer</h2>
           <button class="btn btn-sm btn-primary" onclick="openNeuerMarktfahrerModal()">+ Neu</button>
         </div>
         <div id="marktfahrer-list"><div class="spinner"></div></div>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.16 · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.17 · Beerenweine</p>
       </div>
     </div>
 
@@ -627,6 +677,21 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('modal-neue-stunden')">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveStunden()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-neues-cl-item" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">✅ Checklisten-Eintrag</div>
+    <div class="field">
+      <label>Aufgabe *</label>
+      <input type="text" id="cli-titel" placeholder="z. B. Münzgeld vorbereiten"
+        onkeydown="if(event.key==='Enter') saveClItem()">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-neues-cl-item')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveClItem()">Speichern</button>
     </div>
   </div>
 </div>
@@ -902,6 +967,7 @@ function navTo(tab) {
     el('btn-back').classList.remove('visible');
     renderThemeSelector();
     loadMarktfahrerListe();
+    loadClItemList();
   }
 }
 
@@ -978,9 +1044,12 @@ function renderMarktCard(m) {
   const start = dateFmt(m.start_datum);
   const ende  = dateFmt(m.end_datum);
   const dauer = m.dauer_tage ? m.dauer_tage + ' Tage' : '';
+  const ampel = ampelFarbe(m);
+  const ampelHtml = ampel && ampel !== 'gruen'
+    ? `<span class="ampel ampel-${ampel}" style="margin-left:6px;"></span>` : '';
   return `<div class="card" onclick="openMarktDetail('${m.id}')">
     <div class="card-row">
-      <div class="card-title">${name}</div>
+      <div class="card-title" style="display:flex;align-items:center;">${name}${ampelHtml}</div>
       <span class="badge status-${m.status || 'interessent'}">${STATUS_LABEL[m.status] || '?'}</span>
     </div>
     <div class="card-sub">${plz}${ort}${dauer ? ' · ' + dauer : ''}</div>
@@ -1030,12 +1099,12 @@ async function renderPlanungTab() {
   const inst = currentInstanz;
   if (!inst) return;
 
-  // Stände + Fahrer parallel laden
-  const [{ data: staende }, zugeordneteFahrer] = await Promise.all([
-    sb.from('stand').select('*')
-      .eq('event_instanz_id', currentInstanzId)
+  const [{ data: staende }, zugeordneteFahrer, aufgaben, clSection] = await Promise.all([
+    sb.from('stand').select('*').eq('event_instanz_id', currentInstanzId)
       .is('geloescht_am', null).order('bezeichnung'),
     loadFahrerFuerInstanz(currentInstanzId),
+    ladeAufgaben(currentInstanzId, inst.status),
+    renderClSection(currentInstanzId),
   ]);
 
   const statusOptions = STATUS_ORDER.map(s =>
@@ -1050,8 +1119,25 @@ async function renderPlanungTab() {
         </div>`).join('')
     : '<p style="color:var(--text3);font-size:13px;">Noch keine Fahrer zugeordnet.</p>';
 
+  // Aufgaben-Section (lazy: wenn keine angelegt, anlegen)
+  let aufgabenHtml = '';
+  if (aufgaben.length === 0 && inst.status !== 'interessent') {
+    // Noch nicht angelegt → jetzt anlegen
+    await aufgabenAnlegen(currentInstanzId, inst.status);
+    const aufgabenNeu = await ladeAufgaben(currentInstanzId, inst.status);
+    aufgabenHtml = await renderAufgabenSection(inst, aufgabenNeu);
+  } else if (aufgaben.length > 0) {
+    aufgabenHtml = await renderAufgabenSection(inst, aufgaben);
+  } else if (inst.status === 'interessent') {
+    // Interessent: Aufgaben anlegen falls noch nicht da
+    await aufgabenAnlegen(currentInstanzId, 'interessent');
+    const aufgabenNeu = await ladeAufgaben(currentInstanzId, inst.status);
+    aufgabenHtml = await renderAufgabenSection(inst, aufgabenNeu);
+  }
+
   wrap.innerHTML = `
     <div class="section">
+      ${deadlineBanner(inst)}
       <h2>Planung</h2>
       <div class="field">
         <label>Status</label>
@@ -1073,6 +1159,10 @@ async function renderPlanungTab() {
         <label>Notiz</label>
         <textarea id="plan-notiz" onchange="savePlanungNotiz()">${inst.notiz || ''}</textarea>
       </div>
+    </div>
+    <div class="section">
+      ${aufgabenHtml}
+      ${clSection}
     </div>
     <div class="section">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
@@ -2111,7 +2201,7 @@ tr{break-inside:avoid;page-break-inside:avoid}
   <div class="sum-box"><div class="sum-val" style="font-size:13px">${eur(umsatzCent)}</div><div class="sum-label">VK-Umsatz</div></div>
 </div>
 ${katBlöcke}
-<div class="footer">Marktfahrer App · Beerenweine · v6.16</div>
+<div class="footer">Marktfahrer App · Beerenweine · v6.17</div>
 </body></html>`;
 
   let old = document.getElementById('best-pdf-frame');
@@ -2419,7 +2509,7 @@ function exportChronikPDF() {
 <div class="pdf-header"><div style="font-size:20px;margin-bottom:6px">⚜</div>
 <h1>${marktName}</h1><div class="sub">Marktchronik · Saison ${aktJahr}</div></div>
 ${contentHtml}
-<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.16 · Erstellt am ${heute}</p></div>
+<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.17 · Erstellt am ${heute}</p></div>
 </body></html>`;
   let old2 = document.getElementById('chr-pdf-frame');
   if (old2) old2.remove();
@@ -2550,6 +2640,354 @@ async function fahrerEntfernen(zuordnungId) {
   renderPlanungTab();
 }
 
+// ── WORKFLOW / AUFGABEN ───────────────────────────────────────
+
+const AUFGABEN_VORLAGEN = {
+  interessent: [
+    { titel: 'Bewerbung beim Veranstalter absenden', pflicht: true, extern: false },
+    { titel: 'Termin in Google Kalender eingetragen', pflicht: true, extern: true },
+  ],
+  beworben: [
+    { titel: 'Termin im Beerenweinkalender angelegt (unveröffentlicht)', pflicht: true, extern: true },
+    { titel: 'Termin in Nextcloud angelegt', pflicht: true, extern: true },
+    { titel: 'Veranstalter kontaktiert', pflicht: true, extern: false },
+    { titel: 'Zusage vom Veranstalter erhalten', pflicht: true, extern: false },
+  ],
+  bestaetigt: [
+    { titel: 'Vertrag bestätigt', pflicht: true, extern: false },
+    { titel: 'Kopie an Buchhaltung weitergeleitet', pflicht: true, extern: false },
+    { titel: 'Markt im Personalplanungskalender angelegt', pflicht: true, extern: true },
+    { titel: 'Markt im Beerenweinkalender auf aktiv gestellt', pflicht: true, extern: true },
+  ],
+  vorbereitung: [
+    { titel: 'Markteinteilung / Fahrer in App zugeordnet', pflicht: true, extern: false },
+    { titel: 'Nextcloud: Markt für Marktfahrer freigegeben', pflicht: true, extern: true },
+    { titel: 'Personalplanung in Marktfahrerkalender übertragen', pflicht: true, extern: true },
+    { titel: 'Warenbestellung aufgegeben (PDF versendet)', pflicht: true, extern: false },
+  ],
+  aktiv: [
+    { titel: 'Tägliche Kassenzählung durchgeführt', pflicht: false, extern: false },
+  ],
+  abgeschlossen: [
+    { titel: 'Skaldenmet-Umsatz gemeldet', pflicht: true, extern: false, skaldenmet: true },
+    { titel: 'Abrechnungen in Nextcloud hochgeladen', pflicht: true, extern: true },
+    { titel: 'Kassen- und Marktabschluss durchgeführt', pflicht: true, extern: false },
+    { titel: 'Hinweise für nächstes Jahr notiert', pflicht: false, extern: false },
+    { titel: 'Marktchronik als PDF exportiert', pflicht: false, extern: false },
+    { titel: 'Markt archiviert', pflicht: false, extern: false },
+  ],
+};
+
+const PHASE_NEXT = {
+  interessent: 'beworben', beworben: 'bestaetigt', bestaetigt: 'vorbereitung',
+  vorbereitung: 'aktiv', aktiv: 'abgeschlossen',
+};
+
+async function aufgabenAnlegen(instanzId, phase) {
+  const vorlagen = AUFGABEN_VORLAGEN[phase] || [];
+  if (!vorlagen.length) return;
+  const now = new Date().toISOString();
+  const rows = vorlagen.map((v, i) => ({
+    id: uuid(), event_instanz_id: instanzId,
+    phase, titel: v.titel, pflicht: v.pflicht,
+    extern: v.extern, reihenfolge: i,
+    erstellt_am: now, geaendert_am: now,
+  }));
+  // In Batches zu je 10
+  for (let i = 0; i < rows.length; i += 10) {
+    await sb.from('markt_aufgabe').insert(rows.slice(i, i + 10));
+  }
+}
+
+async function ladeAufgaben(instanzId, phase) {
+  const { data } = await sb.from('markt_aufgabe')
+    .select('*').eq('event_instanz_id', instanzId).eq('phase', phase)
+    .order('reihenfolge');
+  return data || [];
+}
+
+function deadlineBanner(instanz) {
+  if (!instanz?.start_datum) return '';
+  const today     = new Date(); today.setHours(0,0,0,0);
+  const start     = new Date(instanz.start_datum + 'T00:00:00');
+  const end       = instanz.end_datum ? new Date(instanz.end_datum + 'T00:00:00') : start;
+  const jahr      = instanz.saison_jahr || start.getFullYear();
+  const status    = instanz.status;
+  const warnMs    = 14 * 86400000;
+
+  // Bewerbungsphase: 28.02. ODER 4 Wochen vor Start
+  if (status === 'interessent' || status === 'beworben') {
+    const feb28 = new Date(`${jahr}-02-28T00:00:00`);
+    const deadline = today <= feb28 ? feb28
+      : new Date(start.getTime() - 28 * 86400000);
+    const diff = Math.ceil((deadline - today) / 86400000);
+    if (diff <= 0) return `<div class="wf-deadline-banner">
+      <div class="wf-deadline-title">⚠️ Vertragsfrist überschritten</div>
+      <div class="wf-deadline-text">${today <= new Date(`${jahr}-02-28T00:00:00`) ? 'Zusage bis 28.02. ausstehend' : `Vertrag war fällig vor ${Math.abs(diff)} Tagen (4 Wochen vor Marktbeginn)`}</div></div>`;
+    if (diff <= 14) return `<div class="wf-deadline-banner warn">
+      <div class="wf-deadline-title">📅 Frist in ${diff} Tagen</div>
+      <div class="wf-deadline-text">${today <= new Date(`${jahr}-02-28T00:00:00`) ? '28.02. – Zusage Veranstalter' : '4 Wochen vor Start – Vertrag im Haus?'}</div></div>`;
+  }
+  // Vorbereitung: 6 Wochen (Vertrag) + 4 Wochen (Bestellung)
+  if (status === 'vorbereitung') {
+    const d4 = new Date(start.getTime() - 28 * 86400000);
+    const d6 = new Date(start.getTime() - 42 * 86400000);
+    if (today >= d4) return `<div class="wf-deadline-banner">
+      <div class="wf-deadline-title">⚠️ 4-Wochen-Frist</div>
+      <div class="wf-deadline-text">Warenbestellung muss versendet sein</div></div>`;
+    if (today >= d6) return `<div class="wf-deadline-banner warn">
+      <div class="wf-deadline-title">📅 6-Wochen-Frist</div>
+      <div class="wf-deadline-text">Vertrag vorliegend prüfen</div></div>`;
+  }
+  // Aktiv: 5 Tage nach Ende
+  if (status === 'aktiv') {
+    const d5 = new Date(end.getTime() + 5 * 86400000);
+    if (today >= d5) return `<div class="wf-deadline-banner">
+      <div class="wf-deadline-title">⏰ Nachbereitung fällig</div>
+      <div class="wf-deadline-text">Markt endete vor ${Math.ceil((today-end)/86400000)} Tagen – Abschluss + Abrechnung durchführen</div></div>`;
+  }
+  return '';
+}
+
+function ampelFarbe(instanz) {
+  if (!instanz?.start_datum) return '';
+  const today  = new Date(); today.setHours(0,0,0,0);
+  const start  = new Date(instanz.start_datum + 'T00:00:00');
+  const end    = instanz.end_datum ? new Date(instanz.end_datum + 'T00:00:00') : start;
+  const jahr   = instanz.saison_jahr || start.getFullYear();
+  const status = instanz.status;
+
+  if (status === 'interessent' || status === 'beworben') {
+    const feb28 = new Date(`${jahr}-02-28T00:00:00`);
+    const deadline = today <= feb28 ? feb28 : new Date(start.getTime() - 28 * 86400000);
+    const diff = Math.ceil((deadline - today) / 86400000);
+    if (diff <= 0)  return 'rot';
+    if (diff <= 14) return 'gelb';
+  }
+  if (status === 'vorbereitung') {
+    const diff6 = Math.ceil((new Date(start.getTime() - 42 * 86400000) - today) / 86400000);
+    if (diff6 <= 0)  return 'rot';
+    if (diff6 <= 14) return 'gelb';
+  }
+  if (status === 'aktiv') {
+    const diff5 = Math.ceil((new Date(end.getTime() + 5 * 86400000) - today) / 86400000);
+    if (diff5 <= 0) return 'gelb';
+  }
+  return 'gruen';
+}
+
+async function renderAufgabenSection(instanz, aufgaben) {
+  const phase   = instanz.status;
+  const n       = aufgaben.length;
+  const erledigt = aufgaben.filter(a => a.erledigt).length;
+  const allDone  = n > 0 && erledigt === n;
+  const pflichtOffen = aufgaben.filter(a => a.pflicht && !a.erledigt);
+
+  const badgeCls = allDone ? 'wf-badge-ok' : erledigt > 0 ? 'wf-badge-warn' : 'wf-badge-grey';
+  const badgeTxt = n ? `${erledigt} / ${n}` : '–';
+
+  const taskHtml = aufgaben.map(a => {
+    const skHtml = (a.skaldenmet && a.erledigt === false) ? `
+      <div class="wf-skaldenmet">
+        <label>Menge:</label>
+        <input type="number" placeholder="Liter" step="0.1" min="0"
+          id="skald-${a.id.slice(0,8)}"
+          value="${a.skaldenmet_liter || ''}"
+          style="width:80px;">
+        <span style="font-size:11px;color:var(--text3);">l Skaldenmet</span>
+      </div>` : (a.skaldenmet && a.skaldenmet_liter) ?
+      `<div class="wf-task-hint">Gemeldet: ${a.skaldenmet_liter} l</div>` : '';
+
+    return `<div class="wf-task">
+      <div class="wf-checkbox ${a.erledigt ? 'done' : ''} ${a.extern ? 'extern' : ''}"
+        onclick="aufgabeToggle('${a.id}', ${!a.erledigt}, '${a.id.slice(0,8)}', ${!!a.skaldenmet})"
+        title="${a.extern ? 'Externe Aufgabe' : ''}">
+        ${a.erledigt ? '✓' : ''}
+      </div>
+      <div class="wf-task-body">
+        <div class="wf-task-titel ${a.erledigt ? 'done' : ''}">${a.titel}${a.pflicht ? '' : ' <span style="color:var(--text3);font-size:10px;">(optional)</span>'}</div>
+        ${a.extern ? '<span class="wf-task-extern">🔗 Extern erledigen, dann hier abhaken</span>' : ''}
+        ${skHtml}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Phasenwechsel-Button
+  const nextPhase = PHASE_NEXT[phase];
+  let phaseBtnHtml = '';
+  if (nextPhase) {
+    const ready = pflichtOffen.length === 0;
+    const nextLabel = STATUS_LABEL[nextPhase] || nextPhase;
+    phaseBtnHtml = `
+      <div class="wf-phase-btn ${ready ? 'ready' : 'blocked'}"
+        onclick="${ready ? `phasenwechsel('${instanz.id}','${nextPhase}')` : 'void(0)'}">
+        → Weiter zu: ${nextLabel}
+      </div>
+      ${!ready ? `<div class="wf-phase-btn-hint">Warte auf: ${pflichtOffen.slice(0,2).map(a => a.titel).join(' · ')}${pflichtOffen.length > 2 ? ' …' : ''}</div>` : ''}`;
+  }
+
+  return `<div class="wf-section">
+    <div class="wf-section-header" onclick="toggleWfSection(this)">
+      <span class="wf-section-title">📋 Aufgaben – ${STATUS_LABEL[phase] || phase}</span>
+      <div class="wf-section-meta">
+        <span class="wf-badge ${badgeCls}">${badgeTxt}</span>
+        <span class="wf-chevron">›</span>
+      </div>
+    </div>
+    <div class="wf-body">
+      ${taskHtml || '<div style="padding:12px 14px;color:var(--text3);font-size:13px;">Keine Aufgaben für diese Phase.</div>'}
+    </div>
+  </div>
+  ${phaseBtnHtml}`;
+}
+
+async function renderClSection(instanzId) {
+  const { data: items } = await sb.from('user_checkliste_item')
+    .select('*').eq('user_id', currentUser.id).is('geloescht_am', null).order('reihenfolge');
+  if (!items?.length) return `<div class="wf-section">
+    <div class="wf-section-header" onclick="toggleWfSection(this)">
+      <span class="wf-section-title">✅ Meine Checkliste</span>
+      <div class="wf-section-meta"><span class="wf-badge wf-badge-grey">leer</span><span class="wf-chevron">›</span></div>
+    </div>
+    <div class="wf-body">
+      <div style="padding:12px 14px;">
+        <p style="font-size:13px;color:var(--text3);margin-bottom:8px;">Noch keine Einträge. In Einstellungen anlegen.</p>
+      </div>
+    </div>
+  </div>`;
+
+  const { data: checks } = await sb.from('user_checkliste_check')
+    .select('item_id').eq('event_instanz_id', instanzId);
+  const checkedIds = new Set((checks || []).map(c => c.item_id));
+
+  const n = items.length;
+  const done = items.filter(i => checkedIds.has(i.id)).length;
+  const badgeCls = done === n ? 'wf-badge-ok' : done > 0 ? 'wf-badge-warn' : 'wf-badge-grey';
+
+  const taskHtml = items.map(i => {
+    const erd = checkedIds.has(i.id);
+    return `<div class="wf-task">
+      <div class="wf-checkbox ${erd ? 'done' : ''}" onclick="clItemToggle('${i.id}', '${instanzId}', ${!erd})">
+        ${erd ? '✓' : ''}
+      </div>
+      <div class="wf-task-body">
+        <div class="wf-task-titel ${erd ? 'done' : ''}">${i.titel}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="wf-section">
+    <div class="wf-section-header" onclick="toggleWfSection(this)">
+      <span class="wf-section-title">✅ Meine Checkliste</span>
+      <div class="wf-section-meta">
+        <span class="wf-badge ${badgeCls}">${done} / ${n}</span>
+        <span class="wf-chevron">›</span>
+      </div>
+    </div>
+    <div class="wf-body">${taskHtml}</div>
+  </div>`;
+}
+
+function toggleWfSection(header) {
+  const body    = header.nextElementSibling;
+  const chevron = header.querySelector('.wf-chevron');
+  const open    = body.classList.toggle('open');
+  if (chevron) chevron.classList.toggle('open', open);
+}
+
+async function aufgabeToggle(aufgabeId, erledigt, shortId, isSkaldenmet) {
+  let skaldenmetLiter = null;
+  if (isSkaldenmet && erledigt) {
+    const inp = el('skald-' + shortId);
+    skaldenmetLiter = inp ? parseFloat(inp.value) || null : null;
+  }
+  const now = new Date().toISOString();
+  await sb.from('markt_aufgabe').update({
+    erledigt, erledigt_am: erledigt ? now : null,
+    erledigt_von: erledigt ? currentUser.id : null,
+    skaldenmet_liter: skaldenmetLiter,
+    geaendert_am: now,
+  }).eq('id', aufgabeId);
+  renderPlanungTab();
+}
+
+async function clItemToggle(itemId, instanzId, erledigt) {
+  if (erledigt) {
+    await sb.from('user_checkliste_check').upsert(
+      { id: uuid(), item_id: itemId, event_instanz_id: instanzId },
+      { onConflict: 'item_id,event_instanz_id' }
+    );
+  } else {
+    await sb.from('user_checkliste_check')
+      .delete().eq('item_id', itemId).eq('event_instanz_id', instanzId);
+  }
+  renderPlanungTab();
+}
+
+async function phasenwechsel(instanzId, neuePhase) {
+  const label = STATUS_LABEL[neuePhase] || neuePhase;
+  if (!confirm(`Phase wechseln zu: ${label}?\n\nDie bisherigen Aufgaben bleiben erhalten. Neue Aufgaben für die nächste Phase werden angelegt.`)) return;
+  const now = new Date().toISOString();
+  await sb.from('event_instanz').update({ status: neuePhase, geaendert_am: now }).eq('id', instanzId);
+  await aufgabenAnlegen(instanzId, neuePhase);
+  // Instanz neu laden
+  const { data: instanz } = await sb.from('event_instanz')
+    .select('*, event_template(name,ort,plz)').eq('id', instanzId).single();
+  currentInstanz = instanz;
+  toast(`✓ Phase: ${label}`, 'ok');
+  renderPlanungTab();
+  // Märkte-Liste im Hintergrund aktualisieren
+  loadMaerkte();
+}
+
+// ── PERSÖNLICHE CHECKLISTE (Einstellungen) ────────────────────
+async function loadClItemList() {
+  const wrap = el('cl-item-list');
+  if (!wrap) return;
+  const { data } = await sb.from('user_checkliste_item')
+    .select('*').eq('user_id', currentUser.id).is('geloescht_am', null).order('reihenfolge');
+  if (!data?.length) {
+    wrap.innerHTML = '<p style="color:var(--text3);font-size:13px;">Noch keine Einträge.</p>';
+    return;
+  }
+  wrap.innerHTML = data.map(i => `
+    <div class="card" style="cursor:default;margin-bottom:8px;">
+      <div class="card-row">
+        <span style="font-size:14px;color:var(--text);">${i.titel}</span>
+        <button class="btn btn-sm btn-danger" onclick="deleteClItem('${i.id}')">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function openNeuesClItemModal() {
+  el('cli-titel').value = '';
+  openModal('modal-neues-cl-item');
+}
+
+async function saveClItem() {
+  const titel = el('cli-titel').value.trim();
+  if (!titel) { toast('Titel fehlt', 'err'); return; }
+  const now = new Date().toISOString();
+  const { data: existing } = await sb.from('user_checkliste_item')
+    .select('reihenfolge').eq('user_id', currentUser.id).is('geloescht_am', null)
+    .order('reihenfolge', { ascending: false }).limit(1);
+  const reihenfolge = existing?.length ? (existing[0].reihenfolge + 1) : 0;
+  await sb.from('user_checkliste_item').insert({
+    id: uuid(), user_id: currentUser.id, titel, reihenfolge,
+    erstellt_am: now, geaendert_am: now,
+  });
+  closeModal('modal-neues-cl-item');
+  toast('✓ Eintrag hinzugefügt', 'ok');
+  loadClItemList();
+}
+
+async function deleteClItem(id) {
+  if (!confirm('Eintrag löschen?')) return;
+  await sb.from('user_checkliste_item').update({ geloescht_am: new Date().toISOString() }).eq('id', id);
+  toast('Gelöscht');
+  loadClItemList();
+}
+
 // ── NEUER MARKT MODAL ─────────────────────────────────────────
 function openNeuerMarktModal() {
   el('nm-name').value     = '';
@@ -2611,6 +3049,9 @@ async function saveNeuerMarkt() {
     bezeichnung: 'K1', anfangsbestand_cent: 0,
     erstellt_am: now, geaendert_am: now,
   });
+
+  // 4) Workflow-Aufgaben für Interessent anlegen
+  await aufgabenAnlegen(instanzId, 'interessent');
 
   closeModal('modal-neuer-markt');
   toast('✓ Markt angelegt', 'ok');
