@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.18</title>
+<title>Marktfahrer · v6.19</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -401,7 +401,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.18</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.19</div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -502,7 +502,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         <div id="marktfahrer-list"><div class="spinner"></div></div>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.18 · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.19 · Beerenweine</p>
       </div>
     </div>
 
@@ -768,8 +768,54 @@ function dateFmt(iso) {
   return d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit', year:'numeric'});
 }
 
+// ── MARKTTAG ──────────────────────────────────────────────────
+// Einträge zwischen 00:00 und TAGESWECHSEL_STUNDE zählen zum Vortag
+// (Kassenzählung nach Marktschluss um z. B. 00:30 → gestriger Markttag)
+const TAGESWECHSEL_STUNDE = 4;
 function isoToday() {
-  return new Date().toISOString().slice(0,10);
+  const d = new Date();
+  if (d.getHours() < TAGESWECHSEL_STUNDE) d.setDate(d.getDate() - 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// ── DB-SCHREIB-WRAPPER ────────────────────────────────────────
+// Prüft error, fängt Netzwerkfehler, bricht die aufrufende Funktion ab.
+// Nutzung: await dbW(sb.from('x').update({...}).eq(...), 'Status speichern');
+const DB_ERR = Symbol('db-err-handled');
+async function dbW(query, kontext) {
+  let res;
+  try { res = await query; }
+  catch (e) {
+    toast('⚠️ Keine Verbindung – ' + kontext + ' NICHT gespeichert', 'err');
+    throw DB_ERR;
+  }
+  if (res?.error) {
+    toast('⚠️ ' + kontext + ' fehlgeschlagen: ' + res.error.message, 'err');
+    throw DB_ERR;
+  }
+  return res;
+}
+
+// Globales Sicherheitsnetz für unbehandelte Fehler (z. B. Lese-Requests im Funkloch)
+window.addEventListener('unhandledrejection', ev => {
+  ev.preventDefault();
+  if (ev.reason === DB_ERR) return; // bereits per Toast gemeldet
+  console.error('Unbehandelter Fehler:', ev.reason);
+  toast('⚠️ Verbindungsfehler – bitte erneut versuchen', 'err');
+});
+window.addEventListener('offline', () => toast('📡 Keine Internetverbindung', 'err'));
+window.addEventListener('online',  () => toast('📡 Verbindung wiederhergestellt', 'ok'));
+
+// ── DOPPEL-TAP-SCHUTZ ─────────────────────────────────────────
+// Verhindert doppelte Inserts bei zweifachem Tippen; zweiter Aufruf wird verworfen.
+function locked(fn) {
+  let busy = false;
+  return async function (...args) {
+    if (busy) return;
+    busy = true;
+    try { return await fn.apply(this, args); }
+    finally { busy = false; }
+  };
 }
 
 let toastTimer;
@@ -1203,7 +1249,7 @@ function renderStandCard(s) {
 
 async function saveInstanzStatus() {
   const status = el('plan-status').value;
-  await sb.from('event_instanz').update({ status, geaendert_am: new Date().toISOString() }).eq('id', currentInstanzId);
+  await dbW(sb.from('event_instanz').update({ status, geaendert_am: new Date().toISOString() }).eq('id', currentInstanzId), 'Markt speichern');
   toast('Status gespeichert', 'ok');
 }
 
@@ -1214,16 +1260,16 @@ async function savePlanungDaten() {
   const dauer = start && ende
     ? Math.round((new Date(ende) - new Date(start)) / 86400000) + 1
     : null;
-  await sb.from('event_instanz').update({
+  await dbW(sb.from('event_instanz').update({
     start_datum: start, end_datum: ende || null,
     dauer_tage: dauer, geaendert_am: new Date().toISOString()
-  }).eq('id', currentInstanzId);
+  }).eq('id', currentInstanzId), 'Markt speichern');
   toast('Daten gespeichert', 'ok');
 }
 
 async function savePlanungNotiz() {
   const notiz = el('plan-notiz').value;
-  await sb.from('event_instanz').update({ notiz, geaendert_am: new Date().toISOString() }).eq('id', currentInstanzId);
+  await dbW(sb.from('event_instanz').update({ notiz, geaendert_am: new Date().toISOString() }).eq('id', currentInstanzId), 'Markt speichern');
   toast('Notiz gespeichert', 'ok');
 }
 
@@ -1252,7 +1298,7 @@ async function saveNeuerStand() {
 
 async function deleteStand(standId) {
   if (!confirm('Kutsche wirklich löschen?')) return;
-  await sb.from('stand').update({ geloescht_am: new Date().toISOString() }).eq('id', standId);
+  await dbW(sb.from('stand').update({ geloescht_am: new Date().toISOString() }).eq('id', standId), 'Kutsche speichern');
   toast('Kutsche gelöscht');
   renderPlanungTab();
 }
@@ -1754,13 +1800,13 @@ async function saveKassenzaehlung() {
         geaendert_am: now,
       };
       if (vorhEc) {
-        await sb.from('buchung').update(ecPayload).eq('id', vorhEc.id);
+        await dbW(sb.from('buchung').update(ecPayload).eq('id', vorhEc.id), 'Buchung speichern');
       } else {
-        await sb.from('buchung').insert({ ...ecPayload, id: uuid(), erstellt_am: now });
+        await dbW(sb.from('buchung').insert({ ...ecPayload, id: uuid(), erstellt_am: now }), 'Buchung speichern');
       }
     } else if (ecVal === 0 && vorhEc) {
       // EC auf 0 gesetzt → vorhandene Buchung soft-löschen
-      await sb.from('buchung').update({ geloescht_am: now }).eq('id', vorhEc.id);
+      await dbW(sb.from('buchung').update({ geloescht_am: now }).eq('id', vorhEc.id), 'Buchung speichern');
     }
   }
 
@@ -1770,7 +1816,7 @@ async function saveKassenzaehlung() {
 
 async function deleteKassenzaehlung(id) {
   if (!confirm('Zählung wirklich löschen?')) return;
-  await sb.from('kassenzaehlung').update({ geloescht_am: new Date().toISOString() }).eq('id', id);
+  await dbW(sb.from('kassenzaehlung').update({ geloescht_am: new Date().toISOString() }).eq('id', id), 'Kassenzählung speichern');
   toast('Zählung gelöscht');
   goBack();
 }
@@ -2060,8 +2106,8 @@ async function bestellungAnlegen() {
 async function saveAbholdatum(val) {
   bst.abholdatum = val;
   if (bst.bestellung?.id) {
-    await sb.from('bestellung').update({ abhol_datum: val || null, geaendert_am: new Date().toISOString() })
-      .eq('id', bst.bestellung.id);
+    await dbW(sb.from('bestellung').update({ abhol_datum: val || null, geaendert_am: new Date().toISOString() })
+      .eq('id', bst.bestellung.id), 'Bestellung speichern');
   }
 }
 
@@ -2201,7 +2247,7 @@ tr{break-inside:avoid;page-break-inside:avoid}
   <div class="sum-box"><div class="sum-val" style="font-size:13px">${eur(umsatzCent)}</div><div class="sum-label">VK-Umsatz</div></div>
 </div>
 ${katBlöcke}
-<div class="footer">Marktfahrer App · Beerenweine · v6.18</div>
+<div class="footer">Marktfahrer App · Beerenweine · v6.19</div>
 </body></html>`;
 
   let old = document.getElementById('best-pdf-frame');
@@ -2248,10 +2294,10 @@ async function bestMengeSetzen(varId, prodId, proKiste, val) {
   bestQtyLive(varId, prodId, proKiste, menge);
   // DB
   if (menge === 0 && pos?.id) {
-    await sb.from('bestellposition').update({ geloescht_am: now }).eq('id', pos.id);
+    await dbW(sb.from('bestellposition').update({ geloescht_am: now }).eq('id', pos.id), 'Position speichern');
     delete bst.positionen[varId];
   } else if (menge > 0 && pos?.id) {
-    await sb.from('bestellposition').update({ menge, geaendert_am: now }).eq('id', pos.id);
+    await dbW(sb.from('bestellposition').update({ menge, geaendert_am: now }).eq('id', pos.id), 'Position speichern');
   } else if (menge > 0 && !pos?.id) {
     const { data: newPos } = await sb.from('bestellposition').insert({
       id: uuid(), bestellung_id: bst.bestellung.id, variante_id: varId,
@@ -2509,7 +2555,7 @@ function exportChronikPDF() {
 <div class="pdf-header"><div style="font-size:20px;margin-bottom:6px">⚜</div>
 <h1>${marktName}</h1><div class="sub">Marktchronik · Saison ${aktJahr}</div></div>
 ${contentHtml}
-<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.18 · Erstellt am ${heute}</p></div>
+<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.19 · Erstellt am ${heute}</p></div>
 </body></html>`;
   let old2 = document.getElementById('chr-pdf-frame');
   if (old2) old2.remove();
@@ -2576,7 +2622,7 @@ async function saveNeuerMarktfahrer() {
 
 async function deleteMarktfahrer(id) {
   if (!confirm('Marktfahrer wirklich löschen?')) return;
-  await sb.from('marktfahrer').update({ geloescht_am: new Date().toISOString() }).eq('id', id);
+  await dbW(sb.from('marktfahrer').update({ geloescht_am: new Date().toISOString() }).eq('id', id), 'Marktfahrer speichern');
   toast('Gelöscht');
   loadMarktfahrerListe();
 }
@@ -2634,7 +2680,7 @@ async function fahrerZuordnen(marktfahrerId) {
 }
 
 async function fahrerEntfernen(zuordnungId) {
-  await sb.from('event_marktfahrer').update({ geloescht_am: new Date().toISOString() }).eq('id', zuordnungId);
+  await dbW(sb.from('event_marktfahrer').update({ geloescht_am: new Date().toISOString() }).eq('id', zuordnungId), 'Zuordnung speichern');
   toast('Fahrer entfernt');
   openFahrerZuordnenModal();
   renderPlanungTab();
@@ -2698,7 +2744,7 @@ async function aufgabenAnlegen(instanzId, phase) {
     erstellt_am: now, geaendert_am: now,
   }));
   for (let i = 0; i < rows.length; i += 10) {
-    await sb.from('markt_aufgabe').insert(rows.slice(i, i + 10));
+    await dbW(sb.from('markt_aufgabe').insert(rows.slice(i, i + 10)), 'Aufgabe speichern');
   }
 }
 
@@ -2922,24 +2968,24 @@ async function aufgabeToggle(aufgabeId, erledigt, shortId, isSkaldenmet) {
     skaldenmetLiter = inp ? parseFloat(inp.value) || null : null;
   }
   const now = new Date().toISOString();
-  await sb.from('markt_aufgabe').update({
+  await dbW(sb.from('markt_aufgabe').update({
     erledigt, erledigt_am: erledigt ? now : null,
     erledigt_von: erledigt ? currentUser.id : null,
     skaldenmet_liter: skaldenmetLiter,
     geaendert_am: now,
-  }).eq('id', aufgabeId);
+  }).eq('id', aufgabeId), 'Aufgabe speichern');
   renderPlanungTab();
 }
 
 async function clItemToggle(itemId, instanzId, erledigt) {
   if (erledigt) {
-    await sb.from('user_checkliste_check').upsert(
+    await dbW(sb.from('user_checkliste_check').upsert(
       { id: uuid(), item_id: itemId, event_instanz_id: instanzId },
       { onConflict: 'item_id,event_instanz_id' }
-    );
+    ), 'Checkliste speichern');
   } else {
-    await sb.from('user_checkliste_check')
-      .delete().eq('item_id', itemId).eq('event_instanz_id', instanzId);
+    await dbW(sb.from('user_checkliste_check')
+      .delete().eq('item_id', itemId).eq('event_instanz_id', instanzId), 'Checkliste speichern');
   }
   renderPlanungTab();
 }
@@ -2948,7 +2994,7 @@ async function phasenwechsel(instanzId, neuePhase) {
   const label = STATUS_LABEL[neuePhase] || neuePhase;
   if (!confirm(`Phase wechseln zu: ${label}?\n\nDie bisherigen Aufgaben bleiben erhalten. Neue Aufgaben für die nächste Phase werden angelegt.`)) return;
   const now = new Date().toISOString();
-  await sb.from('event_instanz').update({ status: neuePhase, geaendert_am: now }).eq('id', instanzId);
+  await dbW(sb.from('event_instanz').update({ status: neuePhase, geaendert_am: now }).eq('id', instanzId), 'Markt speichern');
   await aufgabenAnlegen(instanzId, neuePhase);
   // Instanz neu laden
   const { data: instanz } = await sb.from('event_instanz')
@@ -2962,7 +3008,7 @@ async function phasenwechsel(instanzId, neuePhase) {
 
 async function deleteClItemDirect(id) {
   if (!confirm('Eintrag aus der persönlichen Checkliste löschen?\n(Gilt für alle Märkte)')) return;
-  await sb.from('user_checkliste_item').update({ geloescht_am: new Date().toISOString() }).eq('id', id);
+  await dbW(sb.from('user_checkliste_item').update({ geloescht_am: new Date().toISOString() }).eq('id', id), 'Checkliste speichern');
   toast('Gelöscht');
   renderPlanungTab(); // Abschnitt neu laden
 }
@@ -2999,10 +3045,10 @@ async function saveClItem() {
     .select('reihenfolge').eq('user_id', currentUser.id).is('geloescht_am', null)
     .order('reihenfolge', { ascending: false }).limit(1);
   const reihenfolge = existing?.length ? (existing[0].reihenfolge + 1) : 0;
-  await sb.from('user_checkliste_item').insert({
+  await dbW(sb.from('user_checkliste_item').insert({
     id: uuid(), user_id: currentUser.id, titel, reihenfolge,
     erstellt_am: now, geaendert_am: now,
-  });
+  }), 'Checkliste speichern');
   closeModal('modal-neues-cl-item');
   toast('✓ Eintrag hinzugefügt', 'ok');
   loadClItemList();
@@ -3012,7 +3058,7 @@ async function saveClItem() {
 
 async function deleteClItem(id) {
   if (!confirm('Eintrag löschen?')) return;
-  await sb.from('user_checkliste_item').update({ geloescht_am: new Date().toISOString() }).eq('id', id);
+  await dbW(sb.from('user_checkliste_item').update({ geloescht_am: new Date().toISOString() }).eq('id', id), 'Checkliste speichern');
   toast('Gelöscht');
   loadClItemList();
 }
@@ -3073,11 +3119,11 @@ async function saveNeuerMarkt() {
   if (iErr) { toast('Fehler (Instanz): ' + iErr.message, 'err'); return; }
 
   // 3) K1 automatisch anlegen
-  await sb.from('stand').insert({
+  await dbW(sb.from('stand').insert({
     id: uuid(), event_instanz_id: instanzId,
     bezeichnung: 'K1', anfangsbestand_cent: 0,
     erstellt_am: now, geaendert_am: now,
-  });
+  }), 'Kutsche speichern');
 
   // 4) Workflow-Aufgaben für Interessent anlegen
   await aufgabenAnlegen(instanzId, 'interessent');
@@ -3123,11 +3169,11 @@ async function saveNeuesJahr() {
   if (error) { toast('Fehler: ' + error.message, 'err'); return; }
 
   // K1 automatisch anlegen
-  await sb.from('stand').insert({
+  await dbW(sb.from('stand').insert({
     id: uuid(), event_instanz_id: instanzId,
     bezeichnung: 'K1', anfangsbestand_cent: 0,
     erstellt_am: now, geaendert_am: now,
-  });
+  }), 'Kutsche speichern');
 
   closeModal('modal-neues-jahr');
   toast('✓ Jahr angelegt', 'ok');
@@ -3388,11 +3434,22 @@ async function saveStunden() {
 
 async function deleteStunden(id) {
   if (!confirm('Eintrag löschen?')) return;
-  await sb.from('stunde').update({ geloescht_am: new Date().toISOString() }).eq('id', id);
+  await dbW(sb.from('stunde').update({ geloescht_am: new Date().toISOString() }).eq('id', id), 'Stunden speichern');
   toast('Gelöscht');
   renderStundenContent();
 }
 
+
+// ── DOPPEL-TAP-SCHUTZ AKTIVIEREN ──────────────────────────────
+// Nur einmalige Aktionen (Inserts/Abschlüsse); onchange-Handler bewusst nicht,
+// damit schnelle Folgeeingaben (z. B. Mengenfelder) nicht verworfen werden.
+[
+  'doLogin', 'saveKassenzaehlung', 'saveBuchung', 'doMarktabschluss',
+  'saveNeuerStand', 'saveNeuerMarkt', 'saveNeuesJahr', 'saveStunden',
+  'saveNeuerMarktfahrer', 'saveClItem', 'phasenwechsel',
+  'deleteStand', 'deleteKassenzaehlung', 'deleteMarktfahrer',
+  'deleteStunden', 'deleteClItem', 'deleteClItemDirect', 'fahrerEntfernen'
+].forEach(n => { if (typeof window[n] === 'function') window[n] = locked(window[n]); });
 </script>
 </body>
 </html>
