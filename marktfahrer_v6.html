@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.19</title>
+<title>Marktfahrer · v6.20</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -168,6 +168,15 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
 .modal-title { font-size: 16px; font-weight: 700; color: var(--gold); margin-bottom: 16px; }
 .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
 .modal-actions .btn { flex: 1; }
+/* Bestätigungs-Dialog (Pergament-Stil) */
+.confirm-overlay { position: fixed; inset: 0; background: rgba(10,6,2,.78); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.confirm-box { background: var(--bg2); border: 2px solid var(--gold); border-radius: var(--radius2); box-shadow: 0 0 0 4px var(--bg2), 0 0 0 5px var(--border2), 0 14px 44px rgba(0,0,0,.65); max-width: 340px; width: 100%; padding: 22px 20px; text-align: center; animation: confirmIn .18s ease-out; }
+@keyframes confirmIn { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.confirm-title { font-family: Georgia, 'Times New Roman', serif; font-size: 18px; font-weight: 700; color: var(--gold2); letter-spacing: .5px; }
+.confirm-orn { color: var(--gold); font-size: 12px; letter-spacing: 5px; margin: 6px 0 12px; }
+.confirm-text { font-size: 14px; color: var(--text2); line-height: 1.55; white-space: pre-line; margin-bottom: 18px; }
+.confirm-actions { display: flex; gap: 10px; }
+.confirm-actions .btn { flex: 1; }
 
 /* ── DIVIDER ────────────────────────────────────────────────── */
 .divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
@@ -401,7 +410,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.19</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.20</div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -502,7 +511,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         <div id="marktfahrer-list"><div class="spinner"></div></div>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.19 · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.20 · Beerenweine</p>
       </div>
     </div>
 
@@ -818,6 +827,39 @@ function locked(fn) {
   };
 }
 
+// ── HTML-ESCAPE ───────────────────────────────────────────────
+// Für alle Nutzertexte (Namen, Notizen, Titel) in innerHTML-Templates.
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => (
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+  ));
+}
+
+// ── BESTÄTIGUNGS-DIALOG (Pergament-Stil) ──────────────────────
+// Ersetzt natives confirm(). Nutzung:
+//   if (!(await confirmMed('Text', {titel:'…', ja:'Löschen', gefahr:true}))) return;
+function confirmMed(text, opts = {}) {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.className = 'confirm-overlay';
+    ov.innerHTML = `
+      <div class="confirm-box">
+        <div class="confirm-title">${esc(opts.titel || 'Bestätigung')}</div>
+        <div class="confirm-orn">✦ ❦ ✦</div>
+        <div class="confirm-text">${esc(text)}</div>
+        <div class="confirm-actions">
+          <button class="btn" id="confirm-nein">Abbrechen</button>
+          <button class="btn ${opts.gefahr ? 'btn-danger' : 'btn-primary'}" id="confirm-ja">${esc(opts.ja || 'Bestätigen')}</button>
+        </div>
+      </div>`;
+    const done = v => { ov.remove(); resolve(v); };
+    ov.querySelector('#confirm-ja').onclick  = () => done(true);
+    ov.querySelector('#confirm-nein').onclick = () => done(false);
+    ov.addEventListener('click', e => { if (e.target === ov) done(false); });
+    document.body.appendChild(ov);
+  });
+}
+
 let toastTimer;
 function toast(msg, type='') {
   const t = el('toast');
@@ -1084,8 +1126,8 @@ function renderMaerkte(liste) {
 }
 
 function renderMarktCard(m) {
-  const name  = m.name || m.event_template?.name || '(Kein Name)';
-  const ort   = m.event_template?.ort || '';
+  const name  = esc(m.name || m.event_template?.name || '(Kein Name)');
+  const ort   = esc(m.event_template?.ort || '');
   const plz   = m.event_template?.plz ? m.event_template.plz + ' ' : '';
   const start = dateFmt(m.start_datum);
   const ende  = dateFmt(m.end_datum);
@@ -1160,7 +1202,7 @@ async function renderPlanungTab() {
   const fahrerHtml = zugeordneteFahrer.length
     ? zugeordneteFahrer.map(z => `
         <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
-          <span style="font-size:14px;">👤 ${z.marktfahrer.name}</span>
+          <span style="font-size:14px;">👤 ${esc(z.marktfahrer.name)}</span>
           <button class="btn btn-sm" onclick="fahrerEntfernen('${z.id}')">✕</button>
         </div>`).join('')
     : '<p style="color:var(--text3);font-size:13px;">Noch keine Fahrer zugeordnet.</p>';
@@ -1203,7 +1245,7 @@ async function renderPlanungTab() {
       </div>
       <div class="field" style="margin-top:14px;">
         <label>Notiz</label>
-        <textarea id="plan-notiz" onchange="savePlanungNotiz()">${inst.notiz || ''}</textarea>
+        <textarea id="plan-notiz" onchange="savePlanungNotiz()">${esc(inst.notiz || '')}</textarea>
       </div>
     </div>
     <div class="section">
@@ -1238,7 +1280,7 @@ function renderStandCard(s) {
   const abg = s.abgeschlossen_am;
   return `<div class="card" style="cursor:default;">
     <div class="card-row">
-      <div class="card-title">🐴 ${s.bezeichnung}</div>
+      <div class="card-title">🐴 ${esc(s.bezeichnung)}</div>
       ${abg ? '<span class="badge status-abgeschlossen">✓ Abgeschlossen</span>' : '<span class="badge status-aktiv">Offen</span>'}
     </div>
     <div style="display:flex;gap:8px;margin-top:10px;">
@@ -1297,7 +1339,7 @@ async function saveNeuerStand() {
 }
 
 async function deleteStand(standId) {
-  if (!confirm('Kutsche wirklich löschen?')) return;
+  if (!(await confirmMed('Diese Kutsche wird aus dem Markt entfernt.', {titel:'Kutsche löschen', ja:'Löschen', gefahr:true}))) return;
   await dbW(sb.from('stand').update({ geloescht_am: new Date().toISOString() }).eq('id', standId), 'Kutsche speichern');
   toast('Kutsche gelöscht');
   renderPlanungTab();
@@ -1352,7 +1394,7 @@ async function renderKasseTab() {
 
     html += `<div class="card" style="cursor:default;margin-bottom:14px;">
       <div class="card-row">
-        <div class="card-title">🐴 ${stand.bezeichnung}</div>
+        <div class="card-title">🐴 ${esc(stand.bezeichnung)}</div>
         ${stand.abgeschlossen_am ? '<span class="badge status-abgeschlossen">✓ Abgeschlossen</span>' : ''}
       </div>
       <div class="stat-chips" style="margin-top:8px;">
@@ -1481,7 +1523,7 @@ function renderAbschlussVorschau(barUmsatz, barAusgaben, ecEinnahmen) {
 
 async function doMarktabschluss(standId, barUmsatz, barAusgaben) {
   const abgabe = barUmsatz - barAusgaben;
-  if (!confirm(`Marktabschluss bestätigen?\n\nAbgabe-Betrag: ${eur(abgabe)}\n\nDies sperrt die Kasse für diesen Stand.`)) return;
+  if (!(await confirmMed(`Abgabe-Betrag: ${eur(abgabe)}\n\nDies sperrt die Kasse für diesen Stand.`, {titel:'Marktabschluss', ja:'Abschließen'}))) return;
   const now = new Date().toISOString();
   const { error } = await sb.from('stand').update({
     abgeschlossen_am: now,
@@ -1640,7 +1682,7 @@ function renderKasseDetailScreen(stand, datum, vorh) {
 
       <div class="field" style="margin-top:14px;">
         <label>Notiz</label>
-        <input type="text" id="kasse-notiz" value="${vorh?.notiz || ''}" placeholder="Optional…">
+        <input type="text" id="kasse-notiz" value="${esc(vorh?.notiz || '')}" placeholder="Optional…">
       </div>
 
       <button class="btn btn-primary btn-full" style="margin-top:6px;" onclick="saveKassenzaehlung()">
@@ -1815,7 +1857,7 @@ async function saveKassenzaehlung() {
 }
 
 async function deleteKassenzaehlung(id) {
-  if (!confirm('Zählung wirklich löschen?')) return;
+  if (!(await confirmMed('Die Tageszählung wird gelöscht.', {titel:'Zählung löschen', ja:'Löschen', gefahr:true}))) return;
   await dbW(sb.from('kassenzaehlung').update({ geloescht_am: new Date().toISOString() }).eq('id', id), 'Kassenzählung speichern');
   toast('Zählung gelöscht');
   goBack();
@@ -2247,7 +2289,7 @@ tr{break-inside:avoid;page-break-inside:avoid}
   <div class="sum-box"><div class="sum-val" style="font-size:13px">${eur(umsatzCent)}</div><div class="sum-label">VK-Umsatz</div></div>
 </div>
 ${katBlöcke}
-<div class="footer">Marktfahrer App · Beerenweine · v6.19</div>
+<div class="footer">Marktfahrer App · Beerenweine · v6.20</div>
 </body></html>`;
 
   let old = document.getElementById('best-pdf-frame');
@@ -2555,7 +2597,7 @@ function exportChronikPDF() {
 <div class="pdf-header"><div style="font-size:20px;margin-bottom:6px">⚜</div>
 <h1>${marktName}</h1><div class="sub">Marktchronik · Saison ${aktJahr}</div></div>
 ${contentHtml}
-<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.19 · Erstellt am ${heute}</p></div>
+<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.20 · Erstellt am ${heute}</p></div>
 </body></html>`;
   let old2 = document.getElementById('chr-pdf-frame');
   if (old2) old2.remove();
@@ -2587,7 +2629,7 @@ async function loadMarktfahrerListe() {
     <div class="card" style="cursor:default;margin-bottom:8px;">
       <div class="card-row">
         <div>
-          <div class="card-title">${mf.name}</div>
+          <div class="card-title">${esc(mf.name)}</div>
           ${mf.telefon ? `<div class="card-sub">📞 ${mf.telefon}</div>` : ''}
           ${mf.user_id ? '<div class="card-sub" style="color:var(--green2);">✓ Login verknüpft</div>' : ''}
         </div>
@@ -2621,7 +2663,7 @@ async function saveNeuerMarktfahrer() {
 }
 
 async function deleteMarktfahrer(id) {
-  if (!confirm('Marktfahrer wirklich löschen?')) return;
+  if (!(await confirmMed('Der Marktfahrer wird aus den Stammdaten entfernt.', {titel:'Marktfahrer löschen', ja:'Löschen', gefahr:true}))) return;
   await dbW(sb.from('marktfahrer').update({ geloescht_am: new Date().toISOString() }).eq('id', id), 'Marktfahrer speichern');
   toast('Gelöscht');
   loadMarktfahrerListe();
@@ -2654,7 +2696,7 @@ async function openFahrerZuordnenModal() {
       const istZugeordnet = zugeordnetIds.includes(mf.id);
       const zuordnungId = istZugeordnet ? zugeordnet.find(z => z.marktfahrer.id === mf.id)?.id : null;
       return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
-        <span style="font-size:14px;color:var(--text);">${mf.name}</span>
+        <span style="font-size:14px;color:var(--text);">${esc(mf.name)}</span>
         ${istZugeordnet
           ? `<button class="btn btn-sm btn-danger" onclick="fahrerEntfernen('${zuordnungId}')">Entfernen</button>`
           : `<button class="btn btn-sm btn-primary" onclick="fahrerZuordnen('${mf.id}')">Zuordnen</button>`
@@ -2857,7 +2899,7 @@ async function renderAufgabenSection(instanz, aufgaben) {
         ${a.erledigt ? '✓' : ''}
       </div>
       <div class="wf-task-body">
-        <div class="wf-task-titel ${a.erledigt ? 'done' : ''}">${a.titel}${a.pflicht ? '' : ' <span style="color:var(--text3);font-size:10px;">(optional)</span>'}</div>
+        <div class="wf-task-titel ${a.erledigt ? 'done' : ''}">${esc(a.titel)}${a.pflicht ? '' : ' <span style="color:var(--text3);font-size:10px;">(optional)</span>'}</div>
         ${a.extern ? '<span class="wf-task-extern">🔗 Extern erledigen, dann hier abhaken</span>' : ''}
         ${skHtml}
       </div>
@@ -2929,7 +2971,7 @@ async function renderClSection(instanzId) {
         ${erd ? '✓' : ''}
       </div>
       <div class="wf-task-body">
-        <div class="wf-task-titel ${erd ? 'done' : ''}">${i.titel}</div>
+        <div class="wf-task-titel ${erd ? 'done' : ''}">${esc(i.titel)}</div>
       </div>
       <button onclick="deleteClItemDirect('${i.id}')"
         style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:2px 6px;flex-shrink:0;"
@@ -2992,7 +3034,7 @@ async function clItemToggle(itemId, instanzId, erledigt) {
 
 async function phasenwechsel(instanzId, neuePhase) {
   const label = STATUS_LABEL[neuePhase] || neuePhase;
-  if (!confirm(`Phase wechseln zu: ${label}?\n\nDie bisherigen Aufgaben bleiben erhalten. Neue Aufgaben für die nächste Phase werden angelegt.`)) return;
+  if (!(await confirmMed(`Weiter zu: ${label}\n\nDie bisherigen Aufgaben bleiben erhalten. Neue Aufgaben für die nächste Phase werden angelegt.`, {titel:'Phasenwechsel', ja:'Weiter'}))) return;
   const now = new Date().toISOString();
   await dbW(sb.from('event_instanz').update({ status: neuePhase, geaendert_am: now }).eq('id', instanzId), 'Markt speichern');
   await aufgabenAnlegen(instanzId, neuePhase);
@@ -3007,7 +3049,7 @@ async function phasenwechsel(instanzId, neuePhase) {
 }
 
 async function deleteClItemDirect(id) {
-  if (!confirm('Eintrag aus der persönlichen Checkliste löschen?\n(Gilt für alle Märkte)')) return;
+  if (!(await confirmMed('Der Eintrag wird aus der persönlichen Checkliste entfernt.\n(Gilt für alle Märkte)', {titel:'Eintrag löschen', ja:'Löschen', gefahr:true}))) return;
   await dbW(sb.from('user_checkliste_item').update({ geloescht_am: new Date().toISOString() }).eq('id', id), 'Checkliste speichern');
   toast('Gelöscht');
   renderPlanungTab(); // Abschnitt neu laden
@@ -3026,7 +3068,7 @@ async function loadClItemList() {
   wrap.innerHTML = data.map(i => `
     <div class="card" style="cursor:default;margin-bottom:8px;">
       <div class="card-row">
-        <span style="font-size:14px;color:var(--text);">${i.titel}</span>
+        <span style="font-size:14px;color:var(--text);">${esc(i.titel)}</span>
         <button class="btn btn-sm btn-danger" onclick="deleteClItem('${i.id}')">✕</button>
       </div>
     </div>`).join('');
@@ -3057,7 +3099,7 @@ async function saveClItem() {
 }
 
 async function deleteClItem(id) {
-  if (!confirm('Eintrag löschen?')) return;
+  if (!(await confirmMed('Der Eintrag wird gelöscht.', {titel:'Eintrag löschen', ja:'Löschen', gefahr:true}))) return;
   await dbW(sb.from('user_checkliste_item').update({ geloescht_am: new Date().toISOString() }).eq('id', id), 'Checkliste speichern');
   toast('Gelöscht');
   loadClItemList();
@@ -3237,8 +3279,8 @@ async function loadSaison() {
   });
 
   const listeHtml = sortiert.length ? sortiert.map(m => {
-    const name  = m.name || m.event_template?.name || '(Kein Name)';
-    const ort   = m.event_template?.ort || '';
+    const name  = esc(m.name || m.event_template?.name || '(Kein Name)');
+    const ort   = esc(m.event_template?.ort || '');
     const daten = m.start_datum ? dateFmt(m.start_datum) + (m.end_datum ? '–'+dateFmt(m.end_datum) : '') : '';
     const umsatz = umsatzMap[m.id];
     return `<div class="saison-markt-row" onclick="openMarktDetail('${m.id}')">
@@ -3377,7 +3419,7 @@ async function openNeueStundenModal() {
   // Fahrer-Select befüllen
   const fahrerSel = el('std-fahrer');
   fahrerSel.innerHTML = zugeordnet.map(z =>
-    `<option value="${z.marktfahrer.id}">${z.marktfahrer.name}</option>`
+    `<option value="${z.marktfahrer.id}">${esc(z.marktfahrer.name)}</option>`
   ).join('');
 
   // Datum-Select befüllen: 1 Tag vor Start bis 1 Tag nach Ende
@@ -3433,7 +3475,7 @@ async function saveStunden() {
 }
 
 async function deleteStunden(id) {
-  if (!confirm('Eintrag löschen?')) return;
+  if (!(await confirmMed('Der Eintrag wird gelöscht.', {titel:'Eintrag löschen', ja:'Löschen', gefahr:true}))) return;
   await dbW(sb.from('stunde').update({ geloescht_am: new Date().toISOString() }).eq('id', id), 'Stunden speichern');
   toast('Gelöscht');
   renderStundenContent();
