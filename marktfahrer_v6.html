@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.23</title>
+<title>Marktfahrer · v6.24</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -414,7 +414,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.23</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.24</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -516,7 +516,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         <div id="marktfahrer-list"><div class="spinner"></div></div>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.23</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.24</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -568,6 +568,17 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         <input type="date" id="nm-ende">
       </div>
     </div>
+    <div style="margin-top:14px;" class="field-row">
+      <div class="field" style="margin-bottom:0">
+        <label>2. Zeitraum Start</label>
+        <input type="date" id="nm-start-2">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>2. Zeitraum Ende</label>
+        <input type="date" id="nm-ende-2">
+      </div>
+    </div>
+    <p style="color:var(--text3);font-size:11px;margin-top:6px;">Nur ausfüllen, wenn der Markt über zwei getrennte Wochenenden am selben Ort läuft. Die Tage dazwischen zählen dann nicht als Markttage.</p>
     <div class="field" style="margin-top:14px;">
       <label>Rhythmus</label>
       <select id="nm-rhythmus">
@@ -748,7 +759,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.23';
+const APP_VERSION = 'v6.24';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -808,6 +819,52 @@ function tageRange(startIso, endeIso, padVor = 0, padNach = 0) {
   const tage = [];
   for (let d = new Date(start); d <= ende; d.setDate(d.getDate() + 1)) tage.push(isoLocal(d));
   return tage;
+}
+
+// ── ZWEI MARKT-ZEITRÄUME ──────────────────────────────────────
+// Eine Instanz kann optional über zwei getrennte Blöcke laufen (z. B. zwei
+// Wochenenden am selben Ort). Die Lücke dazwischen sind KEINE Markttage.
+// Echte Markttage (Block 1 + optional Block 2), ohne Lücke:
+function marktTage(inst) {
+  if (!inst?.start_datum) return [];
+  const t = tageRange(inst.start_datum, inst.end_datum);
+  if (inst.start_datum_2) t.push(...tageRange(inst.start_datum_2, inst.end_datum_2));
+  return t;
+}
+// Tage für Stundenerfassung: jeder Block mit ±1 Puffertag (Vor-/Nachbereitung);
+// die reine Lücke dazwischen bleibt ausgespart (dort keine Arbeitszeit).
+function stundenTage(inst) {
+  if (!inst?.start_datum) return [];
+  const t = tageRange(inst.start_datum, inst.end_datum, 1, 1);
+  if (inst.start_datum_2) t.push(...tageRange(inst.start_datum_2, inst.end_datum_2, 1, 1));
+  return [...new Set(t)].sort();
+}
+// Beschriftung eines Tags in der Stundenauswahl (Markttag / Vor- / Nachbereitung)
+function tagSuffix(inst, t) {
+  const bloecke = [[inst.start_datum, inst.end_datum || inst.start_datum]];
+  if (inst.start_datum_2) bloecke.push([inst.start_datum_2, inst.end_datum_2 || inst.start_datum_2]);
+  for (const [s, e] of bloecke) if (t >= s && t <= e) return '';
+  const plus1  = iso => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + 1); return isoLocal(d); };
+  const minus1 = iso => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - 1); return isoLocal(d); };
+  for (const [s, e] of bloecke) {
+    if (t === minus1(s)) return ' ↑ Vorbereitung';
+    if (t === plus1(e))  return ' ↓ Nachbereitung';
+  }
+  return '';
+}
+// Gesamtzahl echter Markttage über beide Blöcke
+function dauerTage(start, ende, start2, ende2) {
+  if (!start) return null;
+  let n = tageRange(start, ende).length;
+  if (start2) n += tageRange(start2, ende2).length;
+  return n || null;
+}
+// Anzeigetext des/der Zeiträume(s)
+function zeitraumText(inst) {
+  if (!inst?.start_datum) return '';
+  let s = dateFmt(inst.start_datum) + (inst.end_datum ? ' – ' + dateFmt(inst.end_datum) : '');
+  if (inst.start_datum_2) s += ' + ' + dateFmt(inst.start_datum_2) + (inst.end_datum_2 ? ' – ' + dateFmt(inst.end_datum_2) : '');
+  return s;
 }
 
 // ── DB-SCHREIB-WRAPPER ────────────────────────────────────────
@@ -1231,7 +1288,7 @@ function renderMarktCard(m) {
       <span class="badge status-${m.status || 'interessent'}">${STATUS_LABEL[m.status] || '?'}</span>
     </div>
     <div class="card-sub">${plz}${ort}${dauer ? ' · ' + dauer : ''}</div>
-    <div class="card-sub" style="margin-top:4px;">${start}${m.end_datum ? ' – ' + ende : ''}</div>
+    <div class="card-sub" style="margin-top:4px;">${zeitraumText(m)}</div>
   </div>`;
 }
 
@@ -1253,7 +1310,7 @@ async function _openMarktDetailIntern(instanzId) {
 
   const name = instanz.name || instanz.event_template?.name || '(Kein Name)';
   const jahr = instanz.saison_jahr ? ` ${instanz.saison_jahr}` : '';
-  setHeader(name + jahr, dateFmt(instanz.start_datum) + (instanz.end_datum ? ' – ' + dateFmt(instanz.end_datum) : ''), true);
+  setHeader(name + jahr, zeitraumText(instanz), true);
   showScreen('markt-detail');
   showMarktTab('planung');
 }
@@ -1333,6 +1390,17 @@ async function renderPlanungTab() {
           <input type="date" id="plan-ende" value="${inst.end_datum || ''}" onchange="savePlanungDaten()">
         </div>
       </div>
+      <div class="field-row" style="margin-top:14px;">
+        <div class="field" style="margin-bottom:0">
+          <label>2. Start (opt.)</label>
+          <input type="date" id="plan-start-2" value="${inst.start_datum_2 || ''}" onchange="savePlanungDaten()">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>2. Ende (opt.)</label>
+          <input type="date" id="plan-ende-2" value="${inst.end_datum_2 || ''}" onchange="savePlanungDaten()">
+        </div>
+      </div>
+      <p style="color:var(--text3);font-size:11px;margin-top:6px;">2. Zeitraum nur bei Märkten über zwei getrennte Wochenenden. Die Tage dazwischen sind keine Markttage.</p>
       <div class="field" style="margin-top:14px;">
         <label>Notiz</label>
         <textarea id="plan-notiz" onchange="savePlanungNotiz()">${esc(inst.notiz || '')}</textarea>
@@ -1449,15 +1517,24 @@ async function saveInstanzStatus() {
 
 async function savePlanungDaten() {
   const start = el('plan-start').value;
-  const ende  = el('plan-ende').value;
+  const ende  = el('plan-ende').value || null;
   if (!start) return;
-  const dauer = start && ende
-    ? Math.round((new Date(ende) - new Date(start)) / 86400000) + 1
-    : null;
+  const start2 = el('plan-start-2').value || null;
+  const ende2  = el('plan-ende-2').value || null;
+  if (start2 && start2 <= (ende || start)) { toast('Der 2. Zeitraum muss nach dem 1. liegen', 'err'); return; }
+  if (start2 && !ende2) { toast('Bitte auch das Ende des 2. Zeitraums angeben', 'err'); return; }
+  const dauer = dauerTage(start, ende, start2, ende2);
   await dbW(sb.from('event_instanz').update({
-    start_datum: start, end_datum: ende || null,
+    start_datum: start, end_datum: ende,
+    start_datum_2: start2, end_datum_2: ende2,
     dauer_tage: dauer, geaendert_am: new Date().toISOString()
   }).eq('id', currentInstanzId), 'Markt speichern');
+  // currentInstanz im Speicher aktualisieren, damit Kasse/Stunden sofort stimmen
+  if (currentInstanz) {
+    currentInstanz.start_datum = start; currentInstanz.end_datum = ende;
+    currentInstanz.start_datum_2 = start2; currentInstanz.end_datum_2 = ende2;
+    currentInstanz.dauer_tage = dauer;
+  }
   toast('Daten gespeichert', 'ok');
 }
 
@@ -1744,7 +1821,7 @@ function renderKasseDetailScreen(stand, datum, vorh) {
   const inst = currentInstanz;
   let datumHtml = '';
   if (inst?.start_datum) {
-    const tage = tageRange(inst.start_datum, inst.end_datum);
+    const tage = marktTage(inst);
     if (tage.length <= 10) {
       // Kompakte Button-Auswahl
       datumHtml = `<div class="field">
@@ -2436,7 +2513,7 @@ tr{break-inside:avoid;page-break-inside:avoid}
   <div class="sum-box"><div class="sum-val" style="font-size:13px">${eur(umsatzCent)}</div><div class="sum-label">VK-Umsatz</div></div>
 </div>
 ${katBlöcke}
-<div class="footer">Marktfahrer App · Beerenweine · <span class="app-version">v6.23</span></div>
+<div class="footer">Marktfahrer App · Beerenweine · <span class="app-version">v6.24</span></div>
 </body></html>`;
 
   let old = document.getElementById('best-pdf-frame');
@@ -3276,6 +3353,8 @@ function openNeuerMarktModal() {
   el('nm-plz').value      = '';
   el('nm-start').value    = '';
   el('nm-ende').value     = '';
+  el('nm-start-2').value  = '';
+  el('nm-ende-2').value   = '';
   el('nm-km-sued').value  = '';
   el('nm-km-nord').value  = '';
   el('nm-notiz').value    = '';
@@ -3292,7 +3371,11 @@ async function saveNeuerMarkt() {
   const now   = new Date().toISOString();
   const jahr  = parseInt(start.slice(0,4));
   const ende  = el('nm-ende').value || null;
-  const dauer = ende ? Math.round((new Date(ende) - new Date(start)) / 86400000) + 1 : null;
+  const start2 = el('nm-start-2').value || null;
+  const ende2  = el('nm-ende-2').value || null;
+  if (start2 && start2 <= (ende || start)) { toast('Der 2. Zeitraum muss nach dem 1. liegen', 'err'); return; }
+  if (start2 && !ende2) { toast('Bitte auch das Ende des 2. Zeitraums angeben', 'err'); return; }
+  const dauer = dauerTage(start, ende, start2, ende2);
   const kmS   = parseInt(el('nm-km-sued').value) || null;
   const kmN   = parseInt(el('nm-km-nord').value) || null;
   const plz   = el('nm-plz').value.trim() || null;
@@ -3318,6 +3401,7 @@ async function saveNeuerMarkt() {
     saison_jahr: jahr, name,
     status: 'beworben',
     start_datum: start, end_datum: ende,
+    start_datum_2: start2, end_datum_2: ende2,
     dauer_tage: dauer, notiz,
     erstellt_am: now, geaendert_am: now,
     erstellt_von: currentUser.id, geaendert_von: currentUser.id,
@@ -3589,16 +3673,11 @@ async function openNeueStundenModal() {
   // Datum-Select befüllen: 1 Tag vor Start bis 1 Tag nach Ende
   const datumSel = el('std-datum');
   if (inst?.start_datum) {
-    const tage = tageRange(inst.start_datum, inst.end_datum, 1, 1);
-    const startIso = inst.start_datum;
-    const endeIso  = inst.end_datum || inst.start_datum;
+    const tage = stundenTage(inst);
     datumSel.innerHTML = tage.map(t => {
       const d2   = new Date(t + 'T12:00:00');
       const label = `${WD[d2.getDay()]}, ${dateFmt(t)}`;
-      let suffix = '';
-      if (t < startIso)  suffix = ' ↑ Vorbereitung';
-      if (t > endeIso)   suffix = ' ↓ Nachbereitung';
-      return `<option value="${t}">${label}${suffix}</option>`;
+      return `<option value="${t}">${label}${tagSuffix(inst, t)}</option>`;
     }).join('');
   } else {
     datumSel.innerHTML = `<option value="${isoToday()}">${dateFmt(isoToday())}</option>`;
