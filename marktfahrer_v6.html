@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.20</title>
+<title>Marktfahrer · v6.21</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -118,6 +118,9 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
 .btn-danger { background: var(--red); border-color: var(--red2); color: #fff; }
 .btn-success { background: var(--green); border-color: var(--green2); color: #fff; }
 .btn-full { width: 100%; }
+.markt-gruppe-kopf { margin-top: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; -webkit-user-select: none; user-select: none; }
+.markt-gruppe-kopf:active { opacity: .7; }
+.markt-gruppe-caret { color: var(--text3); font-size: 12px; }
 .btn-sm { padding: 7px 14px; font-size: 13px; }
 .btn-icon { padding: 8px; border-radius: 50%; width: 38px; height: 38px; }
 
@@ -410,7 +413,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · v6.20</div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.21</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -433,6 +436,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
           oninput="filterMaerkte()" style="flex:1; background:var(--bg3); border:1px solid var(--border); border-radius:20px; color:var(--text); padding:8px 14px; font-size:14px; outline:none; -webkit-appearance:none;">
         <button class="btn btn-primary btn-sm" style="margin-left:10px; white-space:nowrap;" onclick="openNeuerMarktModal()">+ Neu</button>
       </div>
+      <div id="markt-jahr-tabs" style="padding:0 16px 4px; display:flex; gap:6px; flex-wrap:wrap;"></div>
       <div id="markt-list" style="padding:0 16px 16px;"></div>
     </div>
 
@@ -511,7 +515,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         <div id="marktfahrer-list"><div class="spinner"></div></div>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer v6.20 · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.21</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -742,6 +746,9 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
+// Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
+const APP_VERSION = 'v6.21';
+
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
 let currentInstanzId = null;
@@ -781,10 +788,25 @@ function dateFmt(iso) {
 // Einträge zwischen 00:00 und TAGESWECHSEL_STUNDE zählen zum Vortag
 // (Kassenzählung nach Marktschluss um z. B. 00:30 → gestriger Markttag)
 const TAGESWECHSEL_STUNDE = 4;
+// Lokales Datum als YYYY-MM-DD (kein UTC-Versatz)
+function isoLocal(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
 function isoToday() {
   const d = new Date();
   if (d.getHours() < TAGESWECHSEL_STUNDE) d.setDate(d.getDate() - 1);
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  return isoLocal(d);
+}
+// Liste von Tagen (YYYY-MM-DD) von Start bis Ende, optional mit Puffer davor/danach.
+function tageRange(startIso, endeIso, padVor = 0, padNach = 0) {
+  if (!startIso) return [];
+  const start = new Date(startIso + 'T12:00:00');
+  const ende  = new Date((endeIso || startIso) + 'T12:00:00');
+  start.setDate(start.getDate() - padVor);
+  ende.setDate(ende.getDate() + padNach);
+  const tage = [];
+  for (let d = new Date(start); d <= ende; d.setDate(d.getDate() + 1)) tage.push(isoLocal(d));
+  return tage;
 }
 
 // ── DB-SCHREIB-WRAPPER ────────────────────────────────────────
@@ -890,7 +912,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Theme sofort anwenden (vor Login-Prüfung)
   applyTheme(localStorage.getItem('mf_theme') || 'braun');
 
+  // Versionsnummer aus einziger Quelle setzen
+  document.title = 'Marktfahrer · ' + APP_VERSION;
+  document.querySelectorAll('.app-version').forEach(e => e.textContent = APP_VERSION);
+
   sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+  // Reagiert auf Sitzungsende (Ablauf oder fehlgeschlagener Token-Refresh):
+  // zurück zum Login statt stiller Fehler bei jedem weiteren Request.
+  sb.auth.onAuthStateChange((event, session) => {
+    if (session) return;
+    if (currentUser && !manuellerLogout) toast('Sitzung abgelaufen – bitte neu anmelden', 'err');
+    manuellerLogout = false;
+    currentUser = null; currentProfil = null;
+    hideApp();
+  });
+
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     currentUser = session.user;
@@ -980,7 +1017,9 @@ async function doLogin() {
   showApp();
 }
 
+let manuellerLogout = false;
 async function doLogout() {
+  manuellerLogout = true;
   await sb.auth.signOut();
   currentUser = null; currentProfil = null;
   hideApp();
@@ -1067,7 +1106,7 @@ async function goBack() {
     // Zurück zur Instanz die im Stack gespeichert ist
     await _openMarktDetailIntern(prev.instanzId);
   } else if (prev.screen === 'kasse-detail') {
-    await openKasseDetail(currentStandId, currentKasseTag);
+    await openKasseDetail(currentStandId, currentKasseTag, false);
   } else {
     navTo(prev.screen);
   }
@@ -1075,6 +1114,8 @@ async function goBack() {
 
 // ── MÄRKTE LADEN ──────────────────────────────────────────────
 let alleMaerkte = [];
+let maerkteJahr = new Date().getFullYear();
+let maerkteOffen = new Set(['aktiv']);   // welche Status-Gruppen aufgeklappt sind
 
 async function loadMaerkte() {
   el('markt-list').innerHTML = '<div class="spinner"></div>';
@@ -1085,29 +1126,68 @@ async function loadMaerkte() {
     .order('start_datum', { ascending: false });
   if (error) { toast('Fehler beim Laden', 'err'); return; }
   alleMaerkte = data || [];
-  renderMaerkte(alleMaerkte);
+  const jahre = verfuegbareJahre();
+  if (!jahre.includes(maerkteJahr)) {
+    const jetzt = new Date().getFullYear();
+    maerkteJahr = jahre.includes(jetzt) ? jetzt : (jahre[0] || jetzt);
+  }
+  renderMaerkteJahrTabs(jahre);
+  renderMaerkte();
+}
+
+function verfuegbareJahre() {
+  return [...new Set(alleMaerkte.map(m => m.saison_jahr).filter(Boolean))].sort((a, b) => b - a);
+}
+
+function renderMaerkteJahrTabs(jahre) {
+  const wrap = el('markt-jahr-tabs');
+  if (!wrap) return;
+  if (jahre.length <= 1) { wrap.innerHTML = ''; wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+  wrap.innerHTML = jahre.map(j =>
+    `<button class="saison-jahr-btn ${j === maerkteJahr ? 'active' : ''}" onclick="maerkteJahrWechseln(${j})">${j}</button>`
+  ).join('');
+}
+
+function maerkteJahrWechseln(jahr) {
+  maerkteJahr = jahr;
+  renderMaerkteJahrTabs(verfuegbareJahre());
+  renderMaerkte();
 }
 
 function filterMaerkte() {
-  const q = el('markt-search').value.toLowerCase();
-  if (!q) { renderMaerkte(alleMaerkte); return; }
-  renderMaerkte(alleMaerkte.filter(m =>
-    (m.name || m.event_template?.name || '').toLowerCase().includes(q) ||
-    (m.event_template?.ort || '').toLowerCase().includes(q)
-  ));
+  renderMaerkte();
 }
 
-function renderMaerkte(liste) {
+function toggleMarktGruppe(status) {
+  if (maerkteOffen.has(status)) maerkteOffen.delete(status);
+  else maerkteOffen.add(status);
+  renderMaerkte();
+}
+
+function renderMaerkte() {
   const wrap = el('markt-list');
+  const q = (el('markt-search').value || '').toLowerCase().trim();
+  const suche = !!q;
+
+  // Nach gewähltem Jahr filtern (bei aktiver Suche zusätzlich nach Text)
+  let liste = alleMaerkte.filter(m => m.saison_jahr === maerkteJahr);
+  if (suche) liste = liste.filter(m =>
+    (m.name || m.event_template?.name || '').toLowerCase().includes(q) ||
+    (m.event_template?.ort || '').toLowerCase().includes(q)
+  );
+
   if (!liste.length) {
     wrap.innerHTML = `<div class="empty-state">
-      <div class="empty-state-icon">🏰</div>
-      <div class="empty-state-text">Noch keine Märkte angelegt.<br>Tippe auf „+ Neu" um den ersten anzulegen.</div>
+      <div class="empty-state-icon">${suche ? '🔍' : '🏰'}</div>
+      <div class="empty-state-text">${suche
+        ? 'Keine Treffer für „' + esc(q) + '" in ' + maerkteJahr + '.'
+        : 'Keine Märkte für ' + maerkteJahr + '.<br>Tippe auf „+ Neu" um einen anzulegen.'}</div>
     </div>`;
     return;
   }
 
-  // Gruppieren nach Status
+  // Nach Status gruppieren
   const gruppen = {};
   STATUS_ORDER.forEach(s => gruppen[s] = []);
   liste.forEach(m => {
@@ -1119,8 +1199,17 @@ function renderMaerkte(liste) {
   STATUS_ORDER.forEach(status => {
     const gruppe = gruppen[status];
     if (!gruppe.length) return;
-    html += `<h3 style="margin-top:14px;">${STATUS_LABEL[status]} (${gruppe.length})</h3>`;
-    gruppe.forEach(m => { html += renderMarktCard(m); });
+    const offen = suche || maerkteOffen.has(status);   // bei Suche alles offen
+    const caret = offen ? '▾' : '▸';
+    html += `<div class="markt-gruppe">
+      <h3 class="markt-gruppe-kopf" onclick="toggleMarktGruppe('${status}')">
+        <span>${STATUS_LABEL[status]} (${gruppe.length})</span>
+        <span class="markt-gruppe-caret">${caret}</span>
+      </h3>
+      <div class="markt-gruppe-body"${offen ? '' : ' style="display:none;"'}>
+        ${gruppe.map(renderMarktCard).join('')}
+      </div>
+    </div>`;
   });
   wrap.innerHTML = html;
 }
@@ -1273,7 +1362,69 @@ async function renderPlanungTab() {
       <p style="color:var(--text3);font-size:13px;margin-bottom:12px;">Selben Markt für ein anderes Jahr anlegen (z.B. für Vorjahresdaten).</p>
       <button class="btn btn-sm btn-full" onclick="openNeuesJahrModal()">+ Neues Jahr anlegen</button>
     </div>
+    <div class="section">
+      <h2 style="color:var(--red2);">Gefahrenzone</h2>
+      <p style="color:var(--text3);font-size:13px;margin-bottom:12px;">Löscht diesen Markt samt allen Kutschen, Kassenzählungen, Buchungen, Bestellungen und Stunden. Lässt sich wiederherstellen.</p>
+      <button class="btn btn-sm btn-full btn-danger" onclick="deleteMarkt()">🗑 Markt löschen</button>
+    </div>
   `;
+}
+
+// Kompletten Markt (Instanz + alle Kind-Daten) per Soft-Delete entfernen.
+async function deleteMarkt() {
+  const id = currentInstanzId;
+  const inst = currentInstanz;
+  if (!id) return;
+
+  // Umfang für die Bestätigung ermitteln
+  const zaehl = async (tab) => {
+    const { count } = await sb.from(tab).select('*', { count: 'exact', head: true })
+      .eq('event_instanz_id', id).is('geloescht_am', null);
+    return count || 0;
+  };
+  const [nStand, nBuch, nZaehl, nBest, nStd] = await Promise.all([
+    zaehl('stand'), zaehl('buchung'), zaehl('kassenzaehlung'), zaehl('bestellung'), zaehl('stunde'),
+  ]);
+  const teile = [];
+  if (nStand) teile.push(nStand + ' Kutsche' + (nStand > 1 ? 'n' : ''));
+  if (nZaehl) teile.push(nZaehl + ' Kassenzählung' + (nZaehl > 1 ? 'en' : ''));
+  if (nBuch)  teile.push(nBuch + ' Buchung' + (nBuch > 1 ? 'en' : ''));
+  if (nBest)  teile.push(nBest + ' Bestellung' + (nBest > 1 ? 'en' : ''));
+  if (nStd)   teile.push(nStd + ' Stundeneintrag' + (nStd > 1 ? 'e' : ''));
+
+  const name = inst?.name || inst?.event_template?.name || 'Dieser Markt';
+  const jahr = inst?.saison_jahr ? ' ' + inst.saison_jahr : '';
+  const detail = teile.length ? '\n\nMitgelöscht: ' + teile.join(', ') + '.' : '';
+  const ok = await confirmMed(
+    '„' + name + jahr + '" wird mit allen Eingaben entfernt.' + detail + '\n\nWiederherstellung ist über die Datenbank möglich.',
+    { titel: 'Markt löschen', ja: 'Löschen', gefahr: true }
+  );
+  if (!ok) return;
+
+  const now = new Date().toISOString();
+  const setInstanz = (tab) => dbW(
+    sb.from(tab).update({ geloescht_am: now }).eq('event_instanz_id', id).is('geloescht_am', null),
+    'Markt löschen'
+  );
+
+  // Bestellpositionen hängen an der Bestellung (kein event_instanz_id)
+  const { data: best } = await sb.from('bestellung').select('id').eq('event_instanz_id', id);
+  const bestIds = (best || []).map(b => b.id);
+  if (bestIds.length) {
+    await dbW(sb.from('bestellposition').update({ geloescht_am: now })
+      .in('bestellung_id', bestIds).is('geloescht_am', null), 'Markt löschen');
+  }
+
+  await setInstanz('stand');
+  await setInstanz('kassenzaehlung');
+  await setInstanz('buchung');
+  await setInstanz('stunde');
+  await setInstanz('bestellung');
+  await setInstanz('event_marktfahrer');
+  await dbW(sb.from('event_instanz').update({ geloescht_am: now, geaendert_am: now }).eq('id', id), 'Markt löschen');
+
+  toast('✓ Markt gelöscht', 'ok');
+  navTo('maerkte');
 }
 
 function renderStandCard(s) {
@@ -1536,10 +1687,10 @@ async function doMarktabschluss(standId, barUmsatz, barAusgaben) {
 }
 
 // ── KASSE DETAIL (Tageszählung) ───────────────────────────────
-async function openKasseDetail(standId, datum) {
+async function openKasseDetail(standId, datum, push = true) {
   currentStandId  = standId;
   currentKasseTag = datum;
-  navStack.push({screen: 'kasse-detail', instanzId: currentInstanzId});
+  if (push) navStack.push({screen: 'kasse-detail', instanzId: currentInstanzId});
 
   const { data: stand } = await sb.from('stand').select('*').eq('id', standId).single();
   currentStand = stand;
@@ -1592,12 +1743,7 @@ function renderKasseDetailScreen(stand, datum, vorh) {
   const inst = currentInstanz;
   let datumHtml = '';
   if (inst?.start_datum) {
-    const start = new Date(inst.start_datum + 'T12:00:00');
-    const ende  = inst.end_datum ? new Date(inst.end_datum + 'T12:00:00') : start;
-    const tage  = [];
-    for (let d = new Date(start); d <= ende; d.setDate(d.getDate() + 1)) {
-      tage.push(d.toISOString().slice(0, 10));
-    }
+    const tage = tageRange(inst.start_datum, inst.end_datum);
     if (tage.length <= 10) {
       // Kompakte Button-Auswahl
       datumHtml = `<div class="field">
@@ -2289,7 +2435,7 @@ tr{break-inside:avoid;page-break-inside:avoid}
   <div class="sum-box"><div class="sum-val" style="font-size:13px">${eur(umsatzCent)}</div><div class="sum-label">VK-Umsatz</div></div>
 </div>
 ${katBlöcke}
-<div class="footer">Marktfahrer App · Beerenweine · v6.20</div>
+<div class="footer">Marktfahrer App · Beerenweine · <span class="app-version">v6.21</span></div>
 </body></html>`;
 
   let old = document.getElementById('best-pdf-frame');
@@ -2597,7 +2743,7 @@ function exportChronikPDF() {
 <div class="pdf-header"><div style="font-size:20px;margin-bottom:6px">⚜</div>
 <h1>${marktName}</h1><div class="sub">Marktchronik · Saison ${aktJahr}</div></div>
 ${contentHtml}
-<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · v6.20 · Erstellt am ${heute}</p></div>
+<div class="pdf-footer"><p>Marktfahrer App · Beerenweine · ${APP_VERSION} · Erstellt am ${heute}</p></div>
 </body></html>`;
   let old2 = document.getElementById('chr-pdf-frame');
   if (old2) old2.remove();
@@ -3425,17 +3571,9 @@ async function openNeueStundenModal() {
   // Datum-Select befüllen: 1 Tag vor Start bis 1 Tag nach Ende
   const datumSel = el('std-datum');
   if (inst?.start_datum) {
-    const start = new Date(inst.start_datum + 'T12:00:00');
-    const ende  = inst.end_datum ? new Date(inst.end_datum + 'T12:00:00') : start;
-    // ±1 Tag für Vor- und Nachbereitung
-    const startMinus1 = new Date(start); startMinus1.setDate(startMinus1.getDate() - 1);
-    const endePlus1   = new Date(ende);  endePlus1.setDate(endePlus1.getDate() + 1);
-    const tage = [];
-    for (let d = new Date(startMinus1); d <= endePlus1; d.setDate(d.getDate() + 1)) {
-      tage.push(d.toISOString().slice(0, 10));
-    }
-    const startIso = start.toISOString().slice(0,10);
-    const endeIso  = ende.toISOString().slice(0,10);
+    const tage = tageRange(inst.start_datum, inst.end_datum, 1, 1);
+    const startIso = inst.start_datum;
+    const endeIso  = inst.end_datum || inst.start_datum;
     datumSel.innerHTML = tage.map(t => {
       const d2   = new Date(t + 'T12:00:00');
       const label = `${WD[d2.getDay()]}, ${dateFmt(t)}`;
@@ -3490,7 +3628,8 @@ async function deleteStunden(id) {
   'saveNeuerStand', 'saveNeuerMarkt', 'saveNeuesJahr', 'saveStunden',
   'saveNeuerMarktfahrer', 'saveClItem', 'phasenwechsel',
   'deleteStand', 'deleteKassenzaehlung', 'deleteMarktfahrer',
-  'deleteStunden', 'deleteClItem', 'deleteClItemDirect', 'fahrerEntfernen'
+  'deleteStunden', 'deleteClItem', 'deleteClItemDirect', 'fahrerEntfernen',
+  'deleteMarkt'
 ].forEach(n => { if (typeof window[n] === 'function') window[n] = locked(window[n]); });
 </script>
 </body>
