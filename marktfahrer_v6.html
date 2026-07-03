@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Marktfahrer · v6.24</title>
+<title>Marktfahrer · v6.25</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -414,7 +414,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.24</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.25</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -516,7 +516,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
         <div id="marktfahrer-list"><div class="spinner"></div></div>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.24</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.25</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -601,6 +601,10 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
     <div class="field" style="margin-top:14px;">
       <label>Notiz</label>
       <textarea id="nm-notiz" placeholder="Optional…"></textarea>
+    </div>
+    <div class="field" style="margin-top:14px;">
+      <label>Nextcloud-Ordner (optional)</label>
+      <input type="url" id="nm-nextcloud" placeholder="https://nextcloud…/index.php/f/…">
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('modal-neuer-markt')">Abbrechen</button>
@@ -759,7 +763,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.24';
+const APP_VERSION = 'v6.25';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1405,6 +1409,14 @@ async function renderPlanungTab() {
         <label>Notiz</label>
         <textarea id="plan-notiz" onchange="savePlanungNotiz()">${esc(inst.notiz || '')}</textarea>
       </div>
+      <div class="field" style="margin-top:14px;">
+        <label>Nextcloud-Ordner</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="url" id="plan-nextcloud" value="${esc(inst.nextcloud_url || '')}" placeholder="https://…" onchange="savePlanungNextcloud()" style="flex:1;min-width:0;">
+          <button class="btn btn-sm" style="white-space:nowrap;" onclick="oeffneNextcloud()">📜 Öffnen</button>
+        </div>
+        <p style="color:var(--text3);font-size:11px;margin-top:6px;">Gilt für dieses Jahr. Beim Anlegen eines neuen Jahres wird der Link übernommen.</p>
+      </div>
     </div>
     <div class="section">
       ${aufgabenHtml}
@@ -1542,6 +1554,22 @@ async function savePlanungNotiz() {
   const notiz = el('plan-notiz').value;
   await dbW(sb.from('event_instanz').update({ notiz, geaendert_am: new Date().toISOString() }).eq('id', currentInstanzId), 'Markt speichern');
   toast('Notiz gespeichert', 'ok');
+}
+
+// Öffnet den aktuell im Feld stehenden Nextcloud-Link (zum Testen wie zum Zugriff)
+function oeffneNextcloud() {
+  const url = (el('plan-nextcloud')?.value || '').trim();
+  if (!url) { toast('Kein Ordner hinterlegt', 'err'); return; }
+  if (!/^https:\/\//i.test(url)) { toast('Nur https://-Links erlaubt', 'err'); return; }
+  window.open(url, '_blank', 'noopener');
+}
+
+async function savePlanungNextcloud() {
+  const url = (el('plan-nextcloud').value || '').trim() || null;
+  if (url && !/^https:\/\//i.test(url)) { toast('Nur https://-Links erlaubt', 'err'); return; }
+  await dbW(sb.from('event_instanz').update({ nextcloud_url: url, geaendert_am: new Date().toISOString() }).eq('id', currentInstanzId), 'Nextcloud-Link speichern');
+  if (currentInstanz) currentInstanz.nextcloud_url = url;
+  toast('Nextcloud-Link gespeichert', 'ok');
 }
 
 // ── KUTSCHEN MODAL ────────────────────────────────────────────
@@ -2513,7 +2541,7 @@ tr{break-inside:avoid;page-break-inside:avoid}
   <div class="sum-box"><div class="sum-val" style="font-size:13px">${eur(umsatzCent)}</div><div class="sum-label">VK-Umsatz</div></div>
 </div>
 ${katBlöcke}
-<div class="footer">Marktfahrer App · Beerenweine · <span class="app-version">v6.24</span></div>
+<div class="footer">Marktfahrer App · Beerenweine · <span class="app-version">v6.25</span></div>
 </body></html>`;
 
   let old = document.getElementById('best-pdf-frame');
@@ -3358,6 +3386,7 @@ function openNeuerMarktModal() {
   el('nm-km-sued').value  = '';
   el('nm-km-nord').value  = '';
   el('nm-notiz').value    = '';
+  el('nm-nextcloud').value = '';
   el('nm-rhythmus').value = 'jaehrlich';
   openModal('modal-neuer-markt');
 }
@@ -3381,6 +3410,8 @@ async function saveNeuerMarkt() {
   const plz   = el('nm-plz').value.trim() || null;
   const rhyt  = el('nm-rhythmus').value;
   const notiz = el('nm-notiz').value.trim() || null;
+  const ncUrl = el('nm-nextcloud').value.trim() || null;
+  if (ncUrl && !/^https:\/\//i.test(ncUrl)) { toast('Nextcloud: nur https://-Links erlaubt', 'err'); return; }
 
   // 1) Template anlegen
   const templateId = uuid();
@@ -3403,6 +3434,7 @@ async function saveNeuerMarkt() {
     start_datum: start, end_datum: ende,
     start_datum_2: start2, end_datum_2: ende2,
     dauer_tage: dauer, notiz,
+    nextcloud_url: ncUrl,
     erstellt_am: now, geaendert_am: now,
     erstellt_von: currentUser.id, geaendert_von: currentUser.id,
   });
@@ -3453,6 +3485,7 @@ async function saveNeuesJahr() {
     end_datum: ende,
     dauer_tage: dauer,
     notiz: el('nj-notiz').value || null,
+    nextcloud_url: currentInstanz.nextcloud_url || null,
     erstellt_am: now, geaendert_am: now,
     erstellt_von: currentUser.id, geaendert_von: currentUser.id,
   });
