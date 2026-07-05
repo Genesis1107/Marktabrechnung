@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Personalplanung</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ── TOKENS (identisch zur Marktfahrer-App) ─────────────────── */
+:root {
+  --bg: #1a1208; --bg2: #241a0e; --bg3: #2e2010; --surface: #3a2a14;
+  --surface2: #4a3520; --border: #6b4c28; --border2: #8a6438;
+  --gold: #c9942a; --gold2: #e8b84b; --gold3: #f5d070;
+  --text: #f5eed8; --text2: #dbc898; --text3: #a89868;
+  --red: #c0392b; --red2: #e74c3c; --green: #2e7d32; --green2: #4caf50;
+  --blue: #1565c0; --blue2: #42a5f5; --amber: #e65100; --amber2: #ff9800;
+  --radius: 8px; --radius2: 12px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+[data-theme="pergament"] {
+  --bg: #f0e6cc; --bg2: #e8dab8; --bg3: #ddd0a4; --surface: #d0c090;
+  --surface2: #c4b080; --border: #b09060; --border2: #907040;
+  --gold: #8b5e0a; --gold2: #a87010; --gold3: #c49020;
+  --text: #1c0e04; --text2: #3d2010; --text3: #785030;
+  --red: #8b1a1a; --red2: #c0392b; --green: #1e5c0a; --green2: #2e7d10;
+  --blue: #1a3a8b; --blue2: #2a5ab8; --amber: #c05000; --amber2: #e07020;
+}
+[data-theme="mitternacht"] {
+  --bg: #141b2e; --bg2: #1c2540; --bg3: #232e52; --surface: #2c3862;
+  --surface2: #354070; --border: #3d4e7c; --border2: #506098;
+  --gold: #d4a830; --gold2: #e8c050; --gold3: #f0d070;
+  --text: #f0e8d8; --text2: #c8bca0; --text3: #908060;
+  --red: #c0392b; --red2: #e05040; --green: #2a7030; --green2: #4caa50;
+  --blue: #1a4090; --blue2: #60a8f0; --amber: #c06000; --amber2: #e08820;
+}
+[data-theme="weinrot"] {
+  --bg: #1a0810; --bg2: #26101a; --bg3: #321424; --surface: #3d182e;
+  --surface2: #4a1e38; --border: #6a2848; --border2: #903860;
+  --gold: #c9942a; --gold2: #e8b84b; --gold3: #f5d070;
+  --text: #f5e8d5; --text2: #dcc8a8; --text3: #a08068;
+  --red: #c0392b; --red2: #e04040; --green: #2a6018; --green2: #50a030;
+  --blue: #1a3a8b; --blue2: #50a0e0; --amber: #b05000; --amber2: #e07820;
+}
+[data-theme="lcars"] {
+  --bg: #000000; --bg2: #0a0c14; --bg3: #10141f; --surface: #151a28;
+  --surface2: #1e2436; --border: #2a3148; --border2: #40598a;
+  --gold: #ff9c00; --gold2: #ffb060; --gold3: #ffcc99;
+  --text: #f5dfc0; --text2: #d8b890; --text3: #8fa8c8;
+  --red: #c04848; --red2: #e05a5a; --green: #3a8a58; --green2: #58b878;
+  --blue: #4868b8; --blue2: #8fb8e8; --amber: #c86a30; --amber2: #e8935a;
+  --radius: 14px; --radius2: 18px;
+}
+[data-theme="lcars"] h1, [data-theme="lcars"] .btn, [data-theme="lcars"] .jahr-pill,
+[data-theme="lcars"] .header-title {
+  font-family: 'Antonio', -apple-system, 'Arial Narrow', sans-serif;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+[data-theme="lcars"] h1 { text-shadow: 0 0 18px rgba(255,156,0,.3); }
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 15px; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.hidden { display: none !important; }
+
+/* ── LOGIN ──────────────────────────────────────────────────── */
+#screen-login {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px; padding: 24px;
+}
+.login-logo-title { font-size: 26px; color: var(--gold2); font-weight: 700; }
+.login-sub { color: var(--text3); font-size: 14px; margin-bottom: 8px; }
+.login-box { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 10px; }
+input[type=email], input[type=password] {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  padding: 12px 14px; font-size: 16px; width: 100%;
+}
+input:focus { outline: 2px solid var(--gold); border-color: var(--gold); }
+.btn {
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--radius); color: var(--gold2);
+  padding: 12px 18px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.btn:active { background: var(--surface); }
+.btn-primary { background: var(--gold); color: var(--bg); border-color: var(--gold2); }
+#login-error { color: var(--red2); font-size: 13px; min-height: 18px; text-align: center; }
+
+/* ── HEADER ─────────────────────────────────────────────────── */
+header {
+  padding: calc(10px + var(--safe-top)) 16px 10px;
+  background: var(--bg2); border-bottom: 2px solid var(--border);
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.header-title { font-size: 19px; font-weight: 700; color: var(--gold2); }
+.header-version { font-size: 11px; color: var(--text3); }
+.header-spacer { flex: 1; }
+.jahr-pills { display: flex; gap: 6px; }
+.jahr-pill {
+  padding: 6px 14px; border-radius: 999px; font-size: 14px; font-weight: 600;
+  background: var(--bg3); border: 1px solid var(--border); color: var(--text2); cursor: pointer;
+}
+.jahr-pill.active { background: var(--gold); color: var(--bg); border-color: var(--gold2); }
+.btn-logout { padding: 6px 12px; font-size: 13px; }
+
+/* ── MATRIX ─────────────────────────────────────────────────── */
+#matrix-wrap { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; }
+table.matrix { border-collapse: separate; border-spacing: 0; min-width: 100%; }
+.matrix th, .matrix td {
+  border-bottom: 1px solid var(--border);
+  padding: 6px 8px; white-space: nowrap; font-size: 13px;
+}
+.matrix thead th {
+  position: sticky; top: 0; z-index: 3;
+  background: var(--bg2); color: var(--gold2);
+  border-bottom: 2px solid var(--border2);
+  font-size: 12px; text-align: center; padding: 8px 6px;
+}
+.matrix thead th.col-markt { z-index: 4; text-align: left; }
+.col-markt {
+  position: sticky; left: 0; z-index: 2;
+  background: var(--bg); max-width: 220px; min-width: 160px;
+  white-space: normal; border-right: 2px solid var(--border);
+}
+tr.kw-row td {
+  background: var(--bg3); color: var(--gold3); font-weight: 700;
+  font-size: 12px; letter-spacing: .05em; padding: 4px 8px;
+  border-bottom: 1px solid var(--border2);
+}
+tr.kw-row .col-markt { background: var(--bg3); }
+.markt-name { font-weight: 600; font-size: 13px; color: var(--text); }
+.markt-name.unbestaetigt { color: var(--text3); font-style: italic; }
+.markt-info { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+.besetzung { font-size: 11px; font-weight: 700; }
+.besetzung.ok { color: var(--green2); }
+.besetzung.fehlt { color: var(--red2); }
+td.zelle { text-align: center; min-width: 46px; }
+.punkt {
+  display: inline-block; width: 20px; height: 20px; border-radius: 50%;
+  line-height: 20px; font-size: 11px;
+}
+.punkt.bestaetigt { background: var(--green2); box-shadow: 0 0 0 1px var(--green); }
+.punkt.vorschlag { background: transparent; border: 2px dashed var(--amber2); }
+td.zelle.abwesend { background: repeating-linear-gradient(45deg, transparent, transparent 4px, var(--bg3) 4px, var(--bg3) 8px); }
+.km-hinweis { font-size: 10px; color: var(--text3); }
+
+/* ── FUSSZEILE (Bilanz) ─────────────────────────────────────── */
+.matrix tfoot td {
+  position: sticky; bottom: 0; z-index: 3;
+  background: var(--bg2); border-top: 2px solid var(--border2);
+  font-size: 11px; text-align: center; padding: 6px 4px; color: var(--text2);
+}
+.matrix tfoot .col-markt { z-index: 4; text-align: left; font-weight: 700; color: var(--gold2); }
+.bilanz-zahl { font-weight: 700; color: var(--text); font-size: 12px; }
+.bilanz-balken { height: 4px; border-radius: 2px; background: var(--bg3); margin-top: 3px; overflow: hidden; }
+.bilanz-balken > div { height: 100%; background: var(--green2); }
+.bilanz-balken > div.ueber { background: var(--red2); }
+
+#lade-hinweis { padding: 40px; text-align: center; color: var(--text3); }
+.spinner {
+  width: 28px; height: 28px; margin: 0 auto 12px;
+  border: 3px solid var(--border); border-top-color: var(--gold);
+  border-radius: 50%; animation: dreh 0.8s linear infinite;
+}
+@keyframes dreh { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="screen-login">
+  <div class="login-logo-title">⚜️ Personalplanung</div>
+  <div class="login-sub">Beerenweine · Marktfahrer-Zuteilung</div>
+  <div class="login-box">
+    <input type="email" id="login-email" placeholder="E-Mail" autocomplete="username">
+    <input type="password" id="login-pw" placeholder="Passwort" autocomplete="current-password">
+    <button class="btn btn-primary" onclick="doLogin()">Anmelden</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="screen-app" class="hidden" style="display:flex; flex-direction:column; flex:1; min-height:0;">
+  <header>
+    <span class="header-title">⚜️ Personalplanung</span>
+    <span class="header-version" id="pp-version"></span>
+    <span class="header-spacer"></span>
+    <span class="jahr-pills" id="jahr-pills"></span>
+    <button class="btn btn-logout" onclick="doLogout()">Abmelden</button>
+  </header>
+  <div id="matrix-wrap">
+    <div id="lade-hinweis"><div class="spinner"></div>Lade Planung …</div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const PP_VERSION = 'v0.1';
+const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
+const LAGER_SUED = 'a1b2c3d4-0001-0001-0001-000000000001';
+const LAGER_NORD = 'a1b2c3d4-0002-0002-0002-000000000002';
+const LAGER_PLZ = { sued: '63825', nord: '32425' };
+
+let sb = null;
+let currentJahr = new Date().getFullYear();
+let cache = { fahrer: [], maerkte: [], zuteilungen: [], abwesenheiten: [], plzGeo: {} };
+
+function el(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+/* ── INIT ───────────────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', async () => {
+  const theme = localStorage.getItem('mf_theme') || 'braun';
+  if (theme !== 'braun') document.documentElement.setAttribute('data-theme', theme);
+  el('pp-version').textContent = PP_VERSION;
+  document.title = 'Personalplanung · ' + PP_VERSION;
+
+  sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT' || !session) showLogin();
+  });
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { showApp(); } else { showLogin(); }
+});
+
+function showLogin() {
+  el('screen-login').classList.remove('hidden');
+  el('screen-app').classList.add('hidden');
+}
+async function showApp() {
+  el('screen-login').classList.add('hidden');
+  el('screen-app').classList.remove('hidden');
+  await renderJahrPills();
+  await ladeUndZeichne();
+}
+
+async function doLogin() {
+  el('login-error').textContent = '';
+  const email = el('login-email').value.trim();
+  const pw = el('login-pw').value;
+  const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+  if (error) { el('login-error').textContent = 'Anmeldung fehlgeschlagen.'; return; }
+  showApp();
+}
+async function doLogout() {
+  await sb.auth.signOut();
+  showLogin();
+}
+
+/* ── JAHRES-PILLS ───────────────────────────────────────────── */
+async function renderJahrPills() {
+  const { data } = await sb.from('event_instanz')
+    .select('saison_jahr').is('geloescht_am', null);
+  const jahre = [...new Set((data || []).map(r => r.saison_jahr))].sort();
+  const heute = new Date().getFullYear();
+  if (!jahre.includes(heute)) jahre.push(heute);
+  if (!jahre.includes(currentJahr)) currentJahr = heute;
+  el('jahr-pills').innerHTML = jahre.map(j =>
+    `<button class="jahr-pill ${j === currentJahr ? 'active' : ''}" onclick="setJahr(${j})">${j}</button>`
+  ).join('');
+}
+function setJahr(j) {
+  currentJahr = j;
+  renderJahrPills();
+  ladeUndZeichne();
+}
+
+/* ── DATEN LADEN ────────────────────────────────────────────── */
+async function ladeUndZeichne() {
+  el('matrix-wrap').innerHTML = '<div id="lade-hinweis"><div class="spinner"></div>Lade Planung …</div>';
+
+  const [fahrerRes, marktRes] = await Promise.all([
+    sb.from('marktfahrer').select('*').is('geloescht_am', null).eq('aktiv', true)
+      .order('sortierung').order('name'),
+    sb.from('event_instanz')
+      .select('id, name, status, start_datum, end_datum, start_datum_2, end_datum_2, dauer_tage, lager_id, personalbedarf, template:template_id(plz, ort, km_minden, km_schoellkrippen)')
+      .eq('saison_jahr', currentJahr).is('geloescht_am', null)
+      .neq('status', 'abgelehnt')
+      .order('start_datum'),
+  ]);
+  cache.fahrer = fahrerRes.data || [];
+  cache.maerkte = marktRes.data || [];
+
+  const instanzIds = cache.maerkte.map(m => m.id);
+  const fahrerIds = cache.fahrer.map(f => f.id);
+
+  const [zutRes, abwRes] = await Promise.all([
+    instanzIds.length
+      ? sb.from('event_marktfahrer').select('event_instanz_id, marktfahrer_id, status')
+          .in('event_instanz_id', instanzIds).is('geloescht_am', null)
+      : Promise.resolve({ data: [] }),
+    fahrerIds.length
+      ? sb.from('abwesenheit').select('marktfahrer_id, von, bis')
+          .in('marktfahrer_id', fahrerIds).is('geloescht_am', null)
+      : Promise.resolve({ data: [] }),
+  ]);
+  cache.zuteilungen = zutRes.data || [];
+  cache.abwesenheiten = abwRes.data || [];
+
+  // PLZ-Geodaten für Distanz-Fallback (Lager + Markt-PLZ ohne Template-km)
+  const plzListe = new Set([LAGER_PLZ.sued, LAGER_PLZ.nord]);
+  cache.maerkte.forEach(m => {
+    const t = m.template;
+    if (t?.plz && (t.km_minden == null || t.km_schoellkrippen == null)) plzListe.add(normPlz(t.plz));
+  });
+  const { data: geoData } = await sb.from('plz_geo').select('plz, lat, lon').in('plz', [...plzListe]);
+  cache.plzGeo = {};
+  (geoData || []).forEach(g => { cache.plzGeo[g.plz] = g; });
+
+  renderMatrix();
+}
+
+function normPlz(p) {
+  let s = String(p ?? '').replace(/\D/g, '');
+  while (s.length < 5 && s.length > 0) s = '0' + s;
+  return s;
+}
+
+/* ── DISTANZ ────────────────────────────────────────────────── */
+function distanzKm(markt) {
+  const t = markt.template || {};
+  const istSued = markt.lager_id === LAGER_SUED;
+  // 1. Vorrang: handgepflegte Straßen-km aus dem Template
+  const km = istSued ? t.km_schoellkrippen : t.km_minden;
+  if (km != null) return { km, quelle: 'template' };
+  // 2. Fallback: Luftlinie × 1,3 über PLZ
+  const lagerGeo = cache.plzGeo[LAGER_PLZ[istSued ? 'sued' : 'nord']];
+  const marktGeo = cache.plzGeo[normPlz(t.plz)];
+  if (!lagerGeo || !marktGeo) return null;
+  const r = Math.PI / 180;
+  const d = 6371 * Math.acos(Math.min(1,
+    Math.sin(lagerGeo.lat * r) * Math.sin(marktGeo.lat * r) +
+    Math.cos(lagerGeo.lat * r) * Math.cos(marktGeo.lat * r) *
+    Math.cos((marktGeo.lon - lagerGeo.lon) * r)
+  ));
+  return { km: Math.round(d * 1.3), quelle: 'plz' };
+}
+
+/* ── KALENDERWOCHE (ISO) ────────────────────────────────────── */
+function isoKW(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const tag = (d.getDay() + 6) % 7; // Mo=0
+  d.setDate(d.getDate() - tag + 3); // Donnerstag der Woche
+  const jan4 = new Date(d.getFullYear(), 0, 4);
+  return 1 + Math.round(((d - jan4) / 86400000 - 3 + ((jan4.getDay() + 6) % 7)) / 7);
+}
+
+/* ── MARKTTAGE & STUNDEN-SCHÄTZUNG ──────────────────────────── */
+function marktTage(m) {
+  let t = m.dauer_tage || 0;
+  if (m.start_datum_2 && m.end_datum_2) {
+    t += Math.round((new Date(m.end_datum_2) - new Date(m.start_datum_2)) / 86400000) + 1;
+  }
+  return t;
+}
+// Schätzformel aus der Numbers-Datei: 12 h × (Tage + 1) – inkl. An-/Abreise
+function stundenSchaetzung(m) { return 12 * (marktTage(m) + 1); }
+
+function istAbwesend(fahrerId, m) {
+  return cache.abwesenheiten.some(a =>
+    a.marktfahrer_id === fahrerId && a.von <= m.end_datum && a.bis >= m.start_datum
+  );
+}
+
+const STATUS_FARBE = {
+  interessent: 'var(--text3)', beworben: 'var(--blue2)', akzeptiert: 'var(--blue2)',
+  bestaetigt: 'var(--green2)', vorbereitung: 'var(--gold2)', aktiv: 'var(--gold2)',
+  abgeschlossen: 'var(--text3)',
+};
+
+/* ── MATRIX RENDERN ─────────────────────────────────────────── */
+function renderMatrix() {
+  const f = cache.fahrer;
+  if (!cache.maerkte.length) {
+    el('matrix-wrap').innerHTML = '<div id="lade-hinweis">Keine Märkte für ' + currentJahr +
+      '.<br>Neue Jahresinstanzen legst du in der Marktfahrer-App an – sie erscheinen hier automatisch.</div>';
+    return;
+  }
+
+  const fmt = d => {
+    const x = new Date(d + 'T12:00:00');
+    return String(x.getDate()).padStart(2, '0') + '.' + String(x.getMonth() + 1).padStart(2, '0') + '.';
+  };
+
+  let html = '<table class="matrix"><thead><tr>';
+  html += '<th class="col-markt">Markt</th><th>Info</th>';
+  f.forEach(fa => { html += `<th>${esc(fa.name)}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  let letzteKW = null;
+  cache.maerkte.forEach(m => {
+    const kw = isoKW(m.start_datum);
+    if (kw !== letzteKW) {
+      letzteKW = kw;
+      html += `<tr class="kw-row"><td class="col-markt">KW ${kw}</td><td colspan="${f.length + 1}"></td></tr>`;
+    }
+
+    const zut = cache.zuteilungen.filter(z => z.event_instanz_id === m.id);
+    const besetzt = zut.filter(z => z.status === 'bestaetigt').length;
+    const bedarf = m.personalbedarf || 1;
+    const dist = distanzKm(m);
+    const unbest = (m.status === 'interessent' || m.status === 'beworben');
+
+    let datum = fmt(m.start_datum) + (m.end_datum !== m.start_datum ? '–' + fmt(m.end_datum) : '');
+    if (m.start_datum_2) datum += ' +' + fmt(m.start_datum_2) + '–' + fmt(m.end_datum_2);
+
+    html += '<tr>';
+    html += `<td class="col-markt">
+      <div class="markt-name ${unbest ? 'unbestaetigt' : ''}">
+        <span class="status-dot" style="background:${STATUS_FARBE[m.status] || 'var(--text3)'}" title="${esc(m.status)}"></span>${esc(m.name)}
+      </div>
+      <div class="markt-info">${datum} · ${marktTage(m)} Tg${dist ? ' · ' + dist.km + ' km' + (dist.quelle === 'plz' ? ' <span class="km-hinweis">(ca.)</span>' : '') : ''}</div>
+    </td>`;
+    html += `<td style="text-align:center;">
+      <span class="besetzung ${besetzt >= bedarf ? 'ok' : 'fehlt'}">${besetzt}/${bedarf}</span>
+    </td>`;
+
+    f.forEach(fa => {
+      const z = zut.find(x => x.marktfahrer_id === fa.id);
+      const abw = istAbwesend(fa.id, m);
+      let inhalt = '';
+      if (z) inhalt = `<span class="punkt ${z.status === 'bestaetigt' ? 'bestaetigt' : 'vorschlag'}"></span>`;
+      html += `<td class="zelle ${abw ? 'abwesend' : ''}" title="${esc(fa.name)} · ${esc(m.name)}${abw ? ' · abwesend' : ''}">${inhalt}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+
+  // Fußzeile: Bilanz pro Fahrer
+  html += '<tfoot><tr><td class="col-markt">Bilanz</td><td></td>';
+  f.forEach(fa => {
+    if (fa.extern) { html += '<td>—</td>'; return; }
+    let termine = 0, tage = 0, stunden = 0;
+    cache.maerkte.forEach(m => {
+      const z = cache.zuteilungen.find(x => x.event_instanz_id === m.id && x.marktfahrer_id === fa.id);
+      if (z) {
+        termine++;
+        tage += marktTage(m);
+        stunden += stundenSchaetzung(m);
+      }
+    });
+    const ziel = fa.ziel_stunden || 1400;
+    const pct = Math.min(100, Math.round(stunden / ziel * 100));
+    html += `<td title="${termine} Termine · ${tage} Markttage · ${stunden} h von ${ziel} h">
+      <span class="bilanz-zahl">${termine}</span> T<br>
+      <span class="bilanz-zahl">${stunden}</span> h
+      <div class="bilanz-balken"><div class="${stunden > ziel ? 'ueber' : ''}" style="width:${pct}%"></div></div>
+    </td>`;
+  });
+  html += '</tr></tfoot></table>';
+
+  el('matrix-wrap').innerHTML = html;
+}
+</script>
+</body>
+</html>
