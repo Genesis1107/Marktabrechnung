@@ -806,7 +806,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.26';
+const APP_VERSION = 'v6.27';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1669,6 +1669,16 @@ async function renderKasseTab() {
     return;
   }
 
+  // Alle Buchungen der Instanz einmal laden (inkl. Buchungen ohne Kutschen-Zuordnung)
+  const { data: alleBuchungenRaw } = await sb
+    .from('buchung')
+    .select('*')
+    .eq('event_instanz_id', currentInstanzId)
+    .is('geloescht_am', null)
+    .order('datum');
+  const alleBuchungen = alleBuchungenRaw || [];
+
+  let gesamtBarUmsatz = 0;
   let html = '<div class="section"><h2>Kasse</h2>';
 
   for (const stand of staende) {
@@ -1680,13 +1690,8 @@ async function renderKasseTab() {
       .is('geloescht_am', null)
       .order('datum');
 
-    // Buchungen für diesen Stand
-    const { data: buchungen } = await sb
-      .from('buchung')
-      .select('*')
-      .eq('stand_id', stand.id)
-      .is('geloescht_am', null)
-      .order('datum');
+    // Buchungen für diesen Stand (aus der marktweiten Liste gefiltert)
+    const buchungen = alleBuchungen.filter(b => b.stand_id === stand.id);
 
     const barUmsatz = (zaehlungen || []).reduce((s, z) => {
       if (z.modus === 'zaehlen') return s + ((z.ist_bestand_cent || 0) - (z.anfangsbestand_cent || 0));
@@ -1695,6 +1700,13 @@ async function renderKasseTab() {
     const ecEinnahmen = (buchungen || []).filter(b => b.typ === 'einnahme' && b.zahlungsart === 'ec').reduce((s, b) => s + (b.betrag_cent || 0), 0);
     const barAusgaben = (buchungen || []).filter(b => b.typ === 'ausgabe' && b.zahlungsart === 'bar').reduce((s, b) => s + (b.betrag_cent || 0), 0);
     const gesamtUmsatz = barUmsatz + ecEinnahmen;
+    gesamtBarUmsatz += barUmsatz;
+
+    // Wechselgeld = Anfangsbestand der letzten Zählung im Zähl-Modus (bleibt in der Kasse)
+    let letzterAnfang = null;
+    for (const z of (zaehlungen || [])) {
+      if (z.modus === 'zaehlen' && z.anfangsbestand_cent != null) letzterAnfang = z.anfangsbestand_cent;
+    }
 
     html += `<div class="card" style="cursor:default;margin-bottom:14px;">
       <div class="card-row">
@@ -1713,18 +1725,51 @@ async function renderKasseTab() {
         <button class="btn btn-sm btn-primary" onclick="openKasseDetail('${stand.id}', '${isoToday()}')">+ Tageszählung</button>
         <button class="btn btn-sm" onclick="openNeueBuchungModal('${currentInstanzId}','${stand.id}')">+ Buchung</button>
       </div>
-      ${!stand.abgeschlossen_am ? `
       <hr class="divider">
       <h3>Marktabschluss</h3>
-      ${renderAbschlussVorschau(barUmsatz, barAusgaben, ecEinnahmen)}
-      <button class="btn btn-success btn-full" style="margin-top:10px;" onclick="doMarktabschluss('${stand.id}', ${barUmsatz}, ${barAusgaben})">
-        ✓ Kasse stimmt – Abschluss bestätigen
-      </button>` : ''}
+      ${stand.abgeschlossen_am
+        ? renderAbschlussErgebnis(stand)
+        : renderAbschlussVorschau(stand, barUmsatz, barAusgaben, letzterAnfang)}
     </div>`;
   }
 
+  html += renderMittelherkunft(gesamtBarUmsatz, alleBuchungen);
   html += '</div>';
   wrap.innerHTML = html;
+}
+
+// ── Mittelherkunft & Verwendung (marktweit, inkl. Buchungen ohne Kutsche) ──
+function renderMittelherkunft(gesamtBarUmsatz, buchungen) {
+  const sum = (typ, art) => buchungen
+    .filter(b => b.typ === typ && b.zahlungsart === art)
+    .reduce((s, b) => s + (b.betrag_cent || 0), 0);
+
+  const barEinB = sum('einnahme', 'bar');
+  const ecEin   = sum('einnahme', 'ec');
+  const barAus  = sum('ausgabe', 'bar');
+  const ecAus   = sum('ausgabe', 'ec');
+
+  const einnahmen  = gesamtBarUmsatz + barEinB + ecEin;
+  const ausgaben   = barAus + ecAus;
+  const ueberschuss = einnahmen - ausgaben;
+  const uCls = ueberschuss >= 0 ? 'green' : 'red';
+
+  return `<div class="card" style="cursor:default;margin-top:6px;">
+    <div class="card-title">📊 Mittelherkunft &amp; Verwendung</div>
+    <div style="font-size:11px;color:var(--text3);margin-top:2px;">Gesamter Markt · alle Kutschen &amp; Buchungen</div>
+    <div style="background:var(--bg3);border-radius:var(--radius);padding:12px;margin-top:10px;">
+      <div class="abschluss-row"><span class="abschluss-label" style="font-weight:700;">Herkunft</span><span></span></div>
+      <div class="abschluss-row"><span class="abschluss-label">Bar-Einnahmen (Zählungen)</span><span class="abschluss-val">${eur(gesamtBarUmsatz)}</span></div>
+      ${barEinB ? `<div class="abschluss-row"><span class="abschluss-label">Bar-Einnahmen (Buchungen)</span><span class="abschluss-val">${eur(barEinB)}</span></div>` : ''}
+      <div class="abschluss-row"><span class="abschluss-label">EC-Einnahmen</span><span class="abschluss-val">${eur(ecEin)}</span></div>
+      <div class="abschluss-row"><span class="abschluss-label" style="font-weight:600;">= Einnahmen gesamt</span><span class="abschluss-val green">${eur(einnahmen)}</span></div>
+      <div class="abschluss-row" style="margin-top:8px;"><span class="abschluss-label" style="font-weight:700;">Verwendung</span><span></span></div>
+      <div class="abschluss-row"><span class="abschluss-label">Bar-Ausgaben</span><span class="abschluss-val">${eur(barAus)}</span></div>
+      ${ecAus ? `<div class="abschluss-row"><span class="abschluss-label">EC-Ausgaben</span><span class="abschluss-val">${eur(ecAus)}</span></div>` : ''}
+      <div class="abschluss-row"><span class="abschluss-label" style="font-weight:600;">= Ausgaben gesamt</span><span class="abschluss-val red">${eur(ausgaben)}</span></div>
+      <div class="abschluss-row" style="border:none;padding-top:10px;"><span class="abschluss-label" style="font-weight:700;">Überschuss</span><span class="abschluss-val ${uCls}" style="font-size:17px;">${eur(ueberschuss)}</span></div>
+    </div>
+  </div>`;
 }
 
 function renderZaehlungenListe(zaehlungen, stand) {
@@ -1816,25 +1861,115 @@ function toggleStueckelung(zid, standId, datum) {
   }
 }
 
-function renderAbschlussVorschau(barUmsatz, barAusgaben, ecEinnahmen) {
-  const abgabe = barUmsatz - barAusgaben;
+function renderAbschlussVorschau(stand, barUmsatz, barAusgaben, letzterAnfang) {
+  const soll = barUmsatz - barAusgaben;
+  const sid = stand.id.replace(/-/g, '').slice(0, 8);
   return `<div style="background:var(--bg3);border-radius:var(--radius);padding:12px;margin-top:8px;">
     <div class="abschluss-row"><span class="abschluss-label">Bar-Umsatz gesamt</span><span class="abschluss-val">${eur(barUmsatz)}</span></div>
     <div class="abschluss-row"><span class="abschluss-label">– Bar-Ausgaben</span><span class="abschluss-val red">– ${eur(barAusgaben)}</span></div>
-    <div class="abschluss-row" style="border:none;padding-top:8px;"><span class="abschluss-label" style="font-weight:700;">= Abgabe-Betrag</span><span class="abschluss-val green" style="font-size:17px;">${eur(abgabe)}</span></div>
+    <div class="abschluss-row" style="border:none;padding-top:8px;"><span class="abschluss-label" style="font-weight:700;">= Soll-Abgabe (Tresor)</span><span class="abschluss-val" style="font-size:17px;color:var(--gold2);">${eur(soll)}</span></div>
+    ${letzterAnfang != null ? `<div style="font-size:12px;color:var(--text3);padding-top:6px;border-top:1px solid var(--border);">ℹ️ Zusätzlich verbleiben ${eur(letzterAnfang)} Wechselgeld in der Kasse (Anfangsbestand)</div>` : ''}
+  </div>
+  <div class="field" style="margin-top:12px;margin-bottom:0;">
+    <label>Gezähltes Tresorgeld (€)</label>
+    <input type="number" id="abschl-ist-${sid}" min="0" step="0.01" inputmode="decimal" placeholder="0,00"
+           oninput="calcAbschlussDiff('${sid}', ${soll})">
+  </div>
+  <div class="abschluss-row" style="border:none;padding-bottom:0;">
+    <span class="abschluss-label" style="font-weight:700;">Differenz zum Soll</span>
+    <span class="abschluss-val" id="abschl-diff-${sid}" style="font-size:17px;">—</span>
+  </div>
+  <div id="abschl-notizbox-${sid}" style="display:none;">
+    <div style="font-size:12px;color:var(--red2);margin:8px 0 6px;">⚠ Kasse weicht vom Soll ab – bitte Differenz begründen.</div>
+    <div class="field" style="margin-bottom:0;">
+      <label>Begründung der Differenz (Pflicht)</label>
+      <input type="text" id="abschl-notiz-${sid}" placeholder="z.B. Zählfehler Tag 2, Trinkgeld …">
+    </div>
+  </div>
+  <button class="btn btn-success btn-full" id="abschl-btn-${sid}" style="margin-top:12px;"
+          onclick="doMarktabschluss('${stand.id}', ${barUmsatz}, ${barAusgaben})">
+    ✓ Kasse stimmt – Abschluss bestätigen
+  </button>`;
+}
+
+function calcAbschlussDiff(sid, sollCent) {
+  const ist = parseEuroCent(el('abschl-ist-' + sid)?.value);
+  const diffEl  = el('abschl-diff-' + sid);
+  const notizEl = el('abschl-notizbox-' + sid);
+  const btnEl   = el('abschl-btn-' + sid);
+  if (ist == null) {
+    diffEl.textContent = '—';
+    diffEl.style.color = '';
+    notizEl.style.display = 'none';
+    btnEl.textContent = '✓ Kasse stimmt – Abschluss bestätigen';
+    return;
+  }
+  const diff = ist - sollCent;
+  diffEl.textContent = (diff > 0 ? '+' : diff < 0 ? '– ' : '±') + eur(Math.abs(diff));
+  diffEl.style.color = diff === 0 ? 'var(--green2)' : 'var(--red2)';
+  notizEl.style.display = diff === 0 ? 'none' : 'block';
+  btnEl.textContent = diff === 0
+    ? '✓ Kasse stimmt – Abschluss bestätigen'
+    : '⚠ Mit Differenz abschließen';
+}
+
+function parseEuroCent(v) {
+  if (v == null || String(v).trim() === '') return null;
+  const n = parseFloat(String(v).replace(',', '.'));
+  return isNaN(n) ? null : Math.round(n * 100);
+}
+
+function renderAbschlussErgebnis(stand) {
+  // Ältere Abschlüsse ohne gespeicherte Prüfwerte
+  if (stand.abgabe_soll_cent == null) {
+    return `<div style="font-size:13px;color:var(--text3);padding-top:4px;">✓ Abgeschlossen am ${dateFmt(stand.abgeschlossen_am.slice(0,10))} (ohne Prüfwerte)</div>`;
+  }
+  const diff = (stand.abgabe_ist_cent || 0) - stand.abgabe_soll_cent;
+  const diffTxt = (diff > 0 ? '+' : diff < 0 ? '– ' : '±') + eur(Math.abs(diff));
+  const diffCls = diff === 0 ? 'green' : 'red';
+  return `<div style="background:var(--bg3);border-radius:var(--radius);padding:12px;margin-top:8px;">
+    <div class="abschluss-row"><span class="abschluss-label">Soll-Abgabe (Tresor)</span><span class="abschluss-val">${eur(stand.abgabe_soll_cent)}</span></div>
+    <div class="abschluss-row"><span class="abschluss-label">Gezähltes Tresorgeld</span><span class="abschluss-val">${eur(stand.abgabe_ist_cent || 0)}</span></div>
+    <div class="abschluss-row" style="border:none;padding-top:8px;"><span class="abschluss-label" style="font-weight:700;">Differenz</span><span class="abschluss-val ${diffCls}">${diffTxt}</span></div>
+    ${stand.abschluss_notiz ? `<div style="font-size:12px;color:var(--text3);padding-top:6px;border-top:1px solid var(--border);">📝 ${esc(stand.abschluss_notiz)}</div>` : ''}
+    <div style="font-size:11px;color:var(--text3);padding-top:6px;">✓ Abgeschlossen am ${dateFmt(stand.abgeschlossen_am.slice(0,10))}</div>
   </div>`;
 }
 
 async function doMarktabschluss(standId, barUmsatz, barAusgaben) {
-  const abgabe = barUmsatz - barAusgaben;
-  if (!(await confirmMed(`Abgabe-Betrag: ${eur(abgabe)}\n\nDies sperrt die Kasse für diesen Stand.`, {titel:'Marktabschluss', ja:'Abschließen'}))) return;
+  const sid  = standId.replace(/-/g, '').slice(0, 8);
+  const soll = barUmsatz - barAusgaben;
+  const ist  = parseEuroCent(el('abschl-ist-' + sid)?.value);
+
+  if (ist == null) {
+    toast('⚠ Bitte gezähltes Tresorgeld eingeben', 'err');
+    return;
+  }
+
+  const diff  = ist - soll;
+  let notiz = null;
+  if (diff !== 0) {
+    notiz = el('abschl-notiz-' + sid)?.value.trim() || '';
+    if (!notiz) {
+      toast('⚠ Bitte die Differenz begründen', 'err');
+      return;
+    }
+  }
+
+  const frage = diff === 0
+    ? `Soll-Abgabe: ${eur(soll)}\nGezählt: ${eur(ist)} – Kasse stimmt.\n\nDies sperrt die Kasse für diesen Stand.`
+    : `⚠ Differenz: ${(diff > 0 ? '+' : '– ')}${eur(Math.abs(diff))}\nSoll: ${eur(soll)} · Gezählt: ${eur(ist)}\n\nTrotz Abweichung abschließen? Dies sperrt die Kasse für diesen Stand.`;
+  if (!(await confirmMed(frage, {titel:'Marktabschluss', ja:'Abschließen', gefahr: diff !== 0}))) return;
+
   const now = new Date().toISOString();
-  const { error } = await sb.from('stand').update({
+  await dbW(sb.from('stand').update({
     abgeschlossen_am: now,
     abgeschlossen_von: currentUser.id,
+    abgabe_soll_cent: soll,
+    abgabe_ist_cent: ist,
+    abschluss_notiz: notiz,
     geaendert_am: now
-  }).eq('id', standId);
-  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  }).eq('id', standId), 'Marktabschluss');
   toast('✓ Marktabschluss gespeichert', 'ok');
   renderKasseTab();
 }
