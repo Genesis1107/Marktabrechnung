@@ -141,7 +141,8 @@ tr.kw-row .col-markt { background: var(--bg3); }
 .besetzung { font-size: 11px; font-weight: 700; }
 .besetzung.ok { color: var(--green2); }
 .besetzung.fehlt { color: var(--red2); }
-td.zelle { text-align: center; min-width: 46px; }
+td.zelle { text-align: center; min-width: 46px; cursor: pointer; }
+td.zelle:active { background: var(--surface); }
 .punkt {
   display: inline-block; width: 20px; height: 20px; border-radius: 50%;
   line-height: 20px; font-size: 11px;
@@ -203,7 +204,7 @@ td.zelle.abwesend { background: repeating-linear-gradient(45deg, transparent, tr
 
 <script>
 'use strict';
-const PP_VERSION = 'v0.1';
+const PP_VERSION = 'v0.2';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 const LAGER_SUED = 'a1b2c3d4-0001-0001-0001-000000000001';
@@ -299,7 +300,7 @@ async function ladeUndZeichne() {
 
   const [zutRes, abwRes] = await Promise.all([
     instanzIds.length
-      ? sb.from('event_marktfahrer').select('event_instanz_id, marktfahrer_id, status')
+      ? sb.from('event_marktfahrer').select('id, event_instanz_id, marktfahrer_id, status')
           .in('event_instanz_id', instanzIds).is('geloescht_am', null)
       : Promise.resolve({ data: [] }),
     fahrerIds.length
@@ -368,6 +369,8 @@ function marktTage(m) {
 }
 // Schätzformel aus der Numbers-Datei: 12 h × (Tage + 1) – inkl. An-/Abreise
 function stundenSchaetzung(m) { return 12 * (marktTage(m) + 1); }
+// Einsatztage: 1 Tag Anfahrt/Aufbau + Markttage + 1 Tag Nachbereitung
+function einsatzTage(m) { return marktTage(m) + 2; }
 
 function istAbwesend(fahrerId, m) {
   return cache.abwesenheiten.some(a =>
@@ -433,7 +436,7 @@ function renderMatrix() {
       const abw = istAbwesend(fa.id, m);
       let inhalt = '';
       if (z) inhalt = `<span class="punkt ${z.status === 'bestaetigt' ? 'bestaetigt' : 'vorschlag'}"></span>`;
-      html += `<td class="zelle ${abw ? 'abwesend' : ''}" title="${esc(fa.name)} · ${esc(m.name)}${abw ? ' · abwesend' : ''}">${inhalt}</td>`;
+      html += `<td class="zelle ${abw ? 'abwesend' : ''}" onclick="zelleTap('${m.id}','${fa.id}')" title="${esc(fa.name)} · ${esc(m.name)}${abw ? ' · abwesend' : ''}">${inhalt}</td>`;
     });
     html += '</tr>';
   });
@@ -443,19 +446,19 @@ function renderMatrix() {
   html += '<tfoot><tr><td class="col-markt">Bilanz</td><td></td>';
   f.forEach(fa => {
     if (fa.extern) { html += '<td>—</td>'; return; }
-    let termine = 0, tage = 0, stunden = 0;
+    let maerkte = 0, etage = 0, stunden = 0;
     cache.maerkte.forEach(m => {
       const z = cache.zuteilungen.find(x => x.event_instanz_id === m.id && x.marktfahrer_id === fa.id);
       if (z) {
-        termine++;
-        tage += marktTage(m);
+        maerkte++;
+        etage += einsatzTage(m);
         stunden += stundenSchaetzung(m);
       }
     });
     const ziel = fa.ziel_stunden || 1400;
     const pct = Math.min(100, Math.round(stunden / ziel * 100));
-    html += `<td title="${termine} Termine · ${tage} Markttage · ${stunden} h von ${ziel} h">
-      <span class="bilanz-zahl">${termine}</span> T<br>
+    html += `<td title="${maerkte} Märkte · ${etage} Einsatztage (je Markt: 1 Anfahrt/Aufbau + Markttage + 1 Nachbereitung) · ${stunden} h von ${ziel} h">
+      <span class="bilanz-zahl">${maerkte}</span> M · <span class="bilanz-zahl">${etage}</span> ET<br>
       <span class="bilanz-zahl">${stunden}</span> h
       <div class="bilanz-balken"><div class="${stunden > ziel ? 'ueber' : ''}" style="width:${pct}%"></div></div>
     </td>`;
@@ -463,6 +466,83 @@ function renderMatrix() {
   html += '</tr></tfoot></table>';
 
   el('matrix-wrap').innerHTML = html;
+}
+
+/* ── INTERAKTION ────────────────────────────────────────────── */
+let _locked = false;
+async function locked(fn) {
+  if (_locked) return;
+  _locked = true;
+  try { await fn(); }
+  catch (e) { console.error(e); zeigeFehler('Speichern fehlgeschlagen. Bitte erneut versuchen.'); }
+  finally { _locked = false; }
+}
+
+function zeigeFehler(msg) {
+  const alt = el('pp-fehler');
+  if (alt) alt.remove();
+  const d = document.createElement('div');
+  d.id = 'pp-fehler';
+  d.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:10px 18px;border-radius:8px;z-index:99;font-size:14px;';
+  d.textContent = msg;
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 4000);
+}
+
+// Mittelalterlicher Bestätigungsdialog (Promise-basiert)
+function confirmMed(titel, text) {
+  return new Promise(resolve => {
+    const o = document.createElement('div');
+    o.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;';
+    o.innerHTML = `
+      <div style="background:var(--bg2);border:2px solid var(--border2);border-radius:var(--radius2);padding:20px;max-width:340px;width:100%;">
+        <div style="font-size:17px;font-weight:700;color:var(--gold2);margin-bottom:8px;">⚜️ ${esc(titel)}</div>
+        <div style="font-size:14px;color:var(--text2);margin-bottom:16px;">${esc(text)}</div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button class="btn" data-a="nein">Abbrechen</button>
+          <button class="btn btn-primary" data-a="ja">So sei es</button>
+        </div>
+      </div>`;
+    o.addEventListener('click', e => {
+      const a = e.target.dataset?.a;
+      if (a || e.target === o) { o.remove(); resolve(a === 'ja'); }
+    });
+    document.body.appendChild(o);
+  });
+}
+
+// Tap-Zyklus: leer → Vorschlag → bestätigt → leer
+function zelleTap(instanzId, fahrerId) {
+  locked(async () => {
+    const z = cache.zuteilungen.find(x => x.event_instanz_id === instanzId && x.marktfahrer_id === fahrerId);
+    const m = cache.maerkte.find(x => x.id === instanzId);
+    const fa = cache.fahrer.find(x => x.id === fahrerId);
+
+    if (!z) {
+      // Neu zuteilen – bei Abwesenheit erst nachfragen
+      if (m && fa && istAbwesend(fahrerId, m)) {
+        const ok = await confirmMed('Abwesenheit', `${fa.name} ist im Zeitraum von „${m.name}" als abwesend vermerkt. Trotzdem vorsehen?`);
+        if (!ok) return;
+      }
+      const { data, error } = await sb.from('event_marktfahrer')
+        .insert({ event_instanz_id: instanzId, marktfahrer_id: fahrerId, status: 'vorschlag' })
+        .select('id, event_instanz_id, marktfahrer_id, status').single();
+      if (error) throw error;
+      cache.zuteilungen.push(data);
+    } else if (z.status === 'vorschlag') {
+      const { error } = await sb.from('event_marktfahrer')
+        .update({ status: 'bestaetigt' }).eq('id', z.id);
+      if (error) throw error;
+      z.status = 'bestaetigt';
+    } else {
+      // bestätigt → entfernen (Soft-Delete)
+      const { error } = await sb.from('event_marktfahrer')
+        .update({ geloescht_am: new Date().toISOString() }).eq('id', z.id);
+      if (error) throw error;
+      cache.zuteilungen = cache.zuteilungen.filter(x => x.id !== z.id);
+    }
+    renderMatrix();
+  });
 }
 </script>
 </body>
