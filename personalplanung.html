@@ -165,6 +165,49 @@ td.zelle.abwesend { background: repeating-linear-gradient(45deg, transparent, tr
 .bilanz-balken > div.ueber { background: var(--red2); }
 
 #lade-hinweis { padding: 40px; text-align: center; color: var(--text3); }
+
+/* ── FAHRER-PANEL ───────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 50;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.modal-box {
+  background: var(--bg2); border: 2px solid var(--border2);
+  border-radius: var(--radius2); padding: 20px;
+  width: 100%; max-width: 420px; max-height: 85vh; overflow-y: auto;
+}
+.modal-title { font-size: 18px; font-weight: 700; color: var(--gold2); margin-bottom: 12px; }
+.fp-hinweis { font-size: 12px; color: var(--amber2); margin-bottom: 10px; }
+.fp-zeile { display: flex; gap: 12px; margin-bottom: 14px; }
+.fp-zeile label { flex: 1; font-size: 12px; color: var(--text3); display: flex; flex-direction: column; gap: 4px; }
+.fp-zeile select, .fp-zeile input {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); padding: 9px 10px; font-size: 15px; width: 100%;
+}
+.fp-abschnitt {
+  font-size: 13px; font-weight: 700; color: var(--gold2);
+  border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-bottom: 8px;
+}
+.fp-abw-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 4px; border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.fp-abw-item .datum { font-weight: 600; white-space: nowrap; }
+.fp-abw-item .grund { flex: 1; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fp-abw-item button { background: none; border: none; color: var(--red2); font-size: 16px; cursor: pointer; padding: 4px 6px; }
+.fp-leer { font-size: 13px; color: var(--text3); padding: 8px 4px; }
+.fp-neu { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.fp-neu input[type=date] { flex: 1; min-width: 120px; }
+.fp-neu input[type=text] { flex: 2; min-width: 140px; }
+.fp-neu input {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); padding: 9px 10px; font-size: 14px;
+}
+.fp-neu .btn { padding: 8px 14px; }
+.fp-fehlertext { color: var(--red2); font-size: 13px; min-height: 18px; margin-top: 6px; }
+.fp-fuss { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+.matrix thead th.th-fahrer { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
 .spinner {
   width: 28px; height: 28px; margin: 0 auto 12px;
   border: 3px solid var(--border); border-top-color: var(--gold);
@@ -202,9 +245,44 @@ td.zelle.abwesend { background: repeating-linear-gradient(45deg, transparent, tr
   </div>
 </div>
 
+<!-- FAHRER-PANEL -->
+<div id="modal-fahrer" class="modal-overlay hidden" onclick="if(event.target===this)closeFahrerPanel()">
+  <div class="modal-box">
+    <div class="modal-title" id="fp-titel">Fahrer</div>
+    <div id="fp-extern-hinweis" class="fp-hinweis hidden">Externer Fahrer – ohne Stundenbilanz</div>
+
+    <div class="fp-zeile" id="fp-stammdaten">
+      <label>Heimatlager
+        <select id="fp-lager">
+          <option value="sued">Süd · Schöllkrippen</option>
+          <option value="nord">Nord · Minden</option>
+        </select>
+      </label>
+      <label>Zielstunden
+        <input type="number" id="fp-ziel" min="0" step="10" inputmode="numeric">
+      </label>
+    </div>
+
+    <div class="fp-abschnitt">Abwesenheiten</div>
+    <div id="fp-abw-liste"></div>
+    <div class="fp-neu">
+      <input type="date" id="fp-abw-von" title="Von">
+      <input type="date" id="fp-abw-bis" title="Bis">
+      <input type="text" id="fp-abw-grund" placeholder="Grund (z. B. Urlaub)" maxlength="80">
+      <button class="btn" onclick="abwesenheitAnlegen()">＋</button>
+    </div>
+    <div id="fp-fehler" class="fp-fehlertext"></div>
+
+    <div class="fp-fuss">
+      <button class="btn" onclick="closeFahrerPanel()">Schließen</button>
+      <button class="btn btn-primary" onclick="fahrerSpeichern()">Speichern</button>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
-const PP_VERSION = 'v0.2';
+const PP_VERSION = 'v0.3';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 const LAGER_SUED = 'a1b2c3d4-0001-0001-0001-000000000001';
@@ -304,7 +382,7 @@ async function ladeUndZeichne() {
           .in('event_instanz_id', instanzIds).is('geloescht_am', null)
       : Promise.resolve({ data: [] }),
     fahrerIds.length
-      ? sb.from('abwesenheit').select('marktfahrer_id, von, bis')
+      ? sb.from('abwesenheit').select('id, marktfahrer_id, von, bis, grund')
           .in('marktfahrer_id', fahrerIds).is('geloescht_am', null)
       : Promise.resolve({ data: [] }),
   ]);
@@ -400,7 +478,7 @@ function renderMatrix() {
 
   let html = '<table class="matrix"><thead><tr>';
   html += '<th class="col-markt">Markt</th><th>Info</th>';
-  f.forEach(fa => { html += `<th>${esc(fa.name)}</th>`; });
+  f.forEach(fa => { html += `<th class="th-fahrer" onclick="openFahrerPanel('${fa.id}')" title="Fahrer bearbeiten">${esc(fa.name)}</th>`; });
   html += '</tr></thead><tbody>';
 
   let letzteKW = null;
@@ -541,6 +619,102 @@ function zelleTap(instanzId, fahrerId) {
       if (error) throw error;
       cache.zuteilungen = cache.zuteilungen.filter(x => x.id !== z.id);
     }
+    renderMatrix();
+  });
+}
+
+/* ── FAHRER-PANEL ───────────────────────────────────────────── */
+let fpFahrerId = null;
+
+function openFahrerPanel(fahrerId) {
+  const fa = cache.fahrer.find(x => x.id === fahrerId);
+  if (!fa) return;
+  fpFahrerId = fahrerId;
+  el('fp-titel').textContent = '👤 ' + fa.name;
+  el('fp-lager').value = fa.heim_lager || 'nord';
+  el('fp-ziel').value = fa.ziel_stunden ?? 1400;
+  el('fp-extern-hinweis').classList.toggle('hidden', !fa.extern);
+  el('fp-stammdaten').classList.toggle('hidden', !!fa.extern);
+  el('fp-abw-von').value = '';
+  el('fp-abw-bis').value = '';
+  el('fp-abw-grund').value = '';
+  el('fp-fehler').textContent = '';
+  renderAbwListe();
+  el('modal-fahrer').classList.remove('hidden');
+}
+function closeFahrerPanel() {
+  el('modal-fahrer').classList.add('hidden');
+  fpFahrerId = null;
+}
+
+function fmtDatum(d) {
+  const x = new Date(d + 'T12:00:00');
+  return String(x.getDate()).padStart(2, '0') + '.' + String(x.getMonth() + 1).padStart(2, '0') + '.' + String(x.getFullYear()).slice(2);
+}
+
+function renderAbwListe() {
+  const liste = cache.abwesenheiten
+    .filter(a => a.marktfahrer_id === fpFahrerId)
+    .sort((a, b) => a.von.localeCompare(b.von));
+  if (!liste.length) {
+    el('fp-abw-liste').innerHTML = '<div class="fp-leer">Keine Abwesenheiten eingetragen.</div>';
+    return;
+  }
+  el('fp-abw-liste').innerHTML = liste.map(a => `
+    <div class="fp-abw-item">
+      <span class="datum">${fmtDatum(a.von)} – ${fmtDatum(a.bis)}</span>
+      <span class="grund">${esc(a.grund || '')}</span>
+      <button onclick="abwesenheitLoeschen('${a.id}')" title="Entfernen">🗑</button>
+    </div>`).join('');
+}
+
+function abwesenheitAnlegen() {
+  locked(async () => {
+    el('fp-fehler').textContent = '';
+    const von = el('fp-abw-von').value;
+    const bis = el('fp-abw-bis').value || von;
+    const grund = el('fp-abw-grund').value.trim();
+    if (!von) { el('fp-fehler').textContent = 'Bitte ein Von-Datum wählen.'; return; }
+    if (bis < von) { el('fp-fehler').textContent = 'Bis-Datum liegt vor dem Von-Datum.'; return; }
+    const { data, error } = await sb.from('abwesenheit')
+      .insert({ marktfahrer_id: fpFahrerId, von, bis, grund: grund || null })
+      .select('id, marktfahrer_id, von, bis, grund').single();
+    if (error) throw error;
+    cache.abwesenheiten.push(data);
+    el('fp-abw-von').value = '';
+    el('fp-abw-bis').value = '';
+    el('fp-abw-grund').value = '';
+    renderAbwListe();
+    renderMatrix();
+  });
+}
+
+function abwesenheitLoeschen(id) {
+  locked(async () => {
+    const { error } = await sb.from('abwesenheit')
+      .update({ geloescht_am: new Date().toISOString() }).eq('id', id);
+    if (error) throw error;
+    cache.abwesenheiten = cache.abwesenheiten.filter(a => a.id !== id);
+    renderAbwListe();
+    renderMatrix();
+  });
+}
+
+function fahrerSpeichern() {
+  locked(async () => {
+    const fa = cache.fahrer.find(x => x.id === fpFahrerId);
+    if (!fa) { closeFahrerPanel(); return; }
+    if (!fa.extern) {
+      const lager = el('fp-lager').value;
+      const ziel = parseInt(el('fp-ziel').value, 10);
+      if (isNaN(ziel) || ziel < 0) { el('fp-fehler').textContent = 'Zielstunden bitte als Zahl angeben.'; return; }
+      const { error } = await sb.from('marktfahrer')
+        .update({ heim_lager: lager, ziel_stunden: ziel }).eq('id', fa.id);
+      if (error) throw error;
+      fa.heim_lager = lager;
+      fa.ziel_stunden = ziel;
+    }
+    closeFahrerPanel();
     renderMatrix();
   });
 }
