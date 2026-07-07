@@ -149,6 +149,10 @@ td.zelle:active { background: var(--surface); }
 }
 .punkt.bestaetigt { background: var(--green2); box-shadow: 0 0 0 1px var(--green); }
 .punkt.vorschlag { background: transparent; border: 2px dashed var(--amber2); }
+.punkt.warn4 { outline: 3px solid var(--amber2); outline-offset: 2px; }
+.punkt.warn5 { outline: 3px solid var(--red2); outline-offset: 2px; }
+.warn-fuss { color: var(--amber2); font-size: 11px; font-weight: 700; }
+.warn-fuss.rot { color: var(--red2); }
 td.zelle.abwesend { background: repeating-linear-gradient(45deg, transparent, transparent 4px, var(--bg3) 4px, var(--bg3) 8px); }
 .km-hinweis { font-size: 10px; color: var(--text3); }
 
@@ -295,7 +299,7 @@ td.zelle.abwesend { background: repeating-linear-gradient(45deg, transparent, tr
 
 <script>
 'use strict';
-const PP_VERSION = 'v0.4';
+const PP_VERSION = 'v0.5';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 const LAGER_SUED = 'a1b2c3d4-0001-0001-0001-000000000001';
@@ -469,6 +473,48 @@ function istAbwesend(fahrerId, m) {
   );
 }
 
+/* ── WOCHENEND-SERIEN ───────────────────────────────────────── */
+// Index eines Wochenendes: fortlaufende Wochennummer des Samstags seit Epoche
+function wochenendIndizes(m) {
+  const res = new Set();
+  const perioden = [[m.start_datum, m.end_datum]];
+  if (m.start_datum_2 && m.end_datum_2) perioden.push([m.start_datum_2, m.end_datum_2]);
+  perioden.forEach(([von, bis]) => {
+    const d = new Date(von + 'T12:00:00');
+    const e = new Date(bis + 'T12:00:00');
+    while (d <= e) {
+      const dow = d.getDay();
+      if (dow === 6 || dow === 0) {
+        const sat = new Date(d);
+        if (dow === 0) sat.setDate(sat.getDate() - 1);
+        res.add(Math.floor((Date.UTC(sat.getFullYear(), sat.getMonth(), sat.getDate()) / 86400000 - 2) / 7));
+      }
+      d.setDate(d.getDate() + 1);
+    }
+  });
+  return res;
+}
+
+// Karte: fahrerId -> Map(WochenendIndex -> Position in der Serie)
+function baueWarnkarte() {
+  const karte = new Map();
+  cache.fahrer.forEach(fa => {
+    if (fa.extern) return;
+    const belegt = new Set();
+    cache.maerkte.forEach(m => {
+      if (cache.zuteilungen.some(z => z.event_instanz_id === m.id && z.marktfahrer_id === fa.id)) {
+        wochenendIndizes(m).forEach(i => belegt.add(i));
+      }
+    });
+    const posMap = new Map();
+    [...belegt].sort((a, b) => a - b).forEach(idx => {
+      posMap.set(idx, (posMap.get(idx - 1) || 0) + 1);
+    });
+    karte.set(fa.id, posMap);
+  });
+  return karte;
+}
+
 const STATUS_FARBE = {
   interessent: 'var(--text3)', beworben: 'var(--blue2)', akzeptiert: 'var(--blue2)',
   bestaetigt: 'var(--green2)', vorbereitung: 'var(--gold2)', aktiv: 'var(--gold2)',
@@ -478,6 +524,7 @@ const STATUS_FARBE = {
 /* ── MATRIX RENDERN ─────────────────────────────────────────── */
 function renderMatrix() {
   const f = cache.fahrer;
+  const warnkarte = baueWarnkarte();
   if (!cache.maerkte.length) {
     el('matrix-wrap').innerHTML = '<div id="lade-hinweis">Keine Märkte für ' + currentJahr +
       '.<br>Neue Jahresinstanzen legst du in der Marktfahrer-App an – sie erscheinen hier automatisch.</div>';
@@ -522,12 +569,20 @@ function renderMatrix() {
       <span class="besetzung ${besetzt >= bedarf ? 'ok' : 'fehlt'}">${besetzt}/${bedarf}</span>
     </td>`;
 
+    const mWk = wochenendIndizes(m);
     f.forEach(fa => {
       const z = zut.find(x => x.marktfahrer_id === fa.id);
       const abw = istAbwesend(fa.id, m);
-      let inhalt = '';
-      if (z) inhalt = `<span class="punkt ${z.status === 'bestaetigt' ? 'bestaetigt' : 'vorschlag'}"></span>`;
-      html += `<td class="zelle ${abw ? 'abwesend' : ''}" onclick="zelleTap('${m.id}','${fa.id}')" title="${esc(fa.name)} · ${esc(m.name)}${abw ? ' · abwesend' : ''}">${inhalt}</td>`;
+      let inhalt = '', warnTitel = '';
+      if (z) {
+        let pos = 0;
+        const posMap = warnkarte.get(fa.id);
+        if (posMap) mWk.forEach(i => { pos = Math.max(pos, posMap.get(i) || 0); });
+        const warnKlasse = pos >= 5 ? ' warn5' : pos >= 4 ? ' warn4' : '';
+        if (pos >= 4) warnTitel = ` · ${pos}. Wochenende in Folge!`;
+        inhalt = `<span class="punkt ${z.status === 'bestaetigt' ? 'bestaetigt' : 'vorschlag'}${warnKlasse}"></span>`;
+      }
+      html += `<td class="zelle ${abw ? 'abwesend' : ''}" onclick="zelleTap('${m.id}','${fa.id}')" title="${esc(fa.name)} · ${esc(m.name)}${abw ? ' · abwesend' : ''}${warnTitel}">${inhalt}</td>`;
     });
     html += '</tr>';
   });
@@ -548,8 +603,13 @@ function renderMatrix() {
     });
     const ziel = fa.ziel_stunden || 1400;
     const pct = Math.min(100, Math.round(stunden / ziel * 100));
-    html += `<td title="${maerkte} Märkte · ${etage} Einsatztage (je Markt: 1 Anfahrt/Aufbau + Markttage + 1 Nachbereitung) · ${stunden} h von ${ziel} h">
-      <span class="bilanz-zahl">${maerkte}</span> M · <span class="bilanz-zahl">${etage}</span> ET<br>
+    const posMap = warnkarte.get(fa.id);
+    const maxSerie = posMap ? Math.max(0, ...posMap.values()) : 0;
+    const warnHtml = maxSerie >= 4
+      ? `<span class="warn-fuss ${maxSerie >= 5 ? 'rot' : ''}">⚠ ${maxSerie} WE</span><br>`
+      : '';
+    html += `<td title="${maerkte} Märkte · ${etage} Einsatztage (je Markt: 1 Anfahrt/Aufbau + Markttage + 1 Nachbereitung) · ${stunden} h von ${ziel} h${maxSerie >= 4 ? ' · längste Serie: ' + maxSerie + ' Wochenenden in Folge' : ''}">
+      ${warnHtml}<span class="bilanz-zahl">${maerkte}</span> M · <span class="bilanz-zahl">${etage}</span> ET<br>
       <span class="bilanz-zahl">${stunden}</span> h
       <div class="bilanz-balken"><div class="${stunden > ziel ? 'ueber' : ''}" style="width:${pct}%"></div></div>
     </td>`;
