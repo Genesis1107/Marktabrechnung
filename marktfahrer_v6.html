@@ -866,7 +866,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.29';
+const APP_VERSION = 'v6.30';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -3131,8 +3131,12 @@ async function saveFahrerLogin() {
   const btn = el('fl-submit');
   btn.disabled = true; btn.textContent = 'Wird angelegt…';
   try {
+    // Session-Token explizit mitgeben — invoke() schickt sonst u.U. nur den Anon-Key
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { toast('Sitzung abgelaufen – bitte neu anmelden', 'err'); return; }
     const { data, error } = await sb.functions.invoke('fahrer-anlegen', {
       body: { marktfahrer_id: _loginMfId, email, passwort },
+      headers: { Authorization: 'Bearer ' + session.access_token },
     });
     if (error) {
       // Fehlermeldung der Function auslesen (steckt im Response-Body)
