@@ -299,7 +299,7 @@ td.zelle.abwesend { background: repeating-linear-gradient(45deg, transparent, tr
 
 <script>
 'use strict';
-const PP_VERSION = 'v0.5';
+const PP_VERSION = 'v0.6';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 const LAGER_SUED = 'a1b2c3d4-0001-0001-0001-000000000001';
@@ -426,13 +426,14 @@ function normPlz(p) {
 }
 
 /* ── DISTANZ ────────────────────────────────────────────────── */
-function distanzKm(markt) {
+// Entfernung Heimatlager -> Markt. lager = 'sued' | 'nord'.
+function distanzAbLager(markt, lager) {
   const t = markt.template || {};
-  const istSued = markt.lager_id === LAGER_SUED;
+  const istSued = lager === 'sued';
   // 1. Vorrang: handgepflegte Straßen-km aus dem Template
   const km = istSued ? t.km_schoellkrippen : t.km_minden;
   if (km != null) return { km, quelle: 'template' };
-  // 2. Fallback: Luftlinie × 1,3 über PLZ
+  // 2. Fallback: Luftlinie × 1,3 über PLZ, ab Lager-PLZ (Süd 63825 / Nord 32425)
   const lagerGeo = cache.plzGeo[LAGER_PLZ[istSued ? 'sued' : 'nord']];
   const marktGeo = cache.plzGeo[normPlz(t.plz)];
   if (!lagerGeo || !marktGeo) return null;
@@ -443,6 +444,18 @@ function distanzKm(markt) {
     Math.cos((marktGeo.lon - lagerGeo.lon) * r)
   ));
   return { km: Math.round(d * 1.3), quelle: 'plz' };
+}
+
+// Distanz für einen konkreten Fahrer: ab dessen Heimatlager;
+// Externe ab dem Warenlager des Marktes.
+function distanzFuerFahrer(markt, fahrer) {
+  let lager;
+  if (fahrer.extern) {
+    lager = markt.lager_id === LAGER_SUED ? 'sued' : 'nord';
+  } else {
+    lager = fahrer.heim_lager || 'nord';
+  }
+  return distanzAbLager(markt, lager);
 }
 
 /* ── KALENDERWOCHE (ISO) ────────────────────────────────────── */
@@ -552,18 +565,25 @@ function renderMatrix() {
     const zut = cache.zuteilungen.filter(z => z.event_instanz_id === m.id);
     const besetzt = zut.filter(z => z.status === 'bestaetigt').length;
     const bedarf = m.personalbedarf || 1;
-    const dist = distanzKm(m);
+    const distN = distanzAbLager(m, 'nord');
+    const distS = distanzAbLager(m, 'sued');
     const unbest = (m.status === 'interessent' || m.status === 'beworben');
 
     let datum = fmt(m.start_datum) + (m.end_datum !== m.start_datum ? '–' + fmt(m.end_datum) : '');
     if (m.start_datum_2) datum += ' +' + fmt(m.start_datum_2) + '–' + fmt(m.end_datum_2);
+
+    let distText = '';
+    if (distN || distS) {
+      const ca = (distN?.quelle === 'plz' || distS?.quelle === 'plz');
+      distText = ` · N ${distN ? distN.km : '?'} · S ${distS ? distS.km : '?'} km${ca ? ' <span class="km-hinweis">(ca.)</span>' : ''}`;
+    }
 
     html += '<tr>';
     html += `<td class="col-markt">
       <div class="markt-name ${unbest ? 'unbestaetigt' : ''}">
         <span class="status-dot" style="background:${STATUS_FARBE[m.status] || 'var(--text3)'}" title="${esc(m.status)}"></span>${esc(m.name)}
       </div>
-      <div class="markt-info">${datum} · ${marktTage(m)} Tg${dist ? ' · ' + dist.km + ' km' + (dist.quelle === 'plz' ? ' <span class="km-hinweis">(ca.)</span>' : '') : ''}</div>
+      <div class="markt-info">${datum} · ${marktTage(m)} Tg${distText}</div>
     </td>`;
     html += `<td style="text-align:center;">
       <span class="besetzung ${besetzt >= bedarf ? 'ok' : 'fehlt'}">${besetzt}/${bedarf}</span>
@@ -582,7 +602,9 @@ function renderMatrix() {
         if (pos >= 4) warnTitel = ` · ${pos}. Wochenende in Folge!`;
         inhalt = `<span class="punkt ${z.status === 'bestaetigt' ? 'bestaetigt' : 'vorschlag'}${warnKlasse}"></span>`;
       }
-      html += `<td class="zelle ${abw ? 'abwesend' : ''}" onclick="zelleTap('${m.id}','${fa.id}')" title="${esc(fa.name)} · ${esc(m.name)}${abw ? ' · abwesend' : ''}${warnTitel}">${inhalt}</td>`;
+      const df = distanzFuerFahrer(m, fa);
+      const distTitel = df ? ` · ${df.km} km ab ${fa.extern ? 'Warenlager' : (fa.heim_lager === 'sued' ? 'Süd' : 'Nord')}${df.quelle === 'plz' ? ' (ca.)' : ''}` : '';
+      html += `<td class="zelle ${abw ? 'abwesend' : ''}" onclick="zelleTap('${m.id}','${fa.id}')" title="${esc(fa.name)} · ${esc(m.name)}${distTitel}${abw ? ' · abwesend' : ''}${warnTitel}">${inhalt}</td>`;
     });
     html += '</tr>';
   });
@@ -843,10 +865,10 @@ function icsLaden(fahrerId) {
       .filter(x => x.event_instanz_id === m.id && x.status === 'bestaetigt' && x.marktfahrer_id !== fahrerId)
       .map(x => cache.fahrer.find(f => f.id === x.marktfahrer_id)?.name)
       .filter(Boolean);
-    const dist = distanzKm(m);
+    const dist = distanzFuerFahrer(m, fa);
     const beschr = [
       kollegen.length ? 'Mit: ' + kollegen.join(', ') : 'Allein eingeteilt',
-      dist ? `Entfernung ab Lager: ${dist.km} km${dist.quelle === 'plz' ? ' (ca.)' : ''}` : null,
+      dist ? `Anfahrt ab Lager ${fa.extern ? '' : (fa.heim_lager === 'sued' ? 'Süd ' : 'Nord ')}${dist.km} km${dist.quelle === 'plz' ? ' (ca.)' : ''}` : null,
       'Status Markt: ' + m.status,
     ].filter(Boolean).join('\n');
     const ort = [t.plz, t.ort].filter(Boolean).join(' ');
