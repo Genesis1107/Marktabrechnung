@@ -238,10 +238,23 @@ td.zelle.abwesend { background: repeating-linear-gradient(45deg, transparent, tr
     <span class="header-version" id="pp-version"></span>
     <span class="header-spacer"></span>
     <span class="jahr-pills" id="jahr-pills"></span>
+    <button class="btn btn-logout" onclick="openIcsModal()">📜 ICS</button>
     <button class="btn btn-logout" onclick="doLogout()">Abmelden</button>
   </header>
   <div id="matrix-wrap">
     <div id="lade-hinweis"><div class="spinner"></div>Lade Planung …</div>
+  </div>
+</div>
+
+<!-- ICS-EXPORT -->
+<div id="modal-ics" class="modal-overlay hidden" onclick="if(event.target===this)closeIcsModal()">
+  <div class="modal-box">
+    <div class="modal-title">📜 Termine als ICS</div>
+    <div class="fp-hinweis" style="color:var(--text3);">Je Fahrer eine Kalenderdatei mit den bestätigten Terminen <span id="ics-jahr"></span>.</div>
+    <div id="ics-liste"></div>
+    <div class="fp-fuss">
+      <button class="btn" onclick="closeIcsModal()">Schließen</button>
+    </div>
   </div>
 </div>
 
@@ -282,7 +295,7 @@ td.zelle.abwesend { background: repeating-linear-gradient(45deg, transparent, tr
 
 <script>
 'use strict';
-const PP_VERSION = 'v0.3';
+const PP_VERSION = 'v0.4';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 const LAGER_SUED = 'a1b2c3d4-0001-0001-0001-000000000001';
@@ -717,6 +730,103 @@ function fahrerSpeichern() {
     closeFahrerPanel();
     renderMatrix();
   });
+}
+
+/* ── ICS-EXPORT ─────────────────────────────────────────────── */
+function openIcsModal() {
+  el('ics-jahr').textContent = currentJahr;
+  const zeilen = cache.fahrer.map(fa => {
+    const n = anzahlBestaetigt(fa.id);
+    return `<div class="fp-abw-item">
+      <span class="grund">${esc(fa.name)}</span>
+      <span class="datum">${n} Termin${n === 1 ? '' : 'e'}</span>
+      <button onclick="icsLaden('${fa.id}')" title="ICS laden" ${n ? '' : 'disabled style="opacity:.3;cursor:default;"'}>⬇️</button>
+    </div>`;
+  }).join('');
+  el('ics-liste').innerHTML = zeilen || '<div class="fp-leer">Keine Fahrer.</div>';
+  el('modal-ics').classList.remove('hidden');
+}
+function closeIcsModal() { el('modal-ics').classList.add('hidden'); }
+
+function anzahlBestaetigt(fahrerId) {
+  return cache.zuteilungen.filter(z =>
+    z.marktfahrer_id === fahrerId && z.status === 'bestaetigt' &&
+    cache.maerkte.some(m => m.id === z.event_instanz_id)
+  ).length;
+}
+
+function escICS(s) {
+  return String(s ?? '')
+    .replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,')
+    .replace(/\r?\n/g, '\\n');
+}
+function icsDatum(d) { return d.replaceAll('-', ''); }
+function icsDatumPlus1(d) {
+  const x = new Date(d + 'T12:00:00');
+  x.setDate(x.getDate() + 1);
+  return x.toISOString().slice(0, 10).replaceAll('-', '');
+}
+
+function icsLaden(fahrerId) {
+  const fa = cache.fahrer.find(x => x.id === fahrerId);
+  if (!fa) return;
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+  const events = [];
+
+  cache.maerkte.forEach(m => {
+    const z = cache.zuteilungen.find(x =>
+      x.event_instanz_id === m.id && x.marktfahrer_id === fahrerId && x.status === 'bestaetigt');
+    if (!z) return;
+
+    const t = m.template || {};
+    const kollegen = cache.zuteilungen
+      .filter(x => x.event_instanz_id === m.id && x.status === 'bestaetigt' && x.marktfahrer_id !== fahrerId)
+      .map(x => cache.fahrer.find(f => f.id === x.marktfahrer_id)?.name)
+      .filter(Boolean);
+    const dist = distanzKm(m);
+    const beschr = [
+      kollegen.length ? 'Mit: ' + kollegen.join(', ') : 'Allein eingeteilt',
+      dist ? `Entfernung ab Lager: ${dist.km} km${dist.quelle === 'plz' ? ' (ca.)' : ''}` : null,
+      'Status Markt: ' + m.status,
+    ].filter(Boolean).join('\n');
+    const ort = [t.plz, t.ort].filter(Boolean).join(' ');
+
+    const perioden = [[m.start_datum, m.end_datum]];
+    if (m.start_datum_2 && m.end_datum_2) perioden.push([m.start_datum_2, m.end_datum_2]);
+
+    perioden.forEach(([von, bis], idx) => {
+      events.push([
+        'BEGIN:VEVENT',
+        `UID:emf-${z.id}-${idx + 1}@beerenweine.eu`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART;VALUE=DATE:${icsDatum(von)}`,
+        `DTEND;VALUE=DATE:${icsDatumPlus1(bis)}`,
+        `SUMMARY:${escICS('⚜️ ' + m.name)}`,
+        ort ? `LOCATION:${escICS(ort)}` : null,
+        `DESCRIPTION:${escICS(beschr)}`,
+        'END:VEVENT',
+      ].filter(Boolean).join('\r\n'));
+    });
+  });
+
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Beerenweine//Personalplanung ' + PP_VERSION + '//DE',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${escICS('Beerenweine ' + currentJahr + ' – ' + fa.name)}`,
+    events.join('\r\n'),
+    'END:VCALENDAR',
+  ].join('\r\n') + '\r\n';
+
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `Termine_${currentJahr}_${fa.name.replace(/[^A-Za-zÄÖÜäöüß0-9_-]/g, '_')}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 </script>
 </body>
