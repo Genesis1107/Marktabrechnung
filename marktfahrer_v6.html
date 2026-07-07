@@ -679,14 +679,10 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
     </div>
     <div class="field">
       <label>Typ</label>
-      <select id="buch-typ" onchange="toggleBuchKonto()">
+      <select id="buch-typ">
         <option value="einnahme">Einnahme</option>
         <option value="ausgabe">Ausgabe</option>
       </select>
-    </div>
-    <div class="field" id="buch-konto-box" style="display:none;">
-      <label>Konto (für Kassenbericht)</label>
-      <select id="buch-konto"></select>
     </div>
     <div class="field">
       <label>Zahlungsart</label>
@@ -810,25 +806,10 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.28';
+const APP_VERSION = 'v6.27';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
-let currentRolle = null;
-function isAdmin() { return currentRolle === 'admin'; }
-
-// Kontenrahmen für Bar-Ausgaben (Kassenbericht-Rubriken)
-const KONTEN = [
-  { nr: '4730', label: 'Standgelder' },
-  { nr: '4530', label: 'Treibstoff' },
-  { nr: '1740', label: 'Personalkosten' },
-  { nr: '4985', label: 'Werkzeug / Kleingeräte' },
-  { nr: '4250', label: 'Reinigung' },
-  { nr: '4664', label: 'Hotel' },
-  { nr: '4666', label: 'Frühstück' },
-  { nr: '4653', label: 'MA-Belobigung' },
-  { nr: '4900', label: 'Sonstiges' },
-];
 let currentInstanzId = null;
 let currentInstanz   = null;
 let currentStandId   = null;
@@ -1161,7 +1142,7 @@ async function loadProfil() {
   el('settings-email').textContent = currentUser.email;
   // Rolle laden
   const { data: rollen } = await sb.from('user_rolle').select('rolle').eq('user_id', currentUser.id);
-  if (rollen?.length) { currentRolle = rollen[0].rolle; el('settings-rolle').textContent = rollen[0].rolle; }
+  if (rollen?.length) el('settings-rolle').textContent = rollen[0].rolle;
 }
 
 function showApp() {
@@ -1688,16 +1669,6 @@ async function renderKasseTab() {
     return;
   }
 
-  // Alle Buchungen der Instanz einmal laden (inkl. Buchungen ohne Kutschen-Zuordnung)
-  const { data: alleBuchungenRaw } = await sb
-    .from('buchung')
-    .select('*')
-    .eq('event_instanz_id', currentInstanzId)
-    .is('geloescht_am', null)
-    .order('datum');
-  const alleBuchungen = alleBuchungenRaw || [];
-
-  let gesamtBarUmsatz = 0;
   let html = '<div class="section"><h2>Kasse</h2>';
 
   for (const stand of staende) {
@@ -1709,8 +1680,13 @@ async function renderKasseTab() {
       .is('geloescht_am', null)
       .order('datum');
 
-    // Buchungen für diesen Stand (aus der marktweiten Liste gefiltert)
-    const buchungen = alleBuchungen.filter(b => b.stand_id === stand.id);
+    // Buchungen für diesen Stand
+    const { data: buchungen } = await sb
+      .from('buchung')
+      .select('*')
+      .eq('stand_id', stand.id)
+      .is('geloescht_am', null)
+      .order('datum');
 
     const barUmsatz = (zaehlungen || []).reduce((s, z) => {
       if (z.modus === 'zaehlen') return s + ((z.ist_bestand_cent || 0) - (z.anfangsbestand_cent || 0));
@@ -1719,18 +1695,11 @@ async function renderKasseTab() {
     const ecEinnahmen = (buchungen || []).filter(b => b.typ === 'einnahme' && b.zahlungsart === 'ec').reduce((s, b) => s + (b.betrag_cent || 0), 0);
     const barAusgaben = (buchungen || []).filter(b => b.typ === 'ausgabe' && b.zahlungsart === 'bar').reduce((s, b) => s + (b.betrag_cent || 0), 0);
     const gesamtUmsatz = barUmsatz + ecEinnahmen;
-    gesamtBarUmsatz += barUmsatz;
-
-    // Wechselgeld = Anfangsbestand der letzten Zählung im Zähl-Modus (bleibt in der Kasse)
-    let letzterAnfang = null;
-    for (const z of (zaehlungen || [])) {
-      if (z.modus === 'zaehlen' && z.anfangsbestand_cent != null) letzterAnfang = z.anfangsbestand_cent;
-    }
 
     html += `<div class="card" style="cursor:default;margin-bottom:14px;">
       <div class="card-row">
         <div class="card-title">🐴 ${esc(stand.bezeichnung)}</div>
-        ${stand.abgeschlossen_am ? '<span class="badge status-abgeschlossen">🔏 Besiegelt</span>' : ''}
+        ${stand.abgeschlossen_am ? '<span class="badge status-abgeschlossen">✓ Abgeschlossen</span>' : ''}
       </div>
       <div class="stat-chips" style="margin-top:8px;">
         <div class="stat-chip">Bar <span>${eur(barUmsatz)}</span></div>
@@ -1740,56 +1709,22 @@ async function renderKasseTab() {
       <hr class="divider">
       <h3>Tageszählungen</h3>
       ${renderZaehlungenListe(zaehlungen || [], stand)}
-      ${!stand.abgeschlossen_am ? `
       <div style="display:flex;gap:8px;margin-top:10px;">
         <button class="btn btn-sm btn-primary" onclick="openKasseDetail('${stand.id}', '${isoToday()}')">+ Tageszählung</button>
         <button class="btn btn-sm" onclick="openNeueBuchungModal('${currentInstanzId}','${stand.id}')">+ Buchung</button>
-      </div>` : ''}
+      </div>
+      ${!stand.abgeschlossen_am ? `
       <hr class="divider">
-      <h3>Kassenabschluss</h3>
-      ${stand.abgeschlossen_am
-        ? renderAbschlussErgebnis(stand)
-        : renderAbschlussVorschau(stand, barUmsatz, barAusgaben, letzterAnfang)}
+      <h3>Marktabschluss</h3>
+      ${renderAbschlussVorschau(barUmsatz, barAusgaben, ecEinnahmen)}
+      <button class="btn btn-success btn-full" style="margin-top:10px;" onclick="doMarktabschluss('${stand.id}', ${barUmsatz}, ${barAusgaben})">
+        ✓ Kasse stimmt – Abschluss bestätigen
+      </button>` : ''}
     </div>`;
   }
 
-  html += renderMittelherkunft(gesamtBarUmsatz, alleBuchungen);
   html += '</div>';
   wrap.innerHTML = html;
-}
-
-// ── Mittelherkunft & Verwendung (marktweit, inkl. Buchungen ohne Kutsche) ──
-function renderMittelherkunft(gesamtBarUmsatz, buchungen) {
-  const sum = (typ, art) => buchungen
-    .filter(b => b.typ === typ && b.zahlungsart === art)
-    .reduce((s, b) => s + (b.betrag_cent || 0), 0);
-
-  const barEinB = sum('einnahme', 'bar');
-  const ecEin   = sum('einnahme', 'ec');
-  const barAus  = sum('ausgabe', 'bar');
-  const ecAus   = sum('ausgabe', 'ec');
-
-  const einnahmen  = gesamtBarUmsatz + barEinB + ecEin;
-  const ausgaben   = barAus + ecAus;
-  const ueberschuss = einnahmen - ausgaben;
-  const uCls = ueberschuss >= 0 ? 'green' : 'red';
-
-  return `<div class="card" style="cursor:default;margin-top:6px;">
-    <div class="card-title">📊 Mittelherkunft &amp; Verwendung</div>
-    <div style="font-size:11px;color:var(--text3);margin-top:2px;">Gesamter Markt · alle Kutschen &amp; Buchungen</div>
-    <div style="background:var(--bg3);border-radius:var(--radius);padding:12px;margin-top:10px;">
-      <div class="abschluss-row"><span class="abschluss-label" style="font-weight:700;">Herkunft</span><span></span></div>
-      <div class="abschluss-row"><span class="abschluss-label">Bar-Einnahmen (Zählungen)</span><span class="abschluss-val">${eur(gesamtBarUmsatz)}</span></div>
-      ${barEinB ? `<div class="abschluss-row"><span class="abschluss-label">Bar-Einnahmen (Buchungen)</span><span class="abschluss-val">${eur(barEinB)}</span></div>` : ''}
-      <div class="abschluss-row"><span class="abschluss-label">EC-Einnahmen</span><span class="abschluss-val">${eur(ecEin)}</span></div>
-      <div class="abschluss-row"><span class="abschluss-label" style="font-weight:600;">= Einnahmen gesamt</span><span class="abschluss-val green">${eur(einnahmen)}</span></div>
-      <div class="abschluss-row" style="margin-top:8px;"><span class="abschluss-label" style="font-weight:700;">Verwendung</span><span></span></div>
-      <div class="abschluss-row"><span class="abschluss-label">Bar-Ausgaben</span><span class="abschluss-val">${eur(barAus)}</span></div>
-      ${ecAus ? `<div class="abschluss-row"><span class="abschluss-label">EC-Ausgaben</span><span class="abschluss-val">${eur(ecAus)}</span></div>` : ''}
-      <div class="abschluss-row"><span class="abschluss-label" style="font-weight:600;">= Ausgaben gesamt</span><span class="abschluss-val red">${eur(ausgaben)}</span></div>
-      <div class="abschluss-row" style="border:none;padding-top:10px;"><span class="abschluss-label" style="font-weight:700;">Überschuss</span><span class="abschluss-val ${uCls}" style="font-size:17px;">${eur(ueberschuss)}</span></div>
-    </div>
-  </div>`;
 }
 
 function renderZaehlungenListe(zaehlungen, stand) {
@@ -1851,7 +1786,6 @@ function renderZaehlungenListe(zaehlungen, stand) {
     }
 
     const hasDetail = z.modus === 'zaehlen' && z.stueckelung;
-    const sealed = !!stand.abgeschlossen_am;
     return `<div style="border-bottom:1px solid var(--border);">
       <div style="display:flex;align-items:center;padding:8px 0;cursor:pointer;"
            onclick="toggleStueckelung('${zid}', '${stand.id}', '${z.datum}')">
@@ -1859,149 +1793,14 @@ function renderZaehlungenListe(zaehlungen, stand) {
           <span style="font-size:13px;color:var(--text2);">${dateFmt(z.datum)}</span>
           ${z.modus === 'schnell' ? '<span style="font-size:10px;color:var(--text3);margin-left:6px;">Schnell</span>' : ''}
         </div>
-        <span onclick="event.stopPropagation();exportKassenbericht('${stand.id}','${z.datum}')"
-              style="color:var(--gold);font-size:14px;padding:4px 8px;margin-right:4px;" title="Kassenbericht drucken">📄</span>
         <span style="font-size:15px;font-weight:600;color:var(--text);margin-right:8px;">${eur(umsatz)}</span>
         ${hasDetail
           ? `<span id="stu-arr-${zid}" style="color:var(--gold);font-size:16px;transition:transform .2s;">›</span>`
-          : (sealed ? '<span style="color:var(--text3);font-size:13px;">🔏</span>' : `<span style="color:var(--gold);font-size:13px;">✏️</span>`)}
+          : `<span style="color:var(--gold);font-size:13px;">✏️</span>`}
       </div>
       ${stuDetail}
     </div>`;
   }).join('');
-}
-
-
-// ── KASSENBERICHT-PDF (je Kutsche & Tag, nach Buchhaltungs-Muster) ──
-async function exportKassenbericht(standId, datum) {
-  const [{ data: stand }, { data: z }, { data: ausg }] = await Promise.all([
-    sb.from('stand').select('bezeichnung').eq('id', standId).single(),
-    sb.from('kassenzaehlung').select('*').eq('stand_id', standId).eq('datum', datum)
-      .is('geloescht_am', null).maybeSingle(),
-    sb.from('buchung').select('*').eq('stand_id', standId).eq('datum', datum)
-      .eq('typ', 'ausgabe').eq('zahlungsart', 'bar').is('geloescht_am', null),
-  ]);
-  if (!z) { toast('Keine Zählung für diesen Tag', 'err'); return; }
-
-  const marktName = currentInstanz?.name || currentInstanz?.event_template?.name || 'Markt';
-  const ort = currentInstanz?.event_template?.ort || '';
-  const datumFmt = datum.slice(8,10) + '.' + datum.slice(5,7) + '.' + datum.slice(0,4);
-
-  const anfang = z.anfangsbestand_cent || 0;
-  const ist    = z.modus === 'zaehlen' ? (z.ist_bestand_cent || 0) : null;
-  const umsatz = z.modus === 'zaehlen' ? (ist - anfang) : (z.tagesumsatz_bar_cent || 0);
-
-  // Stückelung
-  const stu = z.stueckelung || {};
-  const mu = stu.muenzen || {}, sc = stu.scheine || {};
-  const scheinWerte = ['5','10','20','50','100','200'];
-  const muenzWerte  = ['2.00','1.00','0.50'];
-  let scheinSum = 0, muenzSum = 0;
-  const scheinRows = scheinWerte.map(w => {
-    const n = sc[w] || 0; const s = n * parseInt(w) * 100; scheinSum += s;
-    return '<tr><td>' + w + ',00 €</td><td class="num">' + (n || '') + '</td><td class="num">' + (n ? eur(s) : '') + '</td></tr>';
-  }).join('');
-  const muenzRows = muenzWerte.map(w => {
-    const n = mu[w] || 0; const s = n * Math.round(parseFloat(w) * 100); muenzSum += s;
-    return '<tr><td>' + w.replace('.',',') + ' €</td><td class="num">' + (n || '') + '</td><td class="num">' + (n ? eur(s) : '') + '</td></tr>';
-  }).join('');
-
-  // Ausgaben nach Konto gruppieren
-  const rubriken = [
-    { titel: 'a) Standgelder', konten: ['4730'] },
-    { titel: 'b) Treibstoff', konten: ['4530'] },
-    { titel: 'c) Personalkosten', konten: ['1740'] },
-    { titel: 'd) Sonstige Ausgaben', konten: ['4985','4250','4664','4666','4653','4900', null] },
-  ];
-  let ausgSum = 0;
-  const ausgHtml = rubriken.map(r => {
-    const zeilen = (ausg || []).filter(b => r.konten.includes(b.kategorie || null));
-    const kNr = r.konten.length === 1 ? r.konten[0] : '';
-    const rows = zeilen.map(b => {
-      ausgSum += b.betrag_cent || 0;
-      const kLabel = KONTEN.find(k => k.nr === b.kategorie)?.label || '';
-      return '<div class="ausg-row"><span>' + esc(b.bezeichnung || kLabel || 'Ausgabe') +
-        (r.konten.length > 1 && b.kategorie ? ' <small>(' + b.kategorie + ')</small>' : '') +
-        '</span><span>' + eur(b.betrag_cent || 0) + '</span></div>';
-    }).join('');
-    return '<div class="ausg-block"><div class="ausg-titel"><span>' + r.titel + '</span><span class="kto">' + kNr + '</span></div>' +
-      (rows || '<div class="ausg-leer">—</div>') + '</div>';
-  }).join('');
-
-  const stueckHtml = (z.modus === 'zaehlen') ? `
-  <div class="block-titel">Kassenbestand bei Geschäftsabschluss</div>
-  <div class="stu-grid">
-    <table><thead><tr><th>Scheine</th><th>Anzahl</th><th>Betrag</th></tr></thead>
-      <tbody>${scheinRows}<tr class="sum"><td>Summe</td><td></td><td class="num">${eur(scheinSum)}</td></tr></tbody></table>
-    <table><thead><tr><th>Geldstücke</th><th>Anzahl</th><th>Betrag</th></tr></thead>
-      <tbody>${muenzRows}<tr class="sum"><td>Summe</td><td></td><td class="num">${eur(muenzSum)}</td></tr></tbody></table>
-  </div>` : '<div class="block-titel">Schnellerfassung – keine Stückelung erfasst</div>';
-
-  const bestandHtml = (z.modus === 'zaehlen') ? `
-    <div class="best-row haupt"><span>Kassenbestand inkl. Wechselgeld</span><span>${eur(ist)}</span></div>
-    <div class="best-row"><span><span class="kto-inline">1360</span> Wechselgeldbestand für den nächsten Einsatz</span><span>${eur(anfang)}</span></div>
-    <div class="best-row"><span><span class="kto-inline">8401</span> Kassenbestand ohne Wechselgeld (Tageseinnahme)</span><span class="fett">${eur(umsatz)}</span></div>` : `
-    <div class="best-row"><span><span class="kto-inline">8401</span> Tageseinnahme bar (Schnellerfassung)</span><span class="fett">${eur(umsatz)}</span></div>`;
-
-  const printHtml = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">
-<title>Kassenbericht ${esc(marktName)} ${datumFmt}</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,'Segoe UI',sans-serif;color:#1a1208;background:#fff;padding:24px 28px;font-size:13px}
-.kopf{text-align:center;border-bottom:2px solid #3d1f08;padding-bottom:12px;margin-bottom:16px}
-.kopf h1{font-family:Cinzel,serif;font-size:19px;font-weight:700;color:#3d1f08;letter-spacing:.5px}
-.kopf-meta{display:flex;justify-content:space-between;margin-top:10px;font-size:13px}
-.kopf-meta b{border-bottom:1px solid #999;padding:0 8px 2px}
-.wg-row{display:flex;justify-content:space-between;border:1px solid #d0b888;border-radius:4px;padding:8px 12px;margin-bottom:14px;background:#fdf8ef}
-.block-titel{font-family:Cinzel,serif;font-size:12px;font-weight:700;color:#3d1f08;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
-.stu-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th{text-align:left;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#9a7a4a;border-bottom:1px solid #d0b888;padding:4px 6px}
-td{border-bottom:1px solid #eee0c8;padding:4px 6px}
-td.num{text-align:right}
-tr.sum td{border-top:2px solid #c9942a;border-bottom:none;font-weight:700;padding-top:6px}
-.ausg-block{border:1px solid #d0b888;border-radius:4px;padding:8px 12px;margin-bottom:8px}
-.ausg-titel{display:flex;justify-content:space-between;font-weight:700;font-size:12px;color:#3d1f08;margin-bottom:4px}
-.ausg-titel .kto{color:#9a7a4a;font-weight:400}
-.ausg-row{display:flex;justify-content:space-between;padding:2px 0;font-size:12px}
-.ausg-row small{color:#9a7a4a}
-.ausg-leer{color:#bbb;font-size:12px}
-.ausg-summe{display:flex;justify-content:space-between;font-weight:700;padding:6px 12px;margin-bottom:16px;border-top:2px solid #3d1f08}
-.best-block{border:2px solid #3d1f08;border-radius:4px;padding:10px 14px;margin-bottom:30px}
-.best-row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px}
-.best-row.haupt{font-weight:700;border-bottom:1px solid #d0b888;margin-bottom:4px}
-.best-row .fett{font-weight:700;font-size:15px}
-.kto-inline{display:inline-block;min-width:38px;color:#9a7a4a;font-size:11px}
-.unterschrift{margin-top:50px;width:60%;margin-left:auto;border-top:1px solid #1a1208;padding-top:4px;font-size:11px;color:#555;text-align:center}
-@media print{body{padding:8px 12px}@page{size:A4;margin:12mm 14mm}}
-</style></head><body>
-<div class="kopf">
-  <h1>Veranstaltungsabrechnung / Kassenabrechnung</h1>
-  <div class="kopf-meta">
-    <span>Veranstaltungsort: <b>${esc(marktName)}${ort ? ' · ' + esc(ort) : ''} · ${esc(stand?.bezeichnung || '')}</b></span>
-    <span>Datum: <b>${datumFmt}</b></span>
-  </div>
-</div>
-<div class="wg-row"><span>Wechselgeld in der Barkasse (Anfangsbestand)</span><b>${z.modus === 'zaehlen' ? eur(anfang) : '—'}</b></div>
-${stueckHtml}
-<div class="block-titel">Ausgaben</div>
-${ausgHtml}
-<div class="ausg-summe"><span>Summe der Ausgaben</span><span>${eur(ausgSum)}</span></div>
-<div class="best-block">${bestandHtml}</div>
-<div class="unterschrift">Unterschrift Mitarbeiter</div>
-</body></html>`;
-
-  let old = document.getElementById('kb-pdf-frame');
-  if (old) old.remove();
-  const iframe = document.createElement('iframe');
-  iframe.id = 'kb-pdf-frame';
-  iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden;';
-  document.body.appendChild(iframe);
-  iframe.contentDocument.open();
-  iframe.contentDocument.write(printHtml);
-  iframe.contentDocument.close();
-  setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 800);
 }
 
 function toggleStueckelung(zid, standId, datum) {
@@ -2017,157 +1816,26 @@ function toggleStueckelung(zid, standId, datum) {
   }
 }
 
-function renderAbschlussVorschau(stand, barUmsatz, barAusgaben, letzterAnfang) {
-  const anfang = letzterAnfang || 0;
-  const soll = barUmsatz + anfang - barAusgaben;
-  const sid = stand.id.replace(/-/g, '').slice(0, 8);
-  const entnahmeVor = anfang > 0 ? (anfang / 100).toFixed(2) : '';
+function renderAbschlussVorschau(barUmsatz, barAusgaben, ecEinnahmen) {
+  const abgabe = barUmsatz - barAusgaben;
   return `<div style="background:var(--bg3);border-radius:var(--radius);padding:12px;margin-top:8px;">
-    <div class="abschluss-row"><span class="abschluss-label">Σ Bar-Tagesumsätze</span><span class="abschluss-val">${eur(barUmsatz)}</span></div>
-    ${anfang ? `<div class="abschluss-row"><span class="abschluss-label">+ Kassenanfangsbestand (Kasse → Tresor)</span><span class="abschluss-val">${eur(anfang)}</span></div>` : ''}
-    ${barAusgaben ? `<div class="abschluss-row"><span class="abschluss-label">− Bar-Ausgaben (aus Tresor)</span><span class="abschluss-val red">− ${eur(barAusgaben)}</span></div>` : ''}
-    <div class="abschluss-row" style="border:none;padding-top:8px;"><span class="abschluss-label" style="font-weight:700;">= Rechnerischer Soll-Bestand</span><span class="abschluss-val" style="font-size:17px;color:var(--gold2);">${eur(soll)}</span></div>
-  </div>
-  <div class="field" style="margin-top:12px;margin-bottom:0;">
-    <label>Gezählter Gesamtbestand (Tresor inkl. Kasse) (€)</label>
-    <input type="number" id="abschl-ist-${sid}" min="0" step="0.01" inputmode="decimal" placeholder="0,00"
-           oninput="calcAbschluss('${sid}', ${soll})">
-  </div>
-  <div class="abschluss-row" style="border:none;padding-bottom:0;">
-    <span class="abschluss-label" style="font-weight:700;">Differenz zum Soll</span>
-    <span class="abschluss-val" id="abschl-diff-${sid}" style="font-size:17px;">—</span>
-  </div>
-  <div id="abschl-notizbox-${sid}" style="display:none;">
-    <div style="font-size:12px;color:var(--red2);margin:8px 0 6px;">⚠ Kasse weicht vom Soll ab – bitte Differenz begründen.</div>
-    <div class="field" style="margin-bottom:0;">
-      <label>Begründung der Differenz (Pflicht)</label>
-      <input type="text" id="abschl-notiz-${sid}" placeholder="z.B. Zählfehler Tag 2, Trinkgeld …">
-    </div>
-  </div>
-  <div class="field" style="margin-top:12px;margin-bottom:0;">
-    <label>Entnahme Wechselgeld nächster Markt (€)</label>
-    <input type="number" id="abschl-entnahme-${sid}" min="0" step="0.01" inputmode="decimal"
-           value="${entnahmeVor}" placeholder="z. B. 400,00"
-           oninput="calcAbschluss('${sid}', ${soll})">
-  </div>
-  <div class="abschluss-row" style="border:none;padding-bottom:0;">
-    <span class="abschluss-label" style="font-weight:700;">= Einzahlung Firmenkonto</span>
-    <span class="abschluss-val green" id="abschl-einz-${sid}" style="font-size:17px;">—</span>
-  </div>
-  <button class="btn btn-success btn-full" id="abschl-btn-${sid}" style="margin-top:12px;"
-          onclick="doKassenabschluss('${stand.id}', ${barUmsatz}, ${barAusgaben}, ${anfang})">
-    🔏 Kassenabschluss besiegeln
-  </button>
-  <div style="font-size:11px;color:var(--text3);margin-top:6px;text-align:center;">Besiegelt Zählungen &amp; Buchungen dieser Kutsche – Chronik wird festgeschrieben.</div>`;
+    <div class="abschluss-row"><span class="abschluss-label">Bar-Umsatz gesamt</span><span class="abschluss-val">${eur(barUmsatz)}</span></div>
+    <div class="abschluss-row"><span class="abschluss-label">– Bar-Ausgaben</span><span class="abschluss-val red">– ${eur(barAusgaben)}</span></div>
+    <div class="abschluss-row" style="border:none;padding-top:8px;"><span class="abschluss-label" style="font-weight:700;">= Abgabe-Betrag</span><span class="abschluss-val green" style="font-size:17px;">${eur(abgabe)}</span></div>
+  </div>`;
 }
 
-function calcAbschluss(sid, sollCent) {
-  const ist      = parseEuroCent(el('abschl-ist-' + sid)?.value);
-  const entnahme = parseEuroCent(el('abschl-entnahme-' + sid)?.value);
-  const diffEl   = el('abschl-diff-' + sid);
-  const einzEl   = el('abschl-einz-' + sid);
-  const notizEl  = el('abschl-notizbox-' + sid);
-  const btnEl    = el('abschl-btn-' + sid);
-
-  if (ist == null) {
-    diffEl.textContent = '—';
-    diffEl.style.color = '';
-    einzEl.textContent = '—';
-    notizEl.style.display = 'none';
-    btnEl.textContent = '🔏 Kassenabschluss besiegeln';
-    return;
-  }
-  const diff = ist - sollCent;
-  diffEl.textContent = (diff > 0 ? '+' : diff < 0 ? '– ' : '±') + eur(Math.abs(diff));
-  diffEl.style.color = diff === 0 ? 'var(--green2)' : 'var(--red2)';
-  notizEl.style.display = diff === 0 ? 'none' : 'block';
-  btnEl.textContent = diff === 0
-    ? '🔏 Kassenabschluss besiegeln'
-    : '⚠ Mit Differenz besiegeln';
-  // Einzahlung = gezählter Bestand − Entnahme (das, was physisch zur Bank geht)
-  einzEl.textContent = eur(ist - (entnahme || 0));
-}
-
-function parseEuroCent(v) {
-  if (v == null || String(v).trim() === '') return null;
-  const n = parseFloat(String(v).replace(',', '.'));
-  return isNaN(n) ? null : Math.round(n * 100);
-}
-
-function renderAbschlussErgebnis(stand) {
-  const siegelBtn = isAdmin()
-    ? `<button class="btn btn-danger btn-full" style="margin-top:10px;" onclick="brecheSiegel('${stand.id}')">🔓 Siegel brechen (Admin)</button>`
-    : '';
-  // Ältere Abschlüsse ohne gespeicherte Prüfwerte
-  if (stand.abgabe_soll_cent == null) {
-    return `<div style="font-size:13px;color:var(--text3);padding-top:4px;">🔏 Besiegelt am ${dateFmt(stand.abgeschlossen_am.slice(0,10))} (ohne Prüfwerte)</div>${siegelBtn}`;
-  }
-  const diff = (stand.abgabe_ist_cent || 0) - stand.abgabe_soll_cent;
-  const diffTxt = (diff > 0 ? '+' : diff < 0 ? '– ' : '±') + eur(Math.abs(diff));
-  const diffCls = diff === 0 ? 'green' : 'red';
-  return `<div style="background:var(--bg3);border-radius:var(--radius);padding:12px;margin-top:8px;">
-    <div class="abschluss-row"><span class="abschluss-label">Rechnerischer Soll-Bestand</span><span class="abschluss-val">${eur(stand.abgabe_soll_cent)}</span></div>
-    <div class="abschluss-row"><span class="abschluss-label">Gezählter Gesamtbestand</span><span class="abschluss-val">${eur(stand.abgabe_ist_cent || 0)}</span></div>
-    <div class="abschluss-row"><span class="abschluss-label" style="font-weight:700;">Differenz</span><span class="abschluss-val ${diffCls}">${diffTxt}</span></div>
-    ${stand.entnahme_cent != null ? `<div class="abschluss-row"><span class="abschluss-label">− Entnahme Wechselgeld</span><span class="abschluss-val">− ${eur(stand.entnahme_cent)}</span></div>` : ''}
-    ${stand.einzahlung_cent != null ? `<div class="abschluss-row" style="border:none;padding-top:8px;"><span class="abschluss-label" style="font-weight:700;">= Einzahlung Firmenkonto</span><span class="abschluss-val green" style="font-size:17px;">${eur(stand.einzahlung_cent)}</span></div>` : ''}
-    ${stand.abschluss_notiz ? `<div style="font-size:12px;color:var(--text3);padding-top:6px;border-top:1px solid var(--border);">📝 ${esc(stand.abschluss_notiz)}</div>` : ''}
-    <div style="font-size:11px;color:var(--text3);padding-top:6px;">🔏 Besiegelt am ${dateFmt(stand.abgeschlossen_am.slice(0,10))}</div>
-  </div>${siegelBtn}`;
-}
-
-async function doKassenabschluss(standId, barUmsatz, barAusgaben, anfang) {
-  const sid  = standId.replace(/-/g, '').slice(0, 8);
-  const soll = barUmsatz + anfang - barAusgaben;
-  const ist  = parseEuroCent(el('abschl-ist-' + sid)?.value);
-
-  if (ist == null) {
-    toast('⚠ Bitte gezählten Gesamtbestand eingeben', 'err');
-    return;
-  }
-  const entnahme = parseEuroCent(el('abschl-entnahme-' + sid)?.value) || 0;
-  const einzahlung = ist - entnahme;
-
-  const diff  = ist - soll;
-  let notiz = null;
-  if (diff !== 0) {
-    notiz = el('abschl-notiz-' + sid)?.value.trim() || '';
-    if (!notiz) {
-      toast('⚠ Bitte die Differenz begründen', 'err');
-      return;
-    }
-  }
-
-  const frage = diff === 0
-    ? `Soll: ${eur(soll)} · Gezählt: ${eur(ist)} – Kasse stimmt.\nEntnahme: ${eur(entnahme)} · Einzahlung: ${eur(einzahlung)}\n\nDas Siegel sperrt Zählungen und Buchungen dieser Kutsche.`
-    : `⚠ Differenz: ${(diff > 0 ? '+' : '– ')}${eur(Math.abs(diff))}\nSoll: ${eur(soll)} · Gezählt: ${eur(ist)}\nEntnahme: ${eur(entnahme)} · Einzahlung: ${eur(einzahlung)}\n\nTrotz Abweichung besiegeln? Das Siegel sperrt Zählungen und Buchungen dieser Kutsche.`;
-  if (!(await confirmMed(frage, {titel:'Kassenabschluss besiegeln', ja:'Besiegeln', gefahr: diff !== 0}))) return;
-
+async function doMarktabschluss(standId, barUmsatz, barAusgaben) {
+  const abgabe = barUmsatz - barAusgaben;
+  if (!(await confirmMed(`Abgabe-Betrag: ${eur(abgabe)}\n\nDies sperrt die Kasse für diesen Stand.`, {titel:'Marktabschluss', ja:'Abschließen'}))) return;
   const now = new Date().toISOString();
-  await dbW(sb.from('stand').update({
+  const { error } = await sb.from('stand').update({
     abgeschlossen_am: now,
     abgeschlossen_von: currentUser.id,
-    abgabe_soll_cent: soll,
-    abgabe_ist_cent: ist,
-    entnahme_cent: entnahme,
-    einzahlung_cent: einzahlung,
-    abschluss_notiz: notiz,
     geaendert_am: now
-  }).eq('id', standId), 'Kassenabschluss');
-  toast('🔏 Kassenabschluss besiegelt', 'ok');
-  renderKasseTab();
-}
-
-async function brecheSiegel(standId) {
-  if (!isAdmin()) { toast('Nur als Admin möglich', 'err'); return; }
-  if (!(await confirmMed('Das Siegel wird gebrochen. Zählungen und Buchungen dieser Kutsche sind danach wieder änderbar – der Abschluss muss erneut durchgeführt werden.', {titel:'Siegel brechen', ja:'Siegel brechen', gefahr:true}))) return;
-  const now = new Date().toISOString();
-  await dbW(sb.from('stand').update({
-    abgeschlossen_am: null,
-    abgeschlossen_von: null,
-    geaendert_am: now
-  }).eq('id', standId), 'Siegel brechen');
-  toast('🔓 Siegel gebrochen – Kutsche wieder änderbar');
+  }).eq('id', standId);
+  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  toast('✓ Marktabschluss gespeichert', 'ok');
   renderKasseTab();
 }
 
@@ -2220,6 +1888,9 @@ function renderKasseDetailScreen(stand, datum, vorh) {
 
   const schnellUmsatz = vorh?.tagesumsatz_bar_cent
     ? (vorh.tagesumsatz_bar_cent / 100).toFixed(2) : '';
+
+  // Vorhandene EC-Buchung für diesen Tag laden (wird async nachgeladen)
+  const schnellEc = '';
 
   // Instanz-Tage als Datumsauswahl generieren
   const inst = currentInstanz;
@@ -2301,23 +1972,22 @@ function renderKasseDetailScreen(stand, datum, vorh) {
           <input type="number" id="kasse-schnell-umsatz" value="${schnellUmsatz}"
             step="0.01" placeholder="0.00" onfocus="clearZero(this)">
         </div>
+        <div class="field">
+          <label>EC-Umsatz (€) <span style="color:var(--text3);font-size:11px;">→ wird als Buchung gespeichert</span></label>
+          <input type="number" id="kasse-schnell-ec" value="${schnellEc}"
+            step="0.01" placeholder="0.00" onfocus="clearZero(this)">
+        </div>
       </div>
-
-      <div id="kasse-ec-box" style="margin-top:14px;"></div>
 
       <div class="field" style="margin-top:14px;">
         <label>Notiz</label>
         <input type="text" id="kasse-notiz" value="${esc(vorh?.notiz || '')}" placeholder="Optional…">
       </div>
 
-      ${stand.abgeschlossen_am ? `
-      <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:12px 14px;margin-top:6px;text-align:center;color:var(--gold);font-size:13px;">
-        🔏 Kassenabschluss besiegelt – Zählung nur noch einsehbar.
-      </div>` : `
       <button class="btn btn-primary btn-full" style="margin-top:6px;" onclick="saveKassenzaehlung()">
         💾 Zählung speichern
       </button>
-      ${vorh ? `<button class="btn btn-danger btn-full" style="margin-top:8px;" onclick="deleteKassenzaehlung('${vorh.id}')">Zählung löschen</button>` : ''}`}
+      ${vorh ? `<button class="btn btn-danger btn-full" style="margin-top:8px;" onclick="deleteKassenzaehlung('${vorh.id}')">Zählung löschen</button>` : ''}
     </div>
   `;
 
@@ -2341,61 +2011,18 @@ async function switchKasseTag(datum) {
   loadEcVorhandener(currentStandId, datum);
 }
 
-// EC-Einnahmen je Marktfahrer laden und rendern (jedes Gerät = eigener Betrag)
-let _kasseEcFahrer = [];
 async function loadEcVorhandener(standId, datum) {
-  const box = el('kasse-ec-box');
-  if (!box) return;
-
-  const [{ data: zuteilung }, { data: ecB }] = await Promise.all([
-    sb.from('event_marktfahrer')
-      .select('marktfahrer_id, marktfahrer(name)')
-      .eq('event_instanz_id', currentInstanzId)
-      .is('geloescht_am', null),
-    sb.from('buchung')
-      .select('marktfahrer_id, betrag_cent')
-      .eq('stand_id', standId).eq('datum', datum)
-      .eq('typ', 'einnahme').eq('zahlungsart', 'ec')
-      .is('geloescht_am', null),
-  ]);
-
-  // Fahrer deduplizieren
-  const seen = new Set();
-  _kasseEcFahrer = (zuteilung || [])
-    .filter(z => z.marktfahrer_id && !seen.has(z.marktfahrer_id) && seen.add(z.marktfahrer_id))
-    .map(z => ({ id: z.marktfahrer_id, sid: z.marktfahrer_id.replace(/-/g,'').slice(0,8), name: z.marktfahrer?.name || 'Fahrer' }));
-
-  const betragMap = {};
-  let ohneBetrag = 0;
-  (ecB || []).forEach(b => {
-    if (b.marktfahrer_id) betragMap[b.marktfahrer_id] = (betragMap[b.marktfahrer_id] || 0) + (b.betrag_cent || 0);
-    else ohneBetrag += (b.betrag_cent || 0);
-  });
-
-  const sealed = !!currentStand?.abgeschlossen_am;
-  const dis = sealed ? 'disabled' : '';
-  let rows = _kasseEcFahrer.map(f => `
-    <div class="kasse-zahl-item">
-      <span class="kasse-zahl-label">${esc(f.name)}</span>
-      <input type="number" class="kasse-zahl-input" id="kasse-ec-${f.sid}" ${dis}
-        value="${betragMap[f.id] ? (betragMap[f.id]/100).toFixed(2) : ''}"
-        min="0" step="0.01" placeholder="0.00" onfocus="clearZero(this)">
-    </div>`).join('');
-
-  // Altbestand ohne Fahrer-Zuordnung oder gar keine zugeteilten Fahrer → generisches Feld
-  if (!_kasseEcFahrer.length || ohneBetrag > 0) {
-    rows += `
-    <div class="kasse-zahl-item">
-      <span class="kasse-zahl-label">${_kasseEcFahrer.length ? 'Ohne Zuordnung' : 'EC gesamt'}</span>
-      <input type="number" class="kasse-zahl-input" id="kasse-ec-ohne" ${dis}
-        value="${ohneBetrag ? (ohneBetrag/100).toFixed(2) : ''}"
-        min="0" step="0.01" placeholder="0.00" onfocus="clearZero(this)">
-    </div>`;
-  }
-
-  box.innerHTML = `<h3>💳 EC-Einnahmen je Fahrer</h3>
-    <div style="font-size:11px;color:var(--text3);margin:2px 0 8px;">Je Kartenlesegerät · wird als Buchung dieser Kutsche gespeichert</div>
-    <div class="kasse-zahl-grid">${rows}</div>`;
+  const ecInp = el('kasse-schnell-ec');
+  if (!ecInp) return;
+  const { data } = await sb.from('buchung')
+    .select('betrag_cent')
+    .eq('stand_id', standId)
+    .eq('datum', datum)
+    .eq('typ', 'einnahme')
+    .eq('zahlungsart', 'ec')
+    .is('geloescht_am', null)
+    .maybeSingle();
+  if (data) ecInp.value = (data.betrag_cent / 100).toFixed(2);
 }
 
 function clearZero(inp) {
@@ -2437,7 +2064,6 @@ function calcKasseSumme() {
 }
 
 async function saveKassenzaehlung() {
-  if (currentStand?.abgeschlossen_am) { toast('🔏 Kasse besiegelt – Änderungen nicht möglich', 'err'); return; }
   const muenzWerte  = ['2.00', '1.00', '0.50'];
   const scheinWerte = ['5', '10', '20', '50', '100', '200'];
   const modusBtnZ   = el('modus-btn-zaehlen');
@@ -2497,30 +2123,21 @@ async function saveKassenzaehlung() {
   }
   if (error) { toast('Fehler: ' + error.message, 'err'); return; }
 
-  // EC-Buchungen je Fahrer anlegen/aktualisieren (beide Modi)
-  const ecSlots = _kasseEcFahrer.map(f => ({ mfId: f.id, sid: f.sid, name: f.name }));
-  if (el('kasse-ec-ohne')) ecSlots.push({ mfId: null, sid: 'ohne', name: null });
-
-  for (const slot of ecSlots) {
-    const inp = el('kasse-ec-' + slot.sid);
-    if (!inp) continue;
-    const ecVal = Math.round((parseFloat(inp.value) || 0) * 100);
-
-    let q = sb.from('buchung')
+  // EC-Buchung im Schnell-Modus automatisch anlegen/updaten
+  if (modus === 'schnell') {
+    const ecVal = Math.round((parseFloat(el('kasse-schnell-ec')?.value) || 0) * 100);
+    const { data: vorhEc } = await sb.from('buchung')
       .select('id').eq('stand_id', currentStandId).eq('datum', datum)
       .eq('typ','einnahme').eq('zahlungsart','ec')
-      .is('geloescht_am', null);
-    q = slot.mfId ? q.eq('marktfahrer_id', slot.mfId) : q.is('marktfahrer_id', null);
-    const { data: vorhEc } = await q.maybeSingle();
+      .is('geloescht_am', null).maybeSingle();
 
     if (ecVal > 0) {
       const ecPayload = {
         event_instanz_id: currentInstanzId,
         stand_id: currentStandId,
-        marktfahrer_id: slot.mfId,
         datum, typ: 'einnahme', zahlungsart: 'ec',
         betrag_cent: ecVal,
-        bezeichnung: slot.name ? 'EC-Einnahmen ' + slot.name : 'EC-Umsatz',
+        bezeichnung: 'EC-Umsatz',
         geaendert_am: now,
       };
       if (vorhEc) {
@@ -2539,7 +2156,6 @@ async function saveKassenzaehlung() {
 }
 
 async function deleteKassenzaehlung(id) {
-  if (currentStand?.abgeschlossen_am) { toast('🔏 Kasse besiegelt – Änderungen nicht möglich', 'err'); return; }
   if (!(await confirmMed('Die Tageszählung wird gelöscht.', {titel:'Zählung löschen', ja:'Löschen', gefahr:true}))) return;
   await dbW(sb.from('kassenzaehlung').update({ geloescht_am: new Date().toISOString() }).eq('id', id), 'Kassenzählung speichern');
   toast('Zählung gelöscht');
@@ -2555,37 +2171,23 @@ function openNeueBuchungModal(instanzId, standId) {
   el('buch-art').value    = 'ec';
   el('buch-betrag').value = '';
   el('buch-bez').value    = '';
-  el('buch-konto').innerHTML = KONTEN.map(k => `<option value="${k.nr}">${k.nr} · ${k.label}</option>`).join('');
-  el('buch-konto').value = '4900';
-  toggleBuchKonto();
   openModal('modal-neue-buchung');
-}
-
-function toggleBuchKonto() {
-  el('buch-konto-box').style.display = el('buch-typ').value === 'ausgabe' ? 'block' : 'none';
 }
 
 async function saveBuchung() {
   const betrag = parseFloat(el('buch-betrag').value) || 0;
   const datum  = el('buch-datum').value || isoToday();
   if (!betrag) { toast('Betrag fehlt', 'err'); return; }
-  // Siegel-Prüfung: abgeschlossene Kutschen sind gesperrt
-  if (_modalBuchungStandId) {
-    const { data: st } = await sb.from('stand').select('abgeschlossen_am').eq('id', _modalBuchungStandId).single();
-    if (st?.abgeschlossen_am) { toast('🔏 Kasse besiegelt – keine Buchungen mehr möglich', 'err'); return; }
-  }
-  const typ = el('buch-typ').value;
   const now = new Date().toISOString();
   const { error } = await sb.from('buchung').insert({
     id: uuid(),
     event_instanz_id: _modalBuchungInstanzId,
     stand_id: _modalBuchungStandId || null,
     datum,
-    typ,
+    typ: el('buch-typ').value,
     zahlungsart: el('buch-art').value,
     betrag_cent: Math.round(betrag * 100),
     bezeichnung: el('buch-bez').value || '',
-    kategorie: typ === 'ausgabe' ? el('buch-konto').value : null,
     erstellt_am: now, geaendert_am: now,
   });
   if (error) { toast('Fehler: ' + error.message, 'err'); return; }
@@ -3372,11 +2974,13 @@ async function deleteMarktfahrer(id) {
 }
 
 // ── FAHRER-ZUORDNUNG (Planung-Tab) ────────────────────────────
-async function loadFahrerFuerInstanz(instanzId) {
-  const { data } = await sb.from('event_marktfahrer')
-    .select('id, marktfahrer:marktfahrer_id(id, name)')
+async function loadFahrerFuerInstanz(instanzId, nurBestaetigt = true) {
+  let q = sb.from('event_marktfahrer')
+    .select('id, status, marktfahrer:marktfahrer_id(id, name)')
     .eq('event_instanz_id', instanzId)
     .is('geloescht_am', null);
+  if (nurBestaetigt) q = q.eq('status', 'bestaetigt');
+  const { data } = await q;
   return data || [];
 }
 
@@ -3387,26 +2991,39 @@ async function openFahrerZuordnenModal() {
       .eq('aktiv', true).is('geloescht_am', null).order('name');
     allMarktfahrer = data || [];
   }
-  const zugeordnet = await loadFahrerFuerInstanz(currentInstanzId);
-  const zugeordnetIds = zugeordnet.map(z => z.marktfahrer.id);
+  const zugeordnet = await loadFahrerFuerInstanz(currentInstanzId, false);
 
   const wrap = el('fahrer-picker-list');
   if (!allMarktfahrer.length) {
     wrap.innerHTML = '<p style="color:var(--text3);padding:12px;">Keine Marktfahrer angelegt. Bitte zuerst in Einstellungen anlegen.</p>';
   } else {
     wrap.innerHTML = allMarktfahrer.map(mf => {
-      const istZugeordnet = zugeordnetIds.includes(mf.id);
-      const zuordnungId = istZugeordnet ? zugeordnet.find(z => z.marktfahrer.id === mf.id)?.id : null;
+      const z = zugeordnet.find(x => x.marktfahrer.id === mf.id);
+      let aktion;
+      if (!z) {
+        aktion = `<button class="btn btn-sm btn-primary" onclick="fahrerZuordnen('${mf.id}')">Zuordnen</button>`;
+      } else if (z.status === 'vorschlag') {
+        aktion = `<button class="btn btn-sm btn-primary" onclick="fahrerBestaetigen('${z.id}')">Bestätigen</button>`;
+      } else {
+        aktion = `<button class="btn btn-sm btn-danger" onclick="fahrerEntfernen('${z.id}')">Entfernen</button>`;
+      }
+      const label = z && z.status === 'vorschlag'
+        ? `${esc(mf.name)} <span style="font-size:11px;color:var(--amber2);">(vorgesehen)</span>`
+        : esc(mf.name);
       return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
-        <span style="font-size:14px;color:var(--text);">${esc(mf.name)}</span>
-        ${istZugeordnet
-          ? `<button class="btn btn-sm btn-danger" onclick="fahrerEntfernen('${zuordnungId}')">Entfernen</button>`
-          : `<button class="btn btn-sm btn-primary" onclick="fahrerZuordnen('${mf.id}')">Zuordnen</button>`
-        }
+        <span style="font-size:14px;color:var(--text);">${label}</span>
+        ${aktion}
       </div>`;
     }).join('');
   }
   openModal('modal-fahrer-zuordnen');
+}
+
+async function fahrerBestaetigen(zuordnungId) {
+  await dbW(sb.from('event_marktfahrer').update({ status: 'bestaetigt' }).eq('id', zuordnungId), 'Zuordnung speichern');
+  toast('✓ Fahrer bestätigt', 'ok');
+  openFahrerZuordnenModal();
+  renderPlanungTab();
 }
 
 async function fahrerZuordnen(marktfahrerId) {
@@ -4199,7 +3816,7 @@ async function deleteStunden(id) {
 // Nur einmalige Aktionen (Inserts/Abschlüsse); onchange-Handler bewusst nicht,
 // damit schnelle Folgeeingaben (z. B. Mengenfelder) nicht verworfen werden.
 [
-  'doLogin', 'saveKassenzaehlung', 'saveBuchung', 'doKassenabschluss', 'brecheSiegel',
+  'doLogin', 'saveKassenzaehlung', 'saveBuchung', 'doMarktabschluss',
   'saveNeuerStand', 'saveNeuerMarkt', 'saveNeuesJahr', 'saveStunden',
   'saveNeuerMarktfahrer', 'saveClItem', 'phasenwechsel',
   'deleteStand', 'deleteKassenzaehlung', 'deleteMarktfahrer',
