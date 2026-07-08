@@ -212,6 +212,8 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
 .modal-overlay.hidden { display: none; }
 /* Fahrer-Rolle: Admin-Bedienelemente ausblenden (Rechte erzwingt zusätzlich die Datenbank per RLS) */
 body.rolle-fahrer .admin-only { display: none !important; }
+.hinweis-box { background: var(--bg3); border: 1px solid var(--border2); border-left: 3px solid var(--gold);
+  border-radius: var(--radius); padding: 12px 14px; color: var(--text2); font-size: 13px; }
 .modal-box { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius2) var(--radius2) 0 0; padding: 20px 16px calc(20px + var(--safe-bot)); width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; overflow-x: hidden; }
 .modal-title { font-size: 16px; font-weight: 700; color: var(--gold); margin-bottom: 16px; }
 .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
@@ -866,12 +868,18 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.30';
+const APP_VERSION = 'v6.31';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
 let userRolle = null; // 'admin' | 'marktfahrer' | ... (aus user_rolle, RLS: Fahrer sieht nur die eigene)
 function istAdmin() { return userRolle === 'admin'; }
+// Für Fahrer ist ein Markt schreibgeschützt, sobald er abgeschlossen oder abgelehnt ist.
+// Admin behält Vollzugriff. Spiegelt die RLS-Regel instanz_offen() in der Oberfläche.
+function marktReadonly(inst) {
+  const i = inst || currentInstanz;
+  return !istAdmin() && ['abgeschlossen','abgelehnt'].includes(i?.status);
+}
 let currentInstanzId = null;
 let currentInstanz   = null;
 let currentStandId   = null;
@@ -1860,10 +1868,11 @@ async function renderKasseTab() {
       <hr class="divider">
       <h3>Tageszählungen</h3>
       ${renderZaehlungenListe(zaehlungen || [], stand)}
+      ${marktReadonly() ? '' : `
       <div style="display:flex;gap:8px;margin-top:10px;">
         <button class="btn btn-sm btn-primary" onclick="openKasseDetail('${stand.id}', '${isoToday()}')">+ Tageszählung</button>
         <button class="btn btn-sm" onclick="openNeueBuchungModal('${currentInstanzId}','${stand.id}')">+ Buchung</button>
-      </div>
+      </div>`}
       ${!stand.abgeschlossen_am && istAdmin() ? `
       <hr class="divider">
       <h3>Marktabschluss</h3>
@@ -2015,6 +2024,7 @@ async function openKasseDetail(standId, datum, push = true) {
 
 function renderKasseDetailScreen(stand, datum, vorh) {
   const wrap = el('screen-kasse-detail');
+  const ro = marktReadonly();
   const modus = vorh?.modus || 'zaehlen';
   const anfang = vorh?.anfangsbestand_cent ?? 0;
 
@@ -2033,7 +2043,7 @@ function renderKasseDetailScreen(stand, datum, vorh) {
       <input type="number" class="kasse-zahl-input" id="${inputId}"
         value="${stored}" min="0" step="1"
         oninput="calcKasseSumme()"
-        onfocus="clearZero(this)">
+        onfocus="clearZero(this)" ${ro ? 'disabled' : ''}>
     </div>`;
   };
 
@@ -2096,7 +2106,7 @@ function renderKasseDetailScreen(stand, datum, vorh) {
             value="${anfang > 0 ? (anfang/100).toFixed(2) : ''}"
             placeholder="z. B. 400.00"
             step="0.01"
-            oninput="calcKasseSumme()" onfocus="clearZero(this)">
+            oninput="calcKasseSumme()" onfocus="clearZero(this)" ${ro ? 'disabled' : ''}>
           <div style="font-size:11px;color:var(--text3);margin-top:4px;">Pflichtfeld · wird pro Zählung einmalig erfasst</div>
         </div>
         <h3 style="margin-top:4px;">Münzen</h3>
@@ -2121,24 +2131,25 @@ function renderKasseDetailScreen(stand, datum, vorh) {
         <div class="field">
           <label>Bar-Tagesumsatz (€)</label>
           <input type="number" id="kasse-schnell-umsatz" value="${schnellUmsatz}"
-            step="0.01" placeholder="0.00" onfocus="clearZero(this)">
+            step="0.01" placeholder="0.00" onfocus="clearZero(this)" ${ro ? 'disabled' : ''}>
         </div>
         <div class="field">
           <label>EC-Umsatz (€) <span style="color:var(--text3);font-size:11px;">→ wird als Buchung gespeichert</span></label>
           <input type="number" id="kasse-schnell-ec" value="${schnellEc}"
-            step="0.01" placeholder="0.00" onfocus="clearZero(this)">
+            step="0.01" placeholder="0.00" onfocus="clearZero(this)" ${ro ? 'disabled' : ''}>
         </div>
       </div>
 
       <div class="field" style="margin-top:14px;">
         <label>Notiz</label>
-        <input type="text" id="kasse-notiz" value="${esc(vorh?.notiz || '')}" placeholder="Optional…">
+        <input type="text" id="kasse-notiz" value="${esc(vorh?.notiz || '')}" placeholder="Optional…" ${ro ? 'disabled' : ''}>
       </div>
 
+      ${ro ? `<div class="hinweis-box" style="margin-top:6px;">🔒 Markt abgeschlossen – nur Ansicht.</div>` : `
       <button class="btn btn-primary btn-full" style="margin-top:6px;" onclick="saveKassenzaehlung()">
         💾 Zählung speichern
       </button>
-      ${vorh ? `<button class="btn btn-danger btn-full" style="margin-top:8px;" onclick="deleteKassenzaehlung('${vorh.id}')">Zählung löschen</button>` : ''}
+      ${vorh ? `<button class="btn btn-danger btn-full" style="margin-top:8px;" onclick="deleteKassenzaehlung('${vorh.id}')">Zählung löschen</button>` : ''}`}
     </div>
   `;
 
@@ -2215,6 +2226,7 @@ function calcKasseSumme() {
 }
 
 async function saveKassenzaehlung() {
+  if (marktReadonly()) { toast('Markt ist abgeschlossen – keine Änderungen möglich', 'err'); return; }
   const muenzWerte  = ['2.00', '1.00', '0.50'];
   const scheinWerte = ['5', '10', '20', '50', '100', '200'];
   const modusBtnZ   = el('modus-btn-zaehlen');
@@ -2307,6 +2319,7 @@ async function saveKassenzaehlung() {
 }
 
 async function deleteKassenzaehlung(id) {
+  if (marktReadonly()) { toast('Markt ist abgeschlossen – Löschen nicht möglich', 'err'); return; }
   if (!(await confirmMed('Die Tageszählung wird gelöscht.', {titel:'Zählung löschen', ja:'Löschen', gefahr:true}))) return;
   await dbW(sb.from('kassenzaehlung').update({ geloescht_am: new Date().toISOString() }).eq('id', id), 'Kassenzählung speichern');
   toast('Zählung gelöscht');
@@ -2326,6 +2339,7 @@ function openNeueBuchungModal(instanzId, standId) {
 }
 
 async function saveBuchung() {
+  if (marktReadonly()) { toast('Markt ist abgeschlossen – keine Änderungen möglich', 'err'); return; }
   const betrag = parseFloat(el('buch-betrag').value) || 0;
   const datum  = el('buch-datum').value || isoToday();
   if (!betrag) { toast('Betrag fehlt', 'err'); return; }
@@ -2424,6 +2438,10 @@ async function renderBestellungTab() {
 
 function renderBestellungUI(wrap) {
   if (!bst.bestellung) {
+    if (marktReadonly()) {
+      wrap.innerHTML = '<div style="padding:24px;"><div class="hinweis-box">🔒 Markt abgeschlossen – für diesen Markt wurde keine Bestellung angelegt.</div></div>';
+      return;
+    }
     renderBestellungSetup(wrap); return;
   }
   const lager  = BEST_LAGER.find(l => l.id === bst.lagerId) || BEST_LAGER[0];
@@ -2443,8 +2461,9 @@ function renderBestellungUI(wrap) {
       <label style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;">📅 Abholdatum</label>
       <input type="date" id="best-abholdatum" value="${bst.abholdatum}"
         onchange="saveAbholdatum(this.value)"
-        style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:14px;outline:none;max-width:180px;">
+        style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:14px;outline:none;max-width:180px;" ${marktReadonly() ? 'disabled' : ''}>
     </div>
+    ${marktReadonly() ? '<div class="hinweis-box" style="margin:10px 14px 0;">🔒 Markt abgeschlossen – nur Ansicht und PDF-Druck.</div>' : ''}
     ${versendet ? `<div class="best-versendet">✓ Versendet am ${dateFmt(bst.bestellung.versendet_am?.slice(0,10))}</div>` : ''}
     <div class="best-kat-tabs" id="best-kat-tabs">
       ${bst.kategorien.map((k,i) => {
@@ -2505,7 +2524,7 @@ function renderBestProduktListe() {
             placeholder="0"
             oninput="bestQtyLive('${v.id}','${p.id}',${v.pro_kiste||0},this.value)"
             onchange="bestMengeSetzen('${v.id}','${p.id}',${v.pro_kiste||0},this.value)"
-            onfocus="this.select()">
+            onfocus="this.select()" ${marktReadonly() ? 'disabled' : ''}>
           <span class="best-qty-einheit">Stk</span>
         </div>
       </div>`;
@@ -2579,6 +2598,7 @@ function bestWechselKat(idx) {
 }
 
 async function bestellungAnlegen() {
+  if (marktReadonly()) { toast('Markt ist abgeschlossen – keine Bestellung möglich', 'err'); return; }
   const lagerId = el('best-setup-lager')?.value || bst.lagerId;
   const fzg     = el('best-setup-fzg')?.value   || bst.fahrzeug;
   bst.lagerId   = lagerId;
@@ -2596,6 +2616,7 @@ async function bestellungAnlegen() {
 }
 
 async function saveAbholdatum(val) {
+  if (marktReadonly()) return;
   bst.abholdatum = val;
   if (bst.bestellung?.id) {
     await dbW(sb.from('bestellung').update({ abhol_datum: val || null, geaendert_am: new Date().toISOString() })
@@ -2779,6 +2800,7 @@ function bestQtyLive(varId, prodId, proKiste, val) {
 
 // DB-Write beim Verlassen des Feldes
 async function bestMengeSetzen(varId, prodId, proKiste, val) {
+  if (marktReadonly()) { toast('Markt ist abgeschlossen – keine Änderungen möglich', 'err'); return; }
   const menge = Math.max(0, parseInt(val) || 0);
   const pos   = bst.positionen[varId];
   const now   = new Date().toISOString();
