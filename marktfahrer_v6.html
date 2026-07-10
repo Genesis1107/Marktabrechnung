@@ -895,7 +895,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.37';
+const APP_VERSION = 'v6.38';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1813,17 +1813,28 @@ async function renderPlanungTab() {
           <input type="date" id="plan-ende" value="${inst.end_datum || ''}" onchange="savePlanungDaten()" ${istAdmin() ? '' : 'disabled'}>
         </div>
       </div>
-      <div class="field-row" style="margin-top:14px;">
-        <div class="field" style="margin-bottom:0">
-          <label>2. Start (opt.)</label>
-          <input type="date" id="plan-start-2" value="${inst.start_datum_2 || ''}" onchange="savePlanungDaten()" ${istAdmin() ? '' : 'disabled'}>
+      <div class="wf-section" style="margin-top:14px;">
+        <div class="wf-section-header" onclick="toggleWfSection(this)">
+          <span class="wf-section-title">📅 2. Zeitraum <span style="font-weight:400;color:var(--text3);">(Doppel-Wochenende)</span></span>
+          <div class="wf-section-meta">
+            ${inst.start_datum_2 ? '<span class="wf-badge wf-badge-ok">gesetzt</span>' : ''}
+            <span class="wf-chevron ${inst.start_datum_2 ? 'open' : ''}">›</span>
+          </div>
         </div>
-        <div class="field" style="margin-bottom:0">
-          <label>2. Ende (opt.)</label>
-          <input type="date" id="plan-ende-2" value="${inst.end_datum_2 || ''}" onchange="savePlanungDaten()" ${istAdmin() ? '' : 'disabled'}>
+        <div class="wf-body ${inst.start_datum_2 ? 'open' : ''}" style="padding:12px 14px;">
+          <div class="field-row">
+            <div class="field" style="margin-bottom:0">
+              <label>2. Start (opt.)</label>
+              <input type="date" id="plan-start-2" value="${inst.start_datum_2 || ''}" onchange="savePlanungDaten()" ${istAdmin() ? '' : 'disabled'}>
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label>2. Ende (opt.)</label>
+              <input type="date" id="plan-ende-2" value="${inst.end_datum_2 || ''}" onchange="savePlanungDaten()" ${istAdmin() ? '' : 'disabled'}>
+            </div>
+          </div>
+          <p style="color:var(--text3);font-size:11px;margin-top:6px;">2. Zeitraum nur bei Märkten über zwei getrennte Wochenenden. Die Tage dazwischen sind keine Markttage.</p>
         </div>
       </div>
-      <p style="color:var(--text3);font-size:11px;margin-top:6px;">2. Zeitraum nur bei Märkten über zwei getrennte Wochenenden. Die Tage dazwischen sind keine Markttage.</p>
       <div class="field admin-only" style="margin-top:14px;">
         <label>Personalbedarf (Fahrer)</label>
         <input type="number" id="plan-personalbedarf" min="1" max="20" step="1" value="${inst.personalbedarf ?? 1}" onchange="savePersonalbedarf()" style="max-width:120px;">
@@ -1833,13 +1844,21 @@ async function renderPlanungTab() {
         <label>Notiz</label>
         <textarea id="plan-notiz" onchange="savePlanungNotiz()" ${istAdmin() ? '' : 'disabled'}>${esc(inst.notiz || '')}</textarea>
       </div>
-      <div class="field" style="margin-top:14px;">
-        <label>Nextcloud-Ordner</label>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input type="url" id="plan-nextcloud" value="${esc(inst.nextcloud_url || '')}" placeholder="https://…" onchange="savePlanungNextcloud()" style="flex:1;min-width:0;" ${istAdmin() ? '' : 'disabled'}>
-          <button class="btn btn-sm" style="white-space:nowrap;" onclick="oeffneNextcloud()">📜 Öffnen</button>
+      <div class="wf-section" style="margin-top:14px;">
+        <div class="wf-section-header" onclick="toggleWfSection(this)">
+          <span class="wf-section-title">📜 Nextcloud-Ordner</span>
+          <div class="wf-section-meta">
+            ${inst.nextcloud_url ? '<span class="wf-badge wf-badge-ok">verknüpft</span>' : ''}
+            <span class="wf-chevron">›</span>
+          </div>
         </div>
-        <p class="admin-only" style="color:var(--text3);font-size:11px;margin-top:6px;">Gilt für dieses Jahr. Beim Anlegen eines neuen Jahres wird der Link übernommen.</p>
+        <div class="wf-body" style="padding:12px 14px;">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="url" id="plan-nextcloud" value="${esc(inst.nextcloud_url || '')}" placeholder="https://…" onchange="savePlanungNextcloud()" style="flex:1;min-width:0;" ${istAdmin() ? '' : 'disabled'}>
+            <button class="btn btn-sm" style="white-space:nowrap;" onclick="oeffneNextcloud()">📜 Öffnen</button>
+          </div>
+          <p class="admin-only" style="color:var(--text3);font-size:11px;margin-top:6px;">Gilt für dieses Jahr. Beim Anlegen eines neuen Jahres wird der Link übernommen.</p>
+        </div>
       </div>
     </div>
     <div class="section">
@@ -1863,14 +1882,26 @@ async function renderPlanungTab() {
       </div>
     </div>
     <div class="section admin-only">
-      <h2>Weiteres Jahr</h2>
-      <p style="color:var(--text3);font-size:13px;margin-bottom:12px;">Selben Markt für ein anderes Jahr anlegen (z.B. für Vorjahresdaten).</p>
-      <button class="btn btn-sm btn-full" onclick="openNeuesJahrModal()">+ Neues Jahr anlegen</button>
-    </div>
-    <div class="section admin-only">
-      <h2 style="color:var(--red2);">Gefahrenzone</h2>
-      <p style="color:var(--text3);font-size:13px;margin-bottom:12px;">Löscht diesen Markt samt allen Kutschen, Kassenzählungen, Buchungen, Bestellungen und Stunden. Lässt sich wiederherstellen.</p>
-      <button class="btn btn-sm btn-full btn-danger" onclick="deleteMarkt()">🗑 Markt löschen</button>
+      <div class="wf-section">
+        <div class="wf-section-header" onclick="toggleWfSection(this)">
+          <span class="wf-section-title">🗓 Weiteres Jahr</span>
+          <div class="wf-section-meta"><span class="wf-chevron">›</span></div>
+        </div>
+        <div class="wf-body" style="padding:12px 14px;">
+          <p style="color:var(--text3);font-size:13px;margin-bottom:12px;">Selben Markt für ein anderes Jahr anlegen (z.B. für Vorjahresdaten).</p>
+          <button class="btn btn-sm btn-full" onclick="openNeuesJahrModal()">+ Neues Jahr anlegen</button>
+        </div>
+      </div>
+      <div class="wf-section">
+        <div class="wf-section-header" onclick="toggleWfSection(this)">
+          <span class="wf-section-title" style="color:var(--red2);">🗑 Gefahrenzone</span>
+          <div class="wf-section-meta"><span class="wf-chevron">›</span></div>
+        </div>
+        <div class="wf-body" style="padding:12px 14px;">
+          <p style="color:var(--text3);font-size:13px;margin-bottom:12px;">Löscht diesen Markt samt allen Kutschen, Kassenzählungen, Buchungen, Bestellungen und Stunden. Lässt sich wiederherstellen.</p>
+          <button class="btn btn-sm btn-full btn-danger" onclick="deleteMarkt()">🗑 Markt löschen</button>
+        </div>
+      </div>
     </div>
   `;
 }
