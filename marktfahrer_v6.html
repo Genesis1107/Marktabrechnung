@@ -893,7 +893,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.33';
+const APP_VERSION = 'v6.34';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1479,15 +1479,16 @@ function deadlineKurz(inst) {
   return null;
 }
 
-// Aggregierter Kasten auf dem Märkte-Screen: Fristen + offene Pflicht-
-// aufgaben der aktuellen Phase (Startfenster 6 Wochen). Nur für Admin,
-// max. 5 Zeilen, Tap springt in die Planung des Markts. Nichts anstehend
-// → Kasten entfällt komplett.
-async function renderAufgabenKasten() {
-  const wrap = el('aufgaben-wrap');
-  if (!wrap) return;
-  if (!istAdmin()) { wrap.innerHTML = ''; return; }
-  const today = new Date(); today.setHours(0,0,0,0);
+// Beschriftung der Wann-Spalte relativ zum Marktstart
+function aufgabenWann(dStart) {
+  return dStart > 0 ? `Start in ${dStart} Tag${dStart > 1 ? 'en' : ''}`
+    : dStart === 0 ? 'Start heute'
+    : `gestartet vor ${-dStart} Tg.`;
+}
+
+// Admin-Sicht: Fristen + Anzahl offener Pflichtaufgaben der aktuellen
+// Phase (Startfenster 6 Wochen) über alle nicht abgeschlossenen Märkte.
+async function aufgabenZeilenAdmin(today) {
   const offen = alleMaerkte.filter(m => !['abgeschlossen','abgelehnt'].includes(m.status));
 
   // Kandidaten für Pflichtaufgaben: Start binnen 6 Wochen oder bereits gestartet
@@ -1505,20 +1506,69 @@ async function renderAufgabenKasten() {
     });
   }
 
-  const zeilen = offen.map(m => {
+  return offen.map(m => {
     const dl = deadlineKurz(m);
     const nT = offenePflicht[m.id] || 0;
     if (!dl && !nT) return null;
     const text = dl
       ? dl.text + (nT ? ` · ${nT} Aufgabe${nT > 1 ? 'n' : ''} offen` : '')
       : `${nT} Pflichtaufgabe${nT > 1 ? 'n' : ''} offen`;
-    const start  = new Date(m.start_datum + 'T00:00:00');
-    const dStart = Math.ceil((start - today) / 86400000);
-    const wann = dStart > 0 ? `Start in ${dStart} Tag${dStart > 1 ? 'en' : ''}`
-      : dStart === 0 ? 'Start heute'
-      : `gestartet vor ${-dStart} Tg.`;
-    return { m, stufe: dl?.stufe || 'gelb', text, wann, start };
-  }).filter(Boolean)
+    const start = new Date(m.start_datum + 'T00:00:00');
+    return { m, stufe: dl?.stufe || 'gelb', text, start,
+      wann: aufgabenWann(Math.ceil((start - today) / 86400000)) };
+  }).filter(Boolean);
+}
+
+// Fahrer-Sicht: die eigenen Markt-Pflichten – Warenbestellung (Phase
+// Vorbereitung, Sprung in den Bestellung-Tab) und Skaldenmet-Meldung
+// (Phase Abgeschlossen). Die Tageszählung deckt bereits die Heute-Karte
+// ab. RLS begrenzt automatisch auf die sichtbaren Märkte des Fahrers.
+async function aufgabenZeilenFahrer(today) {
+  const kandidaten = alleMaerkte.filter(m => m.start_datum &&
+    (m.status === 'vorbereitung' || m.status === 'abgeschlossen'));
+  if (!kandidaten.length) return [];
+  const { data } = await sb.from('markt_aufgabe')
+    .select('event_instanz_id, phase, titel, erledigt')
+    .in('event_instanz_id', kandidaten.map(m => m.id))
+    .eq('pflicht', true);
+
+  const zeilen = [];
+  (data || []).forEach(a => {
+    if (a.erledigt) return;
+    const m = kandidaten.find(x => x.id === a.event_instanz_id);
+    if (!m || a.phase !== m.status) return;
+    const t = (a.titel || '').toLowerCase();
+    const start = new Date(m.start_datum + 'T00:00:00');
+
+    if (m.status === 'vorbereitung' && t.includes('warenbestellung')) {
+      const dStart = Math.ceil((start - today) / 86400000);
+      if (dStart > 42) return; // erst im 6-Wochen-Fenster relevant
+      zeilen.push({ m, start,
+        stufe: today >= new Date(start.getTime() - 28 * 86400000) ? 'rot' : 'gelb',
+        text: 'Bestellung offen', wann: aufgabenWann(dStart), tab: 'bestellung' });
+    }
+    if (m.status === 'abgeschlossen' && t.includes('skaldenmet')) {
+      const end = new Date((m.end_datum_2 || m.end_datum || m.start_datum) + 'T00:00:00');
+      const dEnd = Math.ceil((today - end) / 86400000);
+      zeilen.push({ m, start,
+        stufe: dEnd >= 5 ? 'rot' : 'gelb', // 5-Tage-Nachbereitungsfrist
+        text: 'Skaldenmet-Meldung offen',
+        wann: dEnd > 0 ? `endete vor ${dEnd} Tg.` : 'endet heute', tab: 'planung' });
+    }
+  });
+  return zeilen;
+}
+
+// Aggregierter Kasten auf dem Märkte-Screen. Max. 5 Zeilen, rot vor gelb,
+// Tap springt in den passenden Tab des Markts. Nichts anstehend → Kasten
+// entfällt komplett.
+async function renderAufgabenKasten() {
+  const wrap = el('aufgaben-wrap');
+  if (!wrap) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const zeilen = (istAdmin()
+    ? await aufgabenZeilenAdmin(today)
+    : await aufgabenZeilenFahrer(today))
     .sort((a, b) => a.stufe === b.stufe ? a.start - b.start : (a.stufe === 'rot' ? -1 : 1));
 
   if (!zeilen.length) { wrap.innerHTML = ''; return; }
@@ -1526,7 +1576,7 @@ async function renderAufgabenKasten() {
   wrap.innerHTML = `<div class="aufg-kasten">
     <div class="aufg-titel">⚠️ Anstehende Aufgaben</div>
     ${zeilen.slice(0, max).map(z => `
-      <div class="aufg-zeile" onclick="openMarktDetail('${z.m.id}')">
+      <div class="aufg-zeile" onclick="openMarktDetail('${z.m.id}','${z.tab || 'planung'}')">
         <span class="aufg-markt">${esc(z.m.name || z.m.event_template?.name || '')}</span>
         <span class="aufg-text ${z.stufe}">${z.text}</span>
         <span class="aufg-wann">${z.wann}</span>
