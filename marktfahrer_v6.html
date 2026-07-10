@@ -140,6 +140,18 @@ body {
 #btn-back.visible { display: block; }
 
 /* ── BOTTOM NAV ─────────────────────────────────────────────── */
+/* Heute-Karte: Direktzugriff auf heute laufende Märkte */
+.heute-karte { background: var(--surface); border: 1px solid var(--gold); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; cursor: pointer; }
+.heute-kopf { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold); font-weight: 700; margin-bottom: 6px; }
+.heute-name { font-size: 17px; font-weight: 700; color: var(--text); }
+.heute-sub { font-size: 13px; color: var(--text3); margin-top: 2px; }
+.heute-zahlen { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; font-size: 14px; }
+.heute-fehlt { color: var(--red2); font-weight: 600; }
+.heute-ok { color: var(--green2); font-weight: 600; }
+.heute-gesamt { color: var(--text2); }
+.heute-btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.heute-btn { flex: 1; min-height: 44px; }
+.heute-btn-done { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; color: var(--green2); font-weight: 600; font-size: 14px; }
 #bottom-nav { background: var(--bg2); border-top: 1px solid var(--border); display: none; flex-shrink: 0; padding-bottom: var(--safe-bot); padding-left: var(--safe-l); padding-right: var(--safe-r); }
 #bottom-nav.visible { display: flex; }
 .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 8px 4px; background: none; border: none; color: var(--text3); cursor: pointer; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; gap: 3px; transition: color .15s; }
@@ -484,6 +496,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
           oninput="filterMaerkte()" style="flex:1; background:var(--bg3); border:1px solid var(--border); border-radius:20px; color:var(--text); padding:8px 14px; font-size:14px; outline:none; -webkit-appearance:none;">
         <button class="btn btn-primary btn-sm admin-only" style="margin-left:10px; white-space:nowrap;" onclick="openNeuerMarktModal()">+ Neu</button>
       </div>
+      <div id="heute-wrap" style="padding:0 16px;"></div>
       <div id="markt-jahr-tabs" style="padding:0 16px 4px; display:flex; gap:6px; flex-wrap:wrap;"></div>
       <div id="markt-list" style="padding:0 16px 16px;"></div>
     </div>
@@ -868,7 +881,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.31';
+const APP_VERSION = 'v6.32';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1322,6 +1335,7 @@ async function loadMaerkte() {
   }
   renderMaerkteJahrTabs(jahre);
   renderMaerkte();
+  renderHeuteKarte(); // asynchron, blockiert die Liste nicht
 }
 
 function verfuegbareJahre() {
@@ -1423,13 +1437,98 @@ function renderMarktCard(m) {
   </div>`;
 }
 
-// ── MARKT DETAIL ──────────────────────────────────────────────
-async function openMarktDetail(instanzId) {
-  navStack.push({screen: 'markt-detail', instanzId});
-  await _openMarktDetailIntern(instanzId);
+// ── HEUTE-KARTE ───────────────────────────────────────────────
+// Zeigt aktive Märkte, deren Zeitraum den heutigen Tag umfasst, mit
+// Direktsprung in die Tageszählung. Kein Markt heute → keine Karte.
+async function renderHeuteKarte() {
+  const wrap = el('heute-wrap');
+  if (!wrap) return;
+  const heute = isoToday();
+  const heutige = alleMaerkte
+    .filter(m => m.status === 'aktiv' && marktTage(m).includes(heute))
+    .sort((a, b) => (a.start_datum || '').localeCompare(b.start_datum || ''));
+  if (!heutige.length) { wrap.innerHTML = ''; return; }
+
+  const ids = heutige.map(m => m.id);
+  const [{ data: staende }, { data: zaehl }, { data: buch }] = await Promise.all([
+    sb.from('stand').select('id, bezeichnung, event_instanz_id, abgeschlossen_am')
+      .in('event_instanz_id', ids).is('geloescht_am', null).order('bezeichnung'),
+    sb.from('kassenzaehlung').select('event_instanz_id, datum, modus, ist_bestand_cent, anfangsbestand_cent, tagesumsatz_bar_cent')
+      .in('event_instanz_id', ids).is('geloescht_am', null),
+    sb.from('buchung').select('event_instanz_id, betrag_cent')
+      .in('event_instanz_id', ids).eq('typ', 'einnahme').eq('zahlungsart', 'ec').is('geloescht_am', null),
+  ]);
+
+  const barVon = z => z.modus === 'zaehlen'
+    ? (z.ist_bestand_cent || 0) - (z.anfangsbestand_cent || 0)
+    : (z.tagesumsatz_bar_cent || 0);
+
+  wrap.innerHTML = heutige.map(m => {
+    const tage     = marktTage(m);
+    const tagNr    = tage.indexOf(heute) + 1;
+    const mStaende = (staende || []).filter(s => s.event_instanz_id === m.id);
+    const mZaehl   = (zaehl || []).filter(z => z.event_instanz_id === m.id);
+    const barGesamt = mZaehl.reduce((s, z) => s + barVon(z), 0);
+    const ecGesamt  = (buch || []).filter(b => b.event_instanz_id === m.id)
+      .reduce((s, b) => s + (b.betrag_cent || 0), 0);
+    const zHeute   = mZaehl.filter(z => z.datum === heute);
+    const barHeute = zHeute.reduce((s, z) => s + barVon(z), 0);
+
+    // Status-Zeile Kasse: erinnert an die fehlende Tageszählung
+    let heuteZeile;
+    if (!zHeute.length) {
+      heuteZeile = '<span class="heute-fehlt">Bar heute: noch keine Zählung</span>';
+    } else {
+      const teil = mStaende.length > 1 ? ` · ${zHeute.length}/${mStaende.length} Kutschen` : '';
+      heuteZeile = `<span class="heute-ok">Bar heute: ${eur(barHeute)} ✓${teil}</span>`;
+    }
+
+    // Zähl-Buttons: eine Kutsche → ein Button, mehrere → je Kutsche einer.
+    // Abgeschlossene Kutschen zeigen ✓ statt Button.
+    let btns = '';
+    if (!marktReadonly(m) && mStaende.length) {
+      btns = '<div class="heute-btns" onclick="event.stopPropagation()">' + mStaende.map(s => {
+        if (s.abgeschlossen_am) return `<span class="heute-btn-done">✓ ${esc(s.bezeichnung)}</span>`;
+        const label = mStaende.length === 1 ? '💰 Tageszählung erfassen' : '💰 ' + esc(s.bezeichnung);
+        return `<button class="btn btn-primary heute-btn" onclick="heuteZaehlung('${m.id}','${s.id}')">${label}</button>`;
+      }).join('') + '</div>';
+    }
+
+    const name = esc(m.name || m.event_template?.name || '(Kein Name)');
+    const ort  = esc(m.event_template?.ort || '');
+    return `<div class="heute-karte" onclick="openMarktDetail('${m.id}','kasse')">
+      <div class="heute-kopf">⚜ Heute · Markttag ${tagNr} von ${tage.length}</div>
+      <div class="heute-name">${name}</div>
+      <div class="heute-sub">${ort}${ort ? ' · ' : ''}${zeitraumText(m)}</div>
+      <div class="heute-zahlen">
+        ${heuteZeile}
+        <span class="heute-gesamt">Markt gesamt: ${eur(barGesamt + ecGesamt)}</span>
+      </div>
+      ${btns}
+    </div>`;
+  }).join('');
 }
 
-async function _openMarktDetailIntern(instanzId) {
+// Direktsprung aus der Heute-Karte in die Tageszählung (heutiges Datum).
+// Lädt vorher die Instanz, damit das Kasse-Detail die Markttage kennt.
+async function heuteZaehlung(instanzId, standId) {
+  const { data: instanz } = await sb.from('event_instanz')
+    .select('*, event_template(name, ort, plz, km_minden, km_schoellkrippen, wiederholung)')
+    .eq('id', instanzId).single();
+  if (!instanz) { toast('Markt nicht gefunden', 'err'); return; }
+  currentInstanzId = instanzId;
+  currentInstanz   = instanz;
+  chronikInstanzId = instanzId;
+  await openKasseDetail(standId, isoToday());
+}
+
+// ── MARKT DETAIL ──────────────────────────────────────────────
+async function openMarktDetail(instanzId, tab = 'planung') {
+  navStack.push({screen: 'markt-detail', instanzId});
+  await _openMarktDetailIntern(instanzId, tab);
+}
+
+async function _openMarktDetailIntern(instanzId, tab = 'planung') {
   currentInstanzId = instanzId;
   chronikInstanzId = instanzId; // Chronik zeigt standardmäßig aktuelle Instanz
   const { data: instanz } = await sb
@@ -1443,7 +1542,7 @@ async function _openMarktDetailIntern(instanzId) {
   const jahr = instanz.saison_jahr ? ` ${instanz.saison_jahr}` : '';
   setHeader(name + jahr, zeitraumText(instanz), true);
   showScreen('markt-detail');
-  showMarktTab('planung');
+  showMarktTab(tab);
 }
 
 function showMarktTab(tab) {
