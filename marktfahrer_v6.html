@@ -895,7 +895,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.36';
+const APP_VERSION = 'v6.37';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -2109,22 +2109,19 @@ async function renderKasseTab() {
 
   let html = '<div class="section"><h2>Kasse</h2>';
 
-  for (const stand of staende) {
-    // Kassenzählungen für diesen Stand laden
-    const { data: zaehlungen } = await sb
-      .from('kassenzaehlung')
-      .select('*')
-      .eq('stand_id', stand.id)
-      .is('geloescht_am', null)
-      .order('datum');
+  // Zählungen + Buchungen für ALLE Kutschen parallel laden (statt N+1:
+  // vorher 2 sequenzielle Queries pro Kutsche, jetzt 1 Roundtrip gesamt)
+  const standIds = staende.map(s => s.id);
+  const [{ data: alleZaehlungen }, { data: alleBuchungen }] = await Promise.all([
+    sb.from('kassenzaehlung').select('*')
+      .in('stand_id', standIds).is('geloescht_am', null).order('datum'),
+    sb.from('buchung').select('*')
+      .in('stand_id', standIds).is('geloescht_am', null).order('datum'),
+  ]);
 
-    // Buchungen für diesen Stand
-    const { data: buchungen } = await sb
-      .from('buchung')
-      .select('*')
-      .eq('stand_id', stand.id)
-      .is('geloescht_am', null)
-      .order('datum');
+  for (const stand of staende) {
+    const zaehlungen = (alleZaehlungen || []).filter(z => z.stand_id === stand.id);
+    const buchungen  = (alleBuchungen  || []).filter(b => b.stand_id === stand.id);
 
     const barUmsatz = (zaehlungen || []).reduce((s, z) => {
       if (z.modus === 'zaehlen') return s + ((z.ist_bestand_cent || 0) - (z.anfangsbestand_cent || 0));
