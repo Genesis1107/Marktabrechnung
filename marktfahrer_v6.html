@@ -893,7 +893,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.34';
+const APP_VERSION = 'v6.35';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1506,7 +1506,7 @@ async function aufgabenZeilenAdmin(today) {
     });
   }
 
-  return offen.map(m => {
+  const zeilen = offen.map(m => {
     const dl = deadlineKurz(m);
     const nT = offenePflicht[m.id] || 0;
     if (!dl && !nT) return null;
@@ -1517,6 +1517,33 @@ async function aufgabenZeilenAdmin(today) {
     return { m, stufe: dl?.stufe || 'gelb', text, start,
       wann: aufgabenWann(Math.ceil((start - today) / 86400000)) };
   }).filter(Boolean);
+
+  // Skaldenmet-Meldung: Fahrer hat Stückzahlen eingetragen, Meldung
+  // (erledigt-Haken) steht noch aus. Fenster: Marktende ≤ 60 Tage.
+  const abg = alleMaerkte.filter(m => {
+    if (m.status !== 'abgeschlossen' || !m.start_datum) return false;
+    const end = new Date((m.end_datum_2 || m.end_datum || m.start_datum) + 'T00:00:00');
+    return (today - end) / 86400000 <= 60;
+  });
+  if (abg.length) {
+    const { data: sk } = await sb.from('markt_aufgabe')
+      .select('event_instanz_id, titel, erledigt, skaldenmet_stueck, skaldenmet_feige_stueck')
+      .in('event_instanz_id', abg.map(m => m.id))
+      .ilike('titel', '%skaldenmet%')
+      .not('erledigt', 'is', true);
+    (sk || []).forEach(a => {
+      if (a.skaldenmet_stueck == null && a.skaldenmet_feige_stueck == null) return;
+      const m = abg.find(x => x.id === a.event_instanz_id);
+      if (!m) return;
+      const end  = new Date((m.end_datum_2 || m.end_datum || m.start_datum) + 'T00:00:00');
+      const dEnd = Math.ceil((today - end) / 86400000);
+      zeilen.push({ m, start: new Date(m.start_datum + 'T00:00:00'),
+        stufe: 'gelb',
+        text: `Skaldenmet melden: ${a.skaldenmet_stueck || 0} Stk + ${a.skaldenmet_feige_stueck || 0} Feige`,
+        wann: dEnd > 0 ? `endete vor ${dEnd} Tg.` : 'endet heute', tab: 'planung' });
+    });
+  }
+  return zeilen;
 }
 
 // Fahrer-Sicht: die eigenen Markt-Pflichten – Warenbestellung (Phase
@@ -1528,7 +1555,7 @@ async function aufgabenZeilenFahrer(today) {
     (m.status === 'vorbereitung' || m.status === 'abgeschlossen'));
   if (!kandidaten.length) return [];
   const { data } = await sb.from('markt_aufgabe')
-    .select('event_instanz_id, phase, titel, erledigt')
+    .select('event_instanz_id, phase, titel, erledigt, skaldenmet_stueck, skaldenmet_feige_stueck')
     .in('event_instanz_id', kandidaten.map(m => m.id))
     .eq('pflicht', true);
 
@@ -1548,11 +1575,14 @@ async function aufgabenZeilenFahrer(today) {
         text: 'Bestellung offen', wann: aufgabenWann(dStart), tab: 'bestellung' });
     }
     if (m.status === 'abgeschlossen' && t.includes('skaldenmet')) {
+      // Erledigt aus Fahrer-Sicht, sobald Stückzahlen eingetragen sind –
+      // die Meldung selbst (erledigt-Haken) ist danach Admin-Sache.
+      if (a.skaldenmet_stueck != null || a.skaldenmet_feige_stueck != null) return;
       const end = new Date((m.end_datum_2 || m.end_datum || m.start_datum) + 'T00:00:00');
       const dEnd = Math.ceil((today - end) / 86400000);
       zeilen.push({ m, start,
         stufe: dEnd >= 5 ? 'rot' : 'gelb', // 5-Tage-Nachbereitungsfrist
-        text: 'Skaldenmet-Meldung offen',
+        text: 'Skaldenmet-Stückzahl eintragen',
         wann: dEnd > 0 ? `endete vor ${dEnd} Tg.` : 'endet heute', tab: 'planung' });
     }
   });
@@ -3684,26 +3714,35 @@ async function renderAufgabenSection(instanz, aufgaben) {
     const sid = a.id.slice(0,8);
     let skHtml = '';
     if (isSkaldenmet && !a.erledigt) {
+      // Stückzahlen darf auch der Fahrer eintragen (RLS-Policy
+      // fahrer_update_eigene_aufgaben); der erledigt-Haken (= Meldung
+      // erfolgt) bleibt Admin-Sache.
       skHtml = `
       <div class="wf-skaldenmet">
         <label>Skaldenmet:</label>
         <input type="number" inputmode="numeric" placeholder="0" step="1" min="0"
-          id="skald-${sid}" value="${a.skaldenmet_stueck ?? ''}" ${istAdmin() ? '' : 'disabled'}>
+          id="skald-${sid}" value="${a.skaldenmet_stueck ?? ''}">
         <span style="font-size:11px;color:var(--text3);">Stück</span>
       </div>
       <div class="wf-skaldenmet">
         <label>Skaldenmet Feige:</label>
         <input type="number" inputmode="numeric" placeholder="0" step="1" min="0"
-          id="skaldf-${sid}" value="${a.skaldenmet_feige_stueck ?? ''}" ${istAdmin() ? '' : 'disabled'}>
+          id="skaldf-${sid}" value="${a.skaldenmet_feige_stueck ?? ''}">
         <span style="font-size:11px;color:var(--text3);">Stück</span>
-      </div>`;
+      </div>
+      ${istAdmin() ? '' : `<button class="btn btn-sm btn-primary" style="margin-top:6px;"
+        onclick="skaldenmetSpeichern('${a.id}','${sid}')">Stückzahl speichern</button>`}`;
     } else if (isSkaldenmet && (a.skaldenmet_stueck != null || a.skaldenmet_feige_stueck != null)) {
       skHtml = `<div class="wf-task-hint">Gemeldet: ${a.skaldenmet_stueck || 0} Stk Skaldenmet · ${a.skaldenmet_feige_stueck || 0} Stk Feige</div>`;
     }
 
+    // Abhaken: Admin alles; Fahrer nur die Warenbestellung (Skaldenmet-
+    // Haken = Meldung erfolgt, bleibt Admin – Fahrer trägt nur Stückzahlen ein)
+    const darfHaken = istAdmin() ||
+      (!isSkaldenmet && a.titel.toLowerCase().includes('warenbestellung'));
     return `<div class="wf-task">
       <div class="wf-checkbox ${a.erledigt ? 'done' : ''} ${a.extern ? 'extern' : ''}"
-        ${istAdmin() ? `onclick="aufgabeToggle('${a.id}', ${!a.erledigt}, '${a.id.slice(0,8)}', ${isSkaldenmet})"` : 'style="cursor:default;opacity:.7;"'}
+        ${darfHaken ? `onclick="aufgabeToggle('${a.id}', ${!a.erledigt}, '${a.id.slice(0,8)}', ${isSkaldenmet})"` : 'style="cursor:default;opacity:.7;"'}
         title="${a.extern ? 'Extern erledigen, dann hier abhaken' : a.pflicht ? 'Pflichtaufgabe' : 'Optionale Aufgabe'}">
         ${a.erledigt ? '✓' : ''}
       </div>
@@ -3827,6 +3866,22 @@ async function aufgabeToggle(aufgabeId, erledigt, shortId, isSkaldenmet) {
     update.skaldenmet_feige_stueck = parseStk(el('skaldf-' + shortId)?.value);
   }
   await dbW(sb.from('markt_aufgabe').update(update).eq('id', aufgabeId), 'Aufgabe speichern');
+  renderPlanungTab();
+}
+
+// Fahrer speichern die gezählten Skaldenmet-Stückzahlen, ohne die Aufgabe
+// abzuhaken – der Haken (= Meldung an Saltatio erfolgt) bleibt beim Admin.
+async function skaldenmetSpeichern(aufgabeId, shortId) {
+  const parseStk = v => { const x = parseInt(v, 10); return Number.isFinite(x) && x >= 0 ? x : null; };
+  const stk   = parseStk(el('skald-' + shortId)?.value);
+  const feige = parseStk(el('skaldf-' + shortId)?.value);
+  if (stk === null && feige === null) { toast('Bitte Stückzahl eingeben', 'err'); return; }
+  await dbW(sb.from('markt_aufgabe').update({
+    skaldenmet_stueck: stk,
+    skaldenmet_feige_stueck: feige,
+    geaendert_am: new Date().toISOString(),
+  }).eq('id', aufgabeId), 'Skaldenmet speichern');
+  toast('✓ Stückzahl gespeichert', 'ok');
   renderPlanungTab();
 }
 
