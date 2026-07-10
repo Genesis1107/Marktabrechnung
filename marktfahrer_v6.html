@@ -895,7 +895,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.38';
+const APP_VERSION = 'v6.39';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -4239,10 +4239,24 @@ let stundenInstanzId = null;
 
 async function ladeStundenMarktSelector() {
   const { data } = await sb.from('event_instanz')
-    .select('id, name, saison_jahr, start_datum, event_template(name)')
+    .select('id, name, saison_jahr, status, start_datum, end_datum, start_datum_2, end_datum_2, event_template(name)')
     .is('geloescht_am', null)
     .order('start_datum', { ascending: false });
   const instanzen = (data || []).slice(0, 30);
+
+  // Sinnvoller Standard statt leerer Auswahl: eindeutig heute laufender
+  // aktiver Markt, sonst der zuletzt geöffnete Markt (falls in der Liste).
+  if (!stundenInstanzId) {
+    const heute = isoToday();
+    const laufend = instanzen.filter(i =>
+      i.status === 'aktiv' && marktTage(i).includes(heute));
+    if (laufend.length === 1) {
+      stundenInstanzId = laufend[0].id;
+    } else if (currentInstanzId && instanzen.some(i => i.id === currentInstanzId)) {
+      stundenInstanzId = currentInstanzId;
+    }
+  }
+
   const sel = el('stunden-markt-select');
   sel.innerHTML = '<option value="">— Markt wählen —</option>' +
     instanzen.map(i => {
