@@ -152,6 +152,17 @@ body {
 .heute-btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .heute-btn { flex: 1; min-height: 44px; }
 .heute-btn-done { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; color: var(--green2); font-weight: 600; font-size: 14px; }
+/* Aufgaben-Kasten: markt-übergreifende Fristen + offene Pflichtaufgaben */
+.aufg-kasten { background: var(--surface); border: 1px solid var(--red2); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 12px; }
+.aufg-titel { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--red2); font-weight: 700; margin-bottom: 4px; }
+.aufg-zeile { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+.aufg-zeile:last-of-type { border-bottom: none; }
+.aufg-markt { font-weight: 700; font-size: 13px; color: var(--text); text-transform: uppercase; letter-spacing: .5px; }
+.aufg-text { font-size: 13px; font-weight: 600; flex: 1; }
+.aufg-text.rot { color: var(--red2); }
+.aufg-text.gelb { color: var(--amber2); }
+.aufg-wann { font-size: 12px; color: var(--text3); margin-left: auto; white-space: nowrap; }
+.aufg-mehr { font-size: 12px; color: var(--text3); padding-top: 6px; }
 #bottom-nav { background: var(--bg2); border-top: 1px solid var(--border); display: none; flex-shrink: 0; padding-bottom: var(--safe-bot); padding-left: var(--safe-l); padding-right: var(--safe-r); }
 #bottom-nav.visible { display: flex; }
 .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 8px 4px; background: none; border: none; color: var(--text3); cursor: pointer; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; gap: 3px; transition: color .15s; }
@@ -497,6 +508,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-primary btn-sm admin-only" style="margin-left:10px; white-space:nowrap;" onclick="openNeuerMarktModal()">+ Neu</button>
       </div>
       <div id="heute-wrap" style="padding:0 16px;"></div>
+      <div id="aufgaben-wrap" style="padding:0 16px;"></div>
       <div id="markt-jahr-tabs" style="padding:0 16px 4px; display:flex; gap:6px; flex-wrap:wrap;"></div>
       <div id="markt-list" style="padding:0 16px 16px;"></div>
     </div>
@@ -881,7 +893,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.32';
+const APP_VERSION = 'v6.33';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1335,7 +1347,8 @@ async function loadMaerkte() {
   }
   renderMaerkteJahrTabs(jahre);
   renderMaerkte();
-  renderHeuteKarte(); // asynchron, blockiert die Liste nicht
+  renderHeuteKarte();     // asynchron, blockiert die Liste nicht
+  renderAufgabenKasten(); // asynchron, blockiert die Liste nicht
 }
 
 function verfuegbareJahre() {
@@ -1434,6 +1447,91 @@ function renderMarktCard(m) {
     </div>
     <div class="card-sub">${plz}${ort}${dauer ? ' · ' + dauer : ''}</div>
     <div class="card-sub" style="margin-top:4px;">${zeitraumText(m)}</div>
+  </div>`;
+}
+
+// ── AUFGABEN-KASTEN (markt-übergreifend) ──────────────────────
+// Kompakte Frist-Einstufung. Spiegelt die Schwellen von deadlineBanner():
+// 28.02./4 Wochen (Bewerbung), 6+4 Wochen (Vorbereitung), 5 Tage (Nachbereitung).
+function deadlineKurz(inst) {
+  if (!inst?.start_datum) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const start = new Date(inst.start_datum + 'T00:00:00');
+  const end   = inst.end_datum ? new Date(inst.end_datum + 'T00:00:00') : start;
+  const jahr  = inst.saison_jahr || start.getFullYear();
+  const s     = inst.status;
+  if (s === 'interessent' || s === 'beworben') {
+    const feb28    = new Date(`${jahr}-02-28T00:00:00`);
+    const deadline = today <= feb28 ? feb28 : new Date(start.getTime() - 28 * 86400000);
+    const diff     = Math.ceil((deadline - today) / 86400000);
+    if (diff <= 0)  return { stufe: 'rot',  text: today <= feb28 ? 'Zusage bis 28.02. ausstehend' : 'Vertragsfrist überschritten' };
+    if (diff <= 14) return { stufe: 'gelb', text: `Frist in ${diff} Tagen` };
+  }
+  if (s === 'vorbereitung') {
+    const d4 = new Date(start.getTime() - 28 * 86400000);
+    const d6 = new Date(start.getTime() - 42 * 86400000);
+    if (today >= d4) return { stufe: 'rot',  text: 'Bestellung muss versendet sein' };
+    if (today >= d6) return { stufe: 'gelb', text: 'Vertrag vorliegend prüfen' };
+  }
+  if (s === 'aktiv' && today >= new Date(end.getTime() + 5 * 86400000)) {
+    return { stufe: 'rot', text: 'Nachbereitung fällig' };
+  }
+  return null;
+}
+
+// Aggregierter Kasten auf dem Märkte-Screen: Fristen + offene Pflicht-
+// aufgaben der aktuellen Phase (Startfenster 6 Wochen). Nur für Admin,
+// max. 5 Zeilen, Tap springt in die Planung des Markts. Nichts anstehend
+// → Kasten entfällt komplett.
+async function renderAufgabenKasten() {
+  const wrap = el('aufgaben-wrap');
+  if (!wrap) return;
+  if (!istAdmin()) { wrap.innerHTML = ''; return; }
+  const today = new Date(); today.setHours(0,0,0,0);
+  const offen = alleMaerkte.filter(m => !['abgeschlossen','abgelehnt'].includes(m.status));
+
+  // Kandidaten für Pflichtaufgaben: Start binnen 6 Wochen oder bereits gestartet
+  const bald = offen.filter(m => m.start_datum &&
+    Math.ceil((new Date(m.start_datum + 'T00:00:00') - today) / 86400000) <= 42);
+  const offenePflicht = {};
+  if (bald.length) {
+    const { data } = await sb.from('markt_aufgabe')
+      .select('event_instanz_id, phase, pflicht, erledigt')
+      .in('event_instanz_id', bald.map(m => m.id)).eq('pflicht', true);
+    (data || []).forEach(a => {
+      const m = bald.find(x => x.id === a.event_instanz_id);
+      if (m && a.phase === m.status && !a.erledigt)
+        offenePflicht[m.id] = (offenePflicht[m.id] || 0) + 1;
+    });
+  }
+
+  const zeilen = offen.map(m => {
+    const dl = deadlineKurz(m);
+    const nT = offenePflicht[m.id] || 0;
+    if (!dl && !nT) return null;
+    const text = dl
+      ? dl.text + (nT ? ` · ${nT} Aufgabe${nT > 1 ? 'n' : ''} offen` : '')
+      : `${nT} Pflichtaufgabe${nT > 1 ? 'n' : ''} offen`;
+    const start  = new Date(m.start_datum + 'T00:00:00');
+    const dStart = Math.ceil((start - today) / 86400000);
+    const wann = dStart > 0 ? `Start in ${dStart} Tag${dStart > 1 ? 'en' : ''}`
+      : dStart === 0 ? 'Start heute'
+      : `gestartet vor ${-dStart} Tg.`;
+    return { m, stufe: dl?.stufe || 'gelb', text, wann, start };
+  }).filter(Boolean)
+    .sort((a, b) => a.stufe === b.stufe ? a.start - b.start : (a.stufe === 'rot' ? -1 : 1));
+
+  if (!zeilen.length) { wrap.innerHTML = ''; return; }
+  const max = 5, rest = zeilen.length - max;
+  wrap.innerHTML = `<div class="aufg-kasten">
+    <div class="aufg-titel">⚠️ Anstehende Aufgaben</div>
+    ${zeilen.slice(0, max).map(z => `
+      <div class="aufg-zeile" onclick="openMarktDetail('${z.m.id}')">
+        <span class="aufg-markt">${esc(z.m.name || z.m.event_template?.name || '')}</span>
+        <span class="aufg-text ${z.stufe}">${z.text}</span>
+        <span class="aufg-wann">${z.wann}</span>
+      </div>`).join('')}
+    ${rest > 0 ? `<div class="aufg-mehr">+${rest} weitere</div>` : ''}
   </div>`;
 }
 
