@@ -260,7 +260,9 @@ body.rolle-fahrer .admin-only { display: none !important; }
 .kasse-zahl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .kasse-zahl-item { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .kasse-zahl-label { font-size: 13px; color: var(--text2); white-space: nowrap; }
-.kasse-zahl-input { width: 64px; min-width: 0; flex-shrink: 0; text-align: right; background: var(--surface); border: 1px solid var(--border2); border-radius: 6px; color: var(--text); padding: 5px 8px; font-size: 16px; font-weight: 600; }
+.kasse-zahl-input { width: 68px; min-width: 0; flex-shrink: 0; text-align: right; background: var(--surface); border: 1px solid var(--border2); border-radius: 6px; color: var(--text); padding: 10px 8px; min-height: 44px; box-sizing: border-box; font-size: 16px; font-weight: 600; }
+/* Kasse-Detail: Tag- und Modus-Buttons auf Apple-Mindestgröße (44pt) */
+#screen-kasse-detail .btn-sm { min-height: 44px; }
 .kasse-summe-bar { background: var(--surface); border: 1px solid var(--gold); border-radius: var(--radius2); padding: 16px; margin: 14px 0; text-align: center; }
 .kasse-summe-label { font-size: 12px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
 .kasse-summe-val { font-size: 32px; font-weight: 700; color: var(--gold2); }
@@ -893,7 +895,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.35';
+const APP_VERSION = 'v6.36';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -2318,7 +2320,7 @@ function renderKasseDetailScreen(stand, datum, vorh) {
     return `<div class="kasse-zahl-item">
       <span class="kasse-zahl-label">${labelStr}</span>
       <input type="number" class="kasse-zahl-input" id="${inputId}"
-        value="${stored}" min="0" step="1"
+        value="${stored}" min="0" step="1" inputmode="numeric"
         oninput="calcKasseSumme()"
         onfocus="clearZero(this)" ${ro ? 'disabled' : ''}>
     </div>`;
@@ -2382,7 +2384,7 @@ function renderKasseDetailScreen(stand, datum, vorh) {
           <input type="number" id="kasse-anfang"
             value="${anfang > 0 ? (anfang/100).toFixed(2) : ''}"
             placeholder="z. B. 400.00"
-            step="0.01"
+            step="0.01" inputmode="decimal"
             oninput="calcKasseSumme()" onfocus="clearZero(this)" ${ro ? 'disabled' : ''}>
           <div style="font-size:11px;color:var(--text3);margin-top:4px;">Pflichtfeld · wird pro Zählung einmalig erfasst</div>
         </div>
@@ -2408,13 +2410,16 @@ function renderKasseDetailScreen(stand, datum, vorh) {
         <div class="field">
           <label>Bar-Tagesumsatz (€)</label>
           <input type="number" id="kasse-schnell-umsatz" value="${schnellUmsatz}"
-            step="0.01" placeholder="0.00" onfocus="clearZero(this)" ${ro ? 'disabled' : ''}>
+            step="0.01" inputmode="decimal" placeholder="0.00" onfocus="clearZero(this)" ${ro ? 'disabled' : ''}>
         </div>
-        <div class="field">
-          <label>EC-Umsatz (€) <span style="color:var(--text3);font-size:11px;">→ wird als Buchung gespeichert</span></label>
-          <input type="number" id="kasse-schnell-ec" value="${schnellEc}"
-            step="0.01" placeholder="0.00" onfocus="clearZero(this)" ${ro ? 'disabled' : ''}>
-        </div>
+      </div>
+
+      <!-- EC gilt für beide Modi: wird als Buchung gespeichert und
+           verändert den Bar-Tagesumsatz (Ist − Anfang) nicht -->
+      <div class="field" style="margin-top:14px;">
+        <label>EC-Umsatz (€) <span style="color:var(--text3);font-size:11px;">→ wird als Buchung gespeichert</span></label>
+        <input type="number" id="kasse-schnell-ec" value="${schnellEc}"
+          step="0.01" inputmode="decimal" placeholder="0.00" onfocus="clearZero(this)" ${ro ? 'disabled' : ''}>
       </div>
 
       <div class="field" style="margin-top:14px;">
@@ -2563,8 +2568,9 @@ async function saveKassenzaehlung() {
   }
   if (error) { toast('Fehler: ' + error.message, 'err'); return; }
 
-  // EC-Buchung im Schnell-Modus automatisch anlegen/updaten
-  if (modus === 'schnell') {
+  // EC-Buchung automatisch anlegen/updaten – in beiden Modi, das EC-Feld
+  // ist modus-unabhängig. Upsert auf (Stand, Tag), 0 → Soft-Delete.
+  {
     const ecVal = Math.round((parseFloat(el('kasse-schnell-ec')?.value) || 0) * 100);
     const { data: vorhEc } = await sb.from('buchung')
       .select('id').eq('stand_id', currentStandId).eq('datum', datum)
