@@ -235,6 +235,13 @@ td.zelle.abwesend { background: repeating-linear-gradient(45deg, transparent, tr
   </div>
 </div>
 
+<!-- ── SPERRE (kein Admin) ────────────────────────────────── -->
+<div id="screen-sperre" class="hidden" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:24px;">
+  <div class="login-logo-title">🔒 Kein Zugang</div>
+  <div class="login-sub">Die Personalplanung ist nur für Administratoren zugänglich.</div>
+  <button class="btn" onclick="doLogout()">Abmelden</button>
+</div>
+
 <!-- APP -->
 <div id="screen-app" class="hidden" style="display:flex; flex-direction:column; flex:1; min-height:0;">
   <header>
@@ -299,7 +306,7 @@ td.zelle.abwesend { background: repeating-linear-gradient(45deg, transparent, tr
 
 <script>
 'use strict';
-const PP_VERSION = 'v0.7';
+const PP_VERSION = 'v0.8';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 const LAGER_SUED = 'a1b2c3d4-0001-0001-0001-000000000001';
@@ -332,15 +339,29 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (event === 'SIGNED_OUT' || !session) showLogin();
   });
   const { data: { session } } = await sb.auth.getSession();
-  if (session) { showApp(); } else { showLogin(); }
+  if (session) { await pruefeAdminUndStart(session.user); } else { showLogin(); }
 });
 
 function showLogin() {
   el('screen-login').classList.remove('hidden');
+  el('screen-sperre').classList.add('hidden');
   el('screen-app').classList.add('hidden');
+}
+// UI-Sperre für Nicht-Admins; die echte Absicherung liegt in den RLS-Policies.
+async function pruefeAdminUndStart(user) {
+  const { data: rollen } = await sb.from('user_rolle').select('rolle').eq('user_id', user.id);
+  const istAdmin = (rollen || []).some(r => r.rolle === 'admin');
+  if (!istAdmin) {
+    el('screen-login').classList.add('hidden');
+    el('screen-app').classList.add('hidden');
+    el('screen-sperre').classList.remove('hidden');
+    return;
+  }
+  await showApp();
 }
 async function showApp() {
   el('screen-login').classList.add('hidden');
+  el('screen-sperre').classList.add('hidden');
   el('screen-app').classList.remove('hidden');
   await renderJahrPills();
   await ladeUndZeichne();
@@ -350,9 +371,9 @@ async function doLogin() {
   el('login-error').textContent = '';
   const email = el('login-email').value.trim();
   const pw = el('login-pw').value;
-  const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
   if (error) { el('login-error').textContent = 'Anmeldung fehlgeschlagen.'; return; }
-  showApp();
+  await pruefeAdminUndStart(data.user);
 }
 async function doLogout() {
   await sb.auth.signOut({ scope: 'local' }); // nur diese App abmelden, Haupt-App-Session nicht widerrufen
