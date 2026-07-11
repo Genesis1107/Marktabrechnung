@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Produktkatalog</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ── TOKENS (identisch zur Marktfahrer-App) ─────────────────── */
+:root {
+  --bg: #1a1208; --bg2: #241a0e; --bg3: #2e2010; --surface: #3a2a14;
+  --surface2: #4a3520; --border: #6b4c28; --border2: #8a6438;
+  --gold: #c9942a; --gold2: #e8b84b; --gold3: #f5d070;
+  --text: #f5eed8; --text2: #dbc898; --text3: #a89868;
+  --red: #c0392b; --red2: #e74c3c; --green: #2e7d32; --green2: #4caf50;
+  --blue: #1565c0; --blue2: #42a5f5; --amber: #e65100; --amber2: #ff9800;
+  --radius: 8px; --radius2: 12px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+[data-theme="pergament"] {
+  --bg: #f0e6cc; --bg2: #e8dab8; --bg3: #ddd0a4; --surface: #d0c090;
+  --surface2: #c4b080; --border: #b09060; --border2: #907040;
+  --gold: #8b5e0a; --gold2: #a87010; --gold3: #c49020;
+  --text: #1c0e04; --text2: #3d2010; --text3: #785030;
+  --red: #8b1a1a; --red2: #c0392b; --green: #1e5c0a; --green2: #2e7d10;
+  --blue: #1a3a8b; --blue2: #2a5ab8; --amber: #c05000; --amber2: #e07020;
+}
+[data-theme="mitternacht"] {
+  --bg: #141b2e; --bg2: #1c2540; --bg3: #232e52; --surface: #2c3862;
+  --surface2: #354070; --border: #3d4e7c; --border2: #506098;
+  --gold: #d4a830; --gold2: #e8c050; --gold3: #f0d070;
+  --text: #f0e8d8; --text2: #c8bca0; --text3: #908060;
+  --red: #c0392b; --red2: #e05040; --green: #2a7030; --green2: #4caa50;
+  --blue: #1a4090; --blue2: #60a8f0; --amber: #c06000; --amber2: #e08820;
+}
+[data-theme="weinrot"] {
+  --bg: #1a0810; --bg2: #26101a; --bg3: #321424; --surface: #3d182e;
+  --surface2: #4a1e38; --border: #6a2848; --border2: #903860;
+  --gold: #c9942a; --gold2: #e8b84b; --gold3: #f5d070;
+  --text: #f5e8d5; --text2: #dcc8a8; --text3: #a08068;
+  --red: #c0392b; --red2: #e04040; --green: #2a6018; --green2: #50a030;
+  --blue: #1a3a8b; --blue2: #50a0e0; --amber: #b05000; --amber2: #e07820;
+}
+[data-theme="lcars"] {
+  --bg: #000000; --bg2: #0a0c14; --bg3: #10141f; --surface: #151a28;
+  --surface2: #1e2436; --border: #2a3148; --border2: #40598a;
+  --gold: #ff9c00; --gold2: #ffb060; --gold3: #ffcc99;
+  --text: #f5dfc0; --text2: #d8b890; --text3: #8fa8c8;
+  --red: #c04848; --red2: #e05a5a; --green: #3a8a58; --green2: #58b878;
+  --blue: #4868b8; --blue2: #8fb8e8; --amber: #c86a30; --amber2: #e8935a;
+  --radius: 14px; --radius2: 18px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 15px; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.hidden { display: none !important; }
+
+/* ── LOGIN / SPERRE ─────────────────────────────────────────── */
+#screen-login, #screen-sperre {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px; padding: 24px;
+}
+.login-logo-title { font-size: 26px; color: var(--gold2); font-weight: 700; }
+.login-sub { color: var(--text3); font-size: 14px; margin-bottom: 8px; }
+.login-box { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 10px; }
+input, select, textarea {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  padding: 11px 13px; font-size: 16px; width: 100%;
+  font-family: inherit;
+}
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); border-color: var(--gold); }
+textarea { min-height: 84px; resize: vertical; line-height: 1.4; }
+.btn {
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--radius); color: var(--gold2);
+  padding: 12px 18px; font-size: 15px; font-weight: 600; cursor: pointer;
+  font-family: inherit;
+}
+.btn:active { background: var(--surface); }
+.btn-primary { background: var(--gold); color: var(--bg); border-color: var(--gold2); }
+.btn-danger { background: transparent; color: var(--red2); border-color: var(--red); }
+.btn-sm { padding: 7px 12px; font-size: 13px; }
+.btn-full { width: 100%; }
+#login-error { color: var(--red2); font-size: 13px; min-height: 18px; text-align: center; }
+
+/* ── HEADER ─────────────────────────────────────────────────── */
+header {
+  padding: calc(10px + var(--safe-top)) 14px 10px;
+  background: var(--bg2); border-bottom: 2px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.header-back { background: none; border: none; color: var(--gold2); font-size: 22px; cursor: pointer; padding: 0 4px; }
+.header-title { font-size: 18px; font-weight: 700; color: var(--gold2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.header-version { font-size: 11px; color: var(--text3); }
+.header-gear { background: none; border: none; font-size: 20px; cursor: pointer; padding: 0 4px; }
+
+/* ── LAYOUT ─────────────────────────────────────────────────── */
+#screen-app { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.screen { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 14px calc(74px + var(--safe-bot)); }
+.section { margin-bottom: 20px; }
+h2 { font-size: 16px; color: var(--gold2); margin-bottom: 10px; }
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius2); padding: 12px 14px; margin-bottom: 10px;
+}
+.card-title { font-weight: 700; font-size: 15px; }
+.card-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.card-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.badge-aktiv { background: var(--green); color: #fff; }
+.badge-inaktiv { background: var(--surface2); color: var(--text3); border: 1px solid var(--border); }
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 12px; color: var(--text3); margin-bottom: 5px; font-weight: 600; }
+.field-row { display: flex; gap: 10px; }
+.field-row .field { flex: 1; }
+.divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+.hint { font-size: 12px; color: var(--text3); }
+.spinner {
+  width: 22px; height: 22px; border: 3px solid var(--border);
+  border-top-color: var(--gold); border-radius: 50%;
+  animation: spin .8s linear infinite; margin: 20px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Suche + Filter-Chips */
+.search-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 8px; -webkit-overflow-scrolling: touch; }
+.chip {
+  padding: 6px 13px; border-radius: 999px; font-size: 13px; font-weight: 600;
+  background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
+  cursor: pointer; white-space: nowrap; flex-shrink: 0; font-family: inherit;
+}
+.chip.active { background: var(--gold); color: var(--bg); border-color: var(--gold2); }
+
+/* Detail-Tabs */
+.tabbar { display: flex; gap: 6px; margin-bottom: 14px; }
+.tabbar .tab-btn {
+  flex: 1; padding: 9px 4px; border-radius: var(--radius); font-size: 13px; font-weight: 700;
+  background: var(--bg3); border: 1px solid var(--border); color: var(--text2); cursor: pointer; font-family: inherit;
+}
+.tabbar .tab-btn.active { background: var(--gold); color: var(--bg); border-color: var(--gold2); }
+
+/* Varianten-Zeilen */
+.var-row {
+  display: grid; grid-template-columns: 1fr 88px 34px; gap: 8px; align-items: center;
+  margin-bottom: 8px;
+}
+.var-row input { padding: 9px 10px; font-size: 15px; }
+.icon-btn { background: none; border: none; color: var(--red2); font-size: 18px; cursor: pointer; padding: 4px; }
+
+/* Wiki-Matrix */
+#wiki-wrap { overflow: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: var(--radius); max-height: calc(100vh - 260px); }
+table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
+.wiki th, .wiki td { border-bottom: 1px solid var(--border); padding: 8px 10px; font-size: 13px; white-space: nowrap; }
+.wiki thead th { position: sticky; top: 0; background: var(--bg2); color: var(--gold2); z-index: 3; text-align: center; }
+.wiki td.pname, .wiki thead th:first-child { position: sticky; left: 0; background: var(--bg2); z-index: 2; text-align: left; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; }
+.wiki thead th:first-child { z-index: 4; }
+.wiki td.cell { text-align: center; cursor: pointer; font-size: 15px; }
+.dot-voll { color: var(--green2); }
+.dot-teil { color: var(--amber2); }
+.dot-leer { color: var(--text3); opacity: .4; }
+
+/* Modal */
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 50;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.modal {
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: var(--radius2) var(--radius2) 0 0; width: 100%; max-width: 560px;
+  max-height: 86vh; overflow-y: auto; padding: 18px 16px calc(18px + var(--safe-bot));
+}
+.modal h3 { color: var(--gold2); font-size: 16px; margin-bottom: 14px; }
+
+/* Bottom-Nav */
+#bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+  background: var(--bg2); border-top: 2px solid var(--border);
+  display: flex; padding-bottom: var(--safe-bot);
+}
+.nav-btn {
+  flex: 1; background: none; border: none; color: var(--text3);
+  padding: 9px 2px 7px; font-size: 11px; font-weight: 700; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; font-family: inherit;
+}
+.nav-btn.active { color: var(--gold2); }
+.nav-icon { font-size: 20px; }
+
+/* Toast */
+#toast {
+  position: fixed; left: 50%; bottom: calc(84px + var(--safe-bot)); transform: translateX(-50%);
+  background: var(--bg3); border: 1px solid var(--gold); color: var(--gold2);
+  border-radius: 999px; padding: 9px 18px; font-size: 13px; font-weight: 600;
+  z-index: 60; opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap;
+}
+#toast.show { opacity: 1; }
+
+/* ── FLYER-DRUCK (A4) ───────────────────────────────────────── */
+#flyer-print { display: none; }
+@media print {
+  @page { size: A4; margin: 14mm 16mm; }
+  body { overflow: visible; background: #fff; color: #1a1410; display: block; height: auto; }
+  #screen-login, #screen-sperre, #screen-app, header, #bottom-nav, #toast, .modal-bg { display: none !important; }
+  #flyer-print { display: block !important; font-family: Georgia, 'Times New Roman', serif; color: #1a1410; }
+  .fp-kopf { text-align: center; border-bottom: 3px double #8b3a1e; padding-bottom: 8px; margin-bottom: 14px; }
+  .fp-kopf h1 { font-size: 24pt; color: #8b3a1e; font-weight: 700; letter-spacing: .04em; }
+  .fp-kopf .fp-sub { font-size: 10pt; color: #6b5a40; font-style: italic; margin-top: 3px; }
+  .fp-produkt { page-break-inside: avoid; border-bottom: 1px solid #c9b890; padding: 9px 0; }
+  .fp-name { font-size: 14pt; font-weight: 700; color: #1a1410; }
+  .fp-alk { font-size: 9.5pt; color: #8b3a1e; font-weight: 400; margin-left: 8px; }
+  .fp-zeile { font-size: 10pt; margin-top: 3px; line-height: 1.35; }
+  .fp-lang { font-weight: 700; color: #8b3a1e; font-variant: small-caps; margin-right: 5px; }
+  .fp-fuss { margin-top: 14px; text-align: center; font-size: 9pt; color: #6b5a40; font-style: italic; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ──────────────────────────────────────────────── -->
+<div id="screen-login" class="hidden">
+  <div class="login-logo-title">⚜️ Produktkatalog</div>
+  <div class="login-sub">Beerenweine · Verwaltung</div>
+  <div class="login-box">
+    <input type="email" id="login-email" placeholder="E-Mail" autocomplete="username">
+    <input type="password" id="login-pw" placeholder="Passwort" autocomplete="current-password">
+    <button class="btn btn-primary" onclick="doLogin()">Anmelden</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- ── SPERRE (kein Admin) ────────────────────────────────── -->
+<div id="screen-sperre" class="hidden">
+  <div class="login-logo-title">🔒 Kein Zugang</div>
+  <div class="login-sub">Der Produktkatalog ist nur für Administratoren zugänglich.</div>
+  <button class="btn" onclick="doLogout()">Abmelden</button>
+</div>
+
+<!-- ── APP ────────────────────────────────────────────────── -->
+<div id="screen-app" class="hidden">
+  <header>
+    <button class="header-back hidden" id="header-back" onclick="zurueck()">‹</button>
+    <div class="header-title" id="header-title">Produktkatalog</div>
+    <span class="header-version" id="pk-version"></span>
+    <button class="header-gear" onclick="openSprachenModal()" title="Sprachen">🌐</button>
+    <button class="header-gear" onclick="doLogout()" title="Abmelden">🚪</button>
+  </header>
+
+  <div style="flex:1; display:flex; flex-direction:column; min-height:0; position:relative;">
+
+    <!-- PRODUKTE -->
+    <div id="screen-produkte" class="screen">
+      <div class="search-row">
+        <input type="search" id="produkt-suche" placeholder="🔍 Produkt suchen…" oninput="renderProdukte()">
+        <button class="btn btn-primary btn-sm" style="white-space:nowrap;" onclick="neuesProdukt()">+ Neu</button>
+      </div>
+      <div class="chips" id="kat-chips"></div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text3);margin-bottom:10px;">
+        <input type="checkbox" id="produkt-inaktive" style="width:auto;" onchange="renderProdukte()"> Inaktive anzeigen
+      </label>
+      <div id="produkt-liste"><div class="spinner"></div></div>
+    </div>
+
+    <!-- PRODUKT-DETAIL -->
+    <div id="screen-detail" class="screen hidden">
+      <div class="tabbar">
+        <button class="tab-btn active" id="tab-stamm" onclick="showDetailTab('stamm')">Stammdaten</button>
+        <button class="tab-btn" id="tab-varianten" onclick="showDetailTab('varianten')">Varianten</button>
+        <button class="tab-btn" id="tab-texte" onclick="showDetailTab('texte')">Texte</button>
+      </div>
+
+      <div id="detail-stamm">
+        <div class="field"><label>Deutscher Name</label><input type="text" id="p-name"></div>
+        <div class="field-row">
+          <div class="field"><label>Artikelnummer</label><input type="text" id="p-artikelnr" inputmode="numeric"></div>
+          <div class="field"><label>Alkohol (% vol)</label><input type="text" id="p-alkohol" inputmode="decimal" placeholder="z. B. 10,5"></div>
+        </div>
+        <div class="field"><label>Kategorie</label><select id="p-kategorie"></select></div>
+        <div class="field">
+          <label style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="p-aktiv" style="width:auto;"> Produkt aktiv
+          </label>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="saveStammdaten()">Speichern</button>
+        <hr class="divider">
+        <button class="btn btn-danger btn-full" id="p-loeschen-btn" onclick="deleteProdukt()">Produkt löschen</button>
+      </div>
+
+      <div id="detail-varianten" class="hidden">
+        <p class="hint" id="var-preis-hinweis" style="margin-bottom:10px;"></p>
+        <div id="var-liste"></div>
+        <button class="btn btn-full" onclick="addVarianteZeile()">+ Größe hinzufügen</button>
+        <div style="height:10px;"></div>
+        <button class="btn btn-primary btn-full" onclick="saveVarianten()">Varianten speichern</button>
+      </div>
+
+      <div id="detail-texte" class="hidden">
+        <div class="chips" id="sprach-chips"></div>
+        <div class="field"><label>Produktbeschreibung (Wiki)</label><textarea id="t-beschreibung" rows="6"></textarea></div>
+        <div class="field"><label>Verkaufstext (kurz, für den Stand)</label><textarea id="t-verkaufstext" rows="3"></textarea></div>
+        <div class="field"><label>Kurzbeschreibung (für Flyer/Übersetzung)</label><textarea id="t-kurzbeschreibung" rows="3"></textarea></div>
+        <button class="btn btn-primary btn-full" onclick="saveTexte()">Text speichern</button>
+      </div>
+    </div>
+
+    <!-- PREISE -->
+    <div id="screen-preise" class="screen hidden">
+      <div class="card-row" style="margin-bottom:12px;">
+        <h2 style="margin:0;">Kategorien &amp; Preise</h2>
+        <button class="btn btn-primary btn-sm" onclick="neueKategorie()">+ Kategorie</button>
+      </div>
+      <p class="hint" style="margin-bottom:12px;">Bei Preis-Modus „einheitlich" gilt der Preis je Größe für alle Produkte der Kategorie. Bei „gesondert" wird der Preis an der Variante gepflegt.</p>
+      <div id="preise-liste"><div class="spinner"></div></div>
+    </div>
+
+    <!-- WIKI -->
+    <div id="screen-wiki" class="screen hidden">
+      <h2>Wiki-Übersicht</h2>
+      <p class="hint" style="margin-bottom:10px;">● vollständig · ◐ teilweise · ○ leer — Tippen öffnet den Text-Editor.</p>
+      <div id="wiki-wrap"></div>
+    </div>
+
+    <!-- FLYER -->
+    <div id="screen-flyer" class="screen hidden">
+      <h2>Flyer drucken (DIN A4)</h2>
+      <div class="field"><label>Bestellung wählen</label><select id="flyer-bestellung"></select></div>
+      <div class="field">
+        <label>Sprachen für Übersetzungen</label>
+        <div class="chips" id="flyer-sprachen" style="padding-top:2px;"></div>
+      </div>
+      <div class="field"><label>Flyer-Titel</label><input type="text" id="flyer-titel" value="Unsere Weine &amp; Met"></div>
+      <button class="btn btn-primary btn-full" onclick="generateFlyer()">Vorschau erzeugen</button>
+      <div style="height:10px;"></div>
+      <button class="btn btn-full hidden" id="flyer-druck-btn" onclick="window.print()">🖨 Drucken / PDF</button>
+      <div id="flyer-status" class="hint" style="margin-top:10px;"></div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav id="bottom-nav">
+    <button class="nav-btn active" id="nav-produkte" onclick="navTo('produkte')"><span class="nav-icon">🍷</span>Produkte</button>
+    <button class="nav-btn" id="nav-preise" onclick="navTo('preise')"><span class="nav-icon">💰</span>Preise</button>
+    <button class="nav-btn" id="nav-wiki" onclick="navTo('wiki')"><span class="nav-icon">📜</span>Wiki</button>
+    <button class="nav-btn" id="nav-flyer" onclick="navTo('flyer')"><span class="nav-icon">🖨</span>Flyer</button>
+  </nav>
+</div>
+
+<!-- SPRACHEN-MODAL -->
+<div class="modal-bg hidden" id="sprachen-modal" onclick="if(event.target===this)closeSprachenModal()">
+  <div class="modal">
+    <h3>🌐 Sprachen verwalten</h3>
+    <div id="sprachen-liste"></div>
+    <hr class="divider">
+    <div class="field-row">
+      <div class="field" style="flex:0 0 90px;"><label>Code</label><input type="text" id="ns-code" placeholder="it" maxlength="5"></div>
+      <div class="field"><label>Name</label><input type="text" id="ns-name" placeholder="Italienisch"></div>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="addSprache()">Sprache hinzufügen</button>
+    <div style="height:8px;"></div>
+    <button class="btn btn-full" onclick="closeSprachenModal()">Schließen</button>
+  </div>
+</div>
+
+<!-- Druckbereich -->
+<div id="flyer-print"></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+const PK_VERSION = 'v1.0';
+const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
+
+let sb = null;
+let currentUser = null;
+let cache = { kategorien: [], katPreise: [], produkte: [], varianten: [], sprachen: [], texte: [], bestellungen: [] };
+let aktScreen = 'produkte';
+let aktKatFilter = 'alle';
+let aktProduktId = null;      // null = neues Produkt
+let aktSprache = 'de';
+let varZeilen = [];           // Arbeitskopie der Varianten im Detail
+
+function el(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+function uuid() {
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+}
+function eur(cent) {
+  return (cent / 100).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €';
+}
+// "6,00" / "6.00" / "6" → 600 Cent; leer → null
+function parseEuroCent(str) {
+  const s = String(str ?? '').trim().replace(/\./g, ',').replace(',', '.');
+  if (s === '') return null;
+  const f = parseFloat(s);
+  if (isNaN(f)) return null;
+  return Math.round(f * 100);
+}
+// "10,5" → 10.5; leer → null
+function parseDezimal(str) {
+  const s = String(str ?? '').trim().replace(',', '.');
+  if (s === '') return null;
+  const f = parseFloat(s);
+  return isNaN(f) ? null : f;
+}
+function toast(msg) {
+  const t = el('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._tm);
+  toast._tm = setTimeout(() => t.classList.remove('show'), 2200);
+}
+async function dbW(promise, was) {
+  const { error } = await promise;
+  if (error) { console.error(was, error); toast('⚠️ Fehler: ' + was); return false; }
+  return true;
+}
+
+/* ── INIT ───────────────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', async () => {
+  const theme = localStorage.getItem('mf_theme') || 'braun';
+  if (theme !== 'braun') document.documentElement.setAttribute('data-theme', theme);
+  el('pk-version').textContent = PK_VERSION;
+  document.title = 'Produktkatalog · ' + PK_VERSION;
+
+  sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT' || !session) showLogin();
+  });
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { await pruefeAdminUndStart(session.user); } else { showLogin(); }
+});
+
+function showLogin() {
+  el('screen-login').classList.remove('hidden');
+  el('screen-sperre').classList.add('hidden');
+  el('screen-app').classList.add('hidden');
+}
+async function doLogin() {
+  el('login-error').textContent = '';
+  const email = el('login-email').value.trim();
+  const pw = el('login-pw').value;
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+  if (error) { el('login-error').textContent = 'Anmeldung fehlgeschlagen.'; return; }
+  await pruefeAdminUndStart(data.user);
+}
+async function doLogout() {
+  await sb.auth.signOut();
+  showLogin();
+}
+async function pruefeAdminUndStart(user) {
+  currentUser = user;
+  const { data: rollen } = await sb.from('user_rolle').select('rolle').eq('user_id', user.id);
+  const istAdmin = (rollen || []).some(r => r.rolle === 'admin');
+  if (!istAdmin) {
+    // UI-Sperre; die echte Absicherung liegt in den RLS-Policies (Schreiben nur ist_admin()).
+    el('screen-login').classList.add('hidden');
+    el('screen-app').classList.add('hidden');
+    el('screen-sperre').classList.remove('hidden');
+    return;
+  }
+  el('screen-login').classList.add('hidden');
+  el('screen-sperre').classList.add('hidden');
+  el('screen-app').classList.remove('hidden');
+  await ladeAlles();
+  navTo('produkte');
+}
+
+/* ── DATEN LADEN ────────────────────────────────────────────── */
+async function ladeAlles() {
+  const [katRes, kpRes, prodRes, varRes, sprRes, txtRes] = await Promise.all([
+    sb.from('kategorie').select('*').is('geloescht_am', null).order('reihenfolge'),
+    sb.from('kategorie_preis').select('*').is('geloescht_am', null),
+    sb.from('produkt').select('*').is('geloescht_am', null).order('name'),
+    sb.from('produkt_variante').select('*').is('geloescht_am', null),
+    sb.from('sprache').select('*').is('geloescht_am', null).order('reihenfolge'),
+    sb.from('produkt_text').select('*').is('geloescht_am', null),
+  ]);
+  cache.kategorien = katRes.data || [];
+  cache.katPreise = kpRes.data || [];
+  cache.produkte = prodRes.data || [];
+  cache.varianten = varRes.data || [];
+  cache.sprachen = sprRes.data || [];
+  cache.texte = txtRes.data || [];
+}
+function katName(id) {
+  const k = cache.kategorien.find(k => k.id === id);
+  return k ? k.name : '—';
+}
+function katVon(id) { return cache.kategorien.find(k => k.id === id) || null; }
+function variantenVon(pid) { return cache.varianten.filter(v => v.produkt_id === pid); }
+function textVon(pid, code) { return cache.texte.find(t => t.produkt_id === pid && t.sprache_code === code) || null; }
+function aktiveSprachen() { return cache.sprachen.filter(s => s.aktiv); }
+
+/* ── NAVIGATION ─────────────────────────────────────────────── */
+function navTo(name) {
+  aktScreen = name;
+  ['produkte','preise','wiki','flyer','detail'].forEach(s => {
+    const scr = el('screen-' + s);
+    if (scr) scr.classList.toggle('hidden', s !== name);
+  });
+  ['produkte','preise','wiki','flyer'].forEach(s =>
+    el('nav-' + s).classList.toggle('active', s === name));
+  el('header-back').classList.toggle('hidden', name !== 'detail');
+  const titel = { produkte: 'Produktkatalog', preise: 'Preise', wiki: 'Produkt-Wiki', flyer: 'Flyer', detail: 'Produkt' };
+  el('header-title').textContent = titel[name] || 'Produktkatalog';
+  if (name === 'produkte') renderProdukte();
+  if (name === 'preise') renderPreise();
+  if (name === 'wiki') renderWiki();
+  if (name === 'flyer') initFlyer();
+}
+function zurueck() { navTo('produkte'); }
+
+/* ── PRODUKTE: LISTE ────────────────────────────────────────── */
+function renderKatChips() {
+  const chips = [{ id: 'alle', name: 'Alle' }, ...cache.kategorien];
+  el('kat-chips').innerHTML = chips.map(k =>
+    `<button class="chip ${aktKatFilter === k.id ? 'active' : ''}" onclick="setKatFilter('${k.id}')">${esc(k.name)}</button>`
+  ).join('');
+}
+function setKatFilter(id) { aktKatFilter = id; renderProdukte(); }
+
+function renderProdukte() {
+  renderKatChips();
+  const q = (el('produkt-suche').value || '').toLowerCase();
+  const zeigInaktive = el('produkt-inaktive').checked;
+  let liste = cache.produkte.filter(p =>
+    (zeigInaktive || p.aktiv) &&
+    (aktKatFilter === 'alle' || p.kategorie_id === aktKatFilter) &&
+    (!q || p.name.toLowerCase().includes(q) || (p.artikelnr || '').includes(q))
+  );
+  if (!liste.length) {
+    el('produkt-liste').innerHTML = '<p class="hint" style="padding:12px;">Keine Produkte gefunden.</p>';
+    return;
+  }
+  el('produkt-liste').innerHTML = liste.map(p => {
+    const vAnz = variantenVon(p.id).length;
+    const alk = p.alkohol_vol != null ? ` · ${String(p.alkohol_vol).replace('.', ',')} % vol` : '';
+    return `<div class="card" onclick="openProdukt('${p.id}')">
+      <div class="card-row">
+        <div style="min-width:0;">
+          <div class="card-title">${esc(p.name)}</div>
+          <div class="card-sub">${esc(katName(p.kategorie_id))} · ${vAnz} Größe(n)${alk}${p.artikelnr ? ' · Art. ' + esc(p.artikelnr) : ''}</div>
+        </div>
+        <div class="badge ${p.aktiv ? 'badge-aktiv' : 'badge-inaktiv'}">${p.aktiv ? 'aktiv' : 'inaktiv'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── PRODUKT-DETAIL ─────────────────────────────────────────── */
+function fuelleKategorieSelect() {
+  el('p-kategorie').innerHTML = cache.kategorien.map(k =>
+    `<option value="${k.id}">${esc(k.name)}</option>`).join('');
+}
+function neuesProdukt() { openProdukt(null); }
+
+function openProdukt(id, tab) {
+  aktProduktId = id;
+  fuelleKategorieSelect();
+  const p = id ? cache.produkte.find(x => x.id === id) : null;
+  el('p-name').value = p ? p.name : '';
+  el('p-artikelnr').value = p ? (p.artikelnr || '') : '';
+  el('p-alkohol').value = p && p.alkohol_vol != null ? String(p.alkohol_vol).replace('.', ',') : '';
+  el('p-kategorie').value = p ? p.kategorie_id : (cache.kategorien[0] ? cache.kategorien[0].id : '');
+  el('p-aktiv').checked = p ? p.aktiv : true;
+  el('p-loeschen-btn').classList.toggle('hidden', !id);
+  varZeilen = variantenVon(id || '').map(v => ({ ...v }));
+  aktSprache = 'de';
+  navTo('detail');
+  el('header-title').textContent = p ? p.name : 'Neues Produkt';
+  showDetailTab(tab || 'stamm');
+}
+
+function showDetailTab(tab) {
+  ['stamm','varianten','texte'].forEach(t => {
+    el('detail-' + t).classList.toggle('hidden', t !== tab);
+    el('tab-' + t).classList.toggle('active', t === tab);
+  });
+  if ((tab === 'varianten' || tab === 'texte') && !aktProduktId) {
+    toast('Bitte zuerst Stammdaten speichern');
+    showDetailTab('stamm');
+    return;
+  }
+  if (tab === 'varianten') renderVarianten();
+  if (tab === 'texte') renderTexte();
+}
+
+async function saveStammdaten() {
+  const name = el('p-name').value.trim();
+  if (!name) { toast('Name fehlt'); return; }
+  const katId = el('p-kategorie').value;
+  if (!katId) { toast('Kategorie fehlt'); return; }
+  const alk = parseDezimal(el('p-alkohol').value);
+  const now = new Date().toISOString();
+  const felder = {
+    name, kategorie_id: katId,
+    artikelnr: el('p-artikelnr').value.trim() || null,
+    alkohol_vol: alk,
+    aktiv: el('p-aktiv').checked,
+    geaendert_am: now, geaendert_von: currentUser.id,
+  };
+  let ok;
+  if (aktProduktId) {
+    ok = await dbW(sb.from('produkt').update(felder).eq('id', aktProduktId), 'Produkt speichern');
+  } else {
+    const neuId = uuid();
+    ok = await dbW(sb.from('produkt').insert({ ...felder, id: neuId, erstellt_am: now, erstellt_von: currentUser.id }), 'Produkt anlegen');
+    if (ok) aktProduktId = neuId;
+  }
+  if (!ok) return;
+  await ladeAlles();
+  el('header-title').textContent = name;
+  el('p-loeschen-btn').classList.remove('hidden');
+  toast('✓ Gespeichert');
+}
+
+async function deleteProdukt() {
+  if (!aktProduktId) return;
+  const p = cache.produkte.find(x => x.id === aktProduktId);
+  if (!confirm(`„${p ? p.name : 'Produkt'}" wirklich löschen?\n(Soft-Delete, bleibt in alten Bestellungen erhalten)`)) return;
+  const now = new Date().toISOString();
+  const ok = await dbW(sb.from('produkt').update({ geloescht_am: now, geaendert_am: now, geaendert_von: currentUser.id }).eq('id', aktProduktId), 'Produkt löschen');
+  if (!ok) return;
+  await ladeAlles();
+  toast('Produkt gelöscht');
+  navTo('produkte');
+}
+
+/* ── VARIANTEN ──────────────────────────────────────────────── */
+function renderVarianten() {
+  const kat = katVon(el('p-kategorie').value);
+  const gesondert = kat && kat.preis_modus === 'gesondert';
+  el('var-preis-hinweis').textContent = gesondert
+    ? 'Kategorie „' + (kat ? kat.name : '') + '": Preis wird je Variante gepflegt.'
+    : 'Kategorie „' + (kat ? kat.name : '') + '": Preis kommt aus der Kategorie-Preistabelle (Reiter Preise). Preisfeld hier deaktiviert.';
+  const sichtbar = varZeilen.map((v, i) => ({ v, i })).filter(x => !x.v._loeschen);
+  if (!sichtbar.length) {
+    el('var-liste').innerHTML = '<p class="hint" style="margin-bottom:10px;">Noch keine Größen angelegt.</p>';
+    return;
+  }
+  el('var-liste').innerHTML = sichtbar.map(({ v, i }) => `
+    <div class="var-row">
+      <input type="text" placeholder="Größe, z. B. 0,75" value="${esc(v.groesse)}" onchange="varZeilen[${i}].groesse=this.value">
+      <input type="text" inputmode="decimal" placeholder="Preis €" value="${gesondert && v.preis_cent != null ? (v.preis_cent/100).toLocaleString('de-DE',{minimumFractionDigits:2}) : ''}"
+        ${gesondert ? '' : 'disabled'} onchange="varZeilen[${i}]._preisStr=this.value">
+      <button class="icon-btn" onclick="removeVariante(${i})">✕</button>
+    </div>`).join('');
+}
+function addVarianteZeile() {
+  varZeilen.push({ id: null, produkt_id: aktProduktId, groesse: '', preis_cent: null, _neu: true });
+  renderVarianten();
+}
+function removeVariante(i) {
+  const v = varZeilen[i];
+  if (v.id) v._loeschen = true;  // vorhandene Variante: beim Speichern soft-deleten
+  else varZeilen.splice(i, 1);   // neue, ungespeicherte Zeile: einfach entfernen
+  renderVarianten();
+}
+async function saveVarianten() {
+  if (!aktProduktId) { toast('Bitte zuerst Stammdaten speichern'); return; }
+  const kat = katVon(el('p-kategorie').value);
+  const gesondert = kat && kat.preis_modus === 'gesondert';
+  const now = new Date().toISOString();
+  for (const v of varZeilen) {
+    if (v._loeschen && v.id) {
+      if (!await dbW(sb.from('produkt_variante').update({ geloescht_am: now, geaendert_am: now }).eq('id', v.id), 'Variante löschen')) return;
+      continue;
+    }
+    if (v._loeschen) continue;
+    const groesse = (v.groesse || '').trim();
+    if (!groesse) continue;
+    const preis = gesondert
+      ? (v._preisStr !== undefined ? parseEuroCent(v._preisStr) : v.preis_cent)
+      : null;
+    if (v.id) {
+      if (!await dbW(sb.from('produkt_variante').update({ groesse, preis_cent: preis, geaendert_am: now }).eq('id', v.id), 'Variante speichern')) return;
+    } else {
+      if (!await dbW(sb.from('produkt_variante').insert({ id: uuid(), produkt_id: aktProduktId, groesse, preis_cent: preis, erstellt_am: now, geaendert_am: now }), 'Variante anlegen')) return;
+    }
+  }
+  await ladeAlles();
+  varZeilen = variantenVon(aktProduktId).map(v => ({ ...v }));
+  renderVarianten();
+  toast('✓ Varianten gespeichert');
+}
+
+/* ── TEXTE (WIKI) ───────────────────────────────────────────── */
+function renderSprachChips() {
+  el('sprach-chips').innerHTML = aktiveSprachen().map(s => {
+    const t = textVon(aktProduktId, s.code);
+    const voll = t && (t.beschreibung || t.verkaufstext || t.kurzbeschreibung);
+    return `<button class="chip ${aktSprache === s.code ? 'active' : ''}" onclick="setSprache('${esc(s.code)}')">${voll ? '● ' : ''}${esc(s.name)}</button>`;
+  }).join('');
+}
+function setSprache(code) { aktSprache = code; renderTexte(); }
+function renderTexte() {
+  renderSprachChips();
+  const t = textVon(aktProduktId, aktSprache);
+  el('t-beschreibung').value = t ? (t.beschreibung || '') : '';
+  el('t-verkaufstext').value = t ? (t.verkaufstext || '') : '';
+  el('t-kurzbeschreibung').value = t ? (t.kurzbeschreibung || '') : '';
+}
+async function saveTexte() {
+  if (!aktProduktId) { toast('Bitte zuerst Stammdaten speichern'); return; }
+  const now = new Date().toISOString();
+  const felder = {
+    beschreibung: el('t-beschreibung').value.trim() || null,
+    verkaufstext: el('t-verkaufstext').value.trim() || null,
+    kurzbeschreibung: el('t-kurzbeschreibung').value.trim() || null,
+    geaendert_am: now, geaendert_von: currentUser.id,
+  };
+  const vorhanden = textVon(aktProduktId, aktSprache);
+  let ok;
+  if (vorhanden) {
+    ok = await dbW(sb.from('produkt_text').update(felder).eq('id', vorhanden.id), 'Text speichern');
+  } else {
+    ok = await dbW(sb.from('produkt_text').insert({
+      ...felder, id: uuid(), produkt_id: aktProduktId, sprache_code: aktSprache,
+      erstellt_am: now, erstellt_von: currentUser.id,
+    }), 'Text anlegen');
+  }
+  if (!ok) return;
+  await ladeAlles();
+  renderSprachChips();
+  toast('✓ Text gespeichert');
+}
+
+/* ── PREISE / KATEGORIEN ────────────────────────────────────── */
+function renderPreise() {
+  if (!cache.kategorien.length) {
+    el('preise-liste').innerHTML = '<p class="hint">Keine Kategorien vorhanden.</p>';
+    return;
+  }
+  el('preise-liste').innerHTML = cache.kategorien.map(k => {
+    const preise = cache.katPreise.filter(p => p.kategorie_id === k.id)
+      .sort((a, b) => a.groesse.localeCompare(b.groesse, 'de', { numeric: true }));
+    const einheitlich = k.preis_modus === 'einheitlich';
+    const preisRows = einheitlich ? preise.map(p => `
+      <div class="var-row">
+        <input type="text" value="${esc(p.groesse)}" onchange="updateKatPreis('${p.id}','groesse',this.value)">
+        <input type="text" inputmode="decimal" value="${(p.preis_cent/100).toLocaleString('de-DE',{minimumFractionDigits:2})}" onchange="updateKatPreis('${p.id}','preis',this.value)">
+        <button class="icon-btn" onclick="deleteKatPreis('${p.id}')">✕</button>
+      </div>`).join('') : '';
+    return `<div class="card" style="cursor:default;">
+      <div class="card-row" style="margin-bottom:10px;">
+        <input type="text" value="${esc(k.name)}" style="font-weight:700;" onchange="updateKategorie('${k.id}','name',this.value)">
+      </div>
+      <div class="field-row" style="margin-bottom:8px;">
+        <div class="field" style="margin-bottom:0;">
+          <label>Preis-Modus</label>
+          <select onchange="updateKategorie('${k.id}','preis_modus',this.value)">
+            <option value="einheitlich" ${einheitlich ? 'selected' : ''}>einheitlich</option>
+            <option value="gesondert" ${!einheitlich ? 'selected' : ''}>gesondert</option>
+          </select>
+        </div>
+        <div class="field" style="flex:0 0 110px;margin-bottom:0;">
+          <label>Reihenfolge</label>
+          <input type="text" inputmode="numeric" value="${k.reihenfolge}" onchange="updateKategorie('${k.id}','reihenfolge',this.value)">
+        </div>
+      </div>
+      ${einheitlich ? `
+        <div class="hint" style="margin-bottom:6px;">Größe · Preis (gilt für alle Produkte der Kategorie)</div>
+        ${preisRows || '<p class="hint" style="margin-bottom:8px;">Noch keine Preise.</p>'}
+        <button class="btn btn-sm" onclick="addKatPreis('${k.id}')">+ Größe/Preis</button>`
+      : '<p class="hint">Preise werden je Produkt-Variante gepflegt.</p>'}
+    </div>`;
+  }).join('');
+}
+async function updateKategorie(id, feld, wert) {
+  const now = new Date().toISOString();
+  const upd = { geaendert_am: now };
+  if (feld === 'name') { if (!wert.trim()) { toast('Name fehlt'); renderPreise(); return; } upd.name = wert.trim(); }
+  if (feld === 'preis_modus') upd.preis_modus = wert;
+  if (feld === 'reihenfolge') upd.reihenfolge = parseInt(wert, 10) || 0;
+  if (await dbW(sb.from('kategorie').update(upd).eq('id', id), 'Kategorie speichern')) {
+    await ladeAlles(); renderPreise(); toast('✓ Gespeichert');
+  }
+}
+async function neueKategorie() {
+  const name = prompt('Name der neuen Kategorie:');
+  if (!name || !name.trim()) return;
+  const now = new Date().toISOString();
+  const maxRf = Math.max(0, ...cache.kategorien.map(k => k.reihenfolge));
+  if (await dbW(sb.from('kategorie').insert({
+    id: uuid(), name: name.trim(), preis_modus: 'gesondert', reihenfolge: maxRf + 1,
+    erstellt_am: now, geaendert_am: now,
+  }), 'Kategorie anlegen')) {
+    await ladeAlles(); renderPreise(); toast('✓ Kategorie angelegt');
+  }
+}
+async function addKatPreis(katId) {
+  const groesse = prompt('Größe (z. B. 0,75):');
+  if (!groesse || !groesse.trim()) return;
+  const preisStr = prompt('Preis in € (z. B. 13,00):');
+  const cent = parseEuroCent(preisStr);
+  if (cent == null) { toast('Ungültiger Preis'); return; }
+  const now = new Date().toISOString();
+  if (await dbW(sb.from('kategorie_preis').insert({
+    id: uuid(), kategorie_id: katId, groesse: groesse.trim(), preis_cent: cent,
+    erstellt_am: now, geaendert_am: now,
+  }), 'Preis anlegen')) {
+    await ladeAlles(); renderPreise(); toast('✓ Preis angelegt');
+  }
+}
+async function updateKatPreis(id, feld, wert) {
+  const now = new Date().toISOString();
+  const upd = { geaendert_am: now };
+  if (feld === 'groesse') { if (!wert.trim()) { renderPreise(); return; } upd.groesse = wert.trim(); }
+  if (feld === 'preis') {
+    const cent = parseEuroCent(wert);
+    if (cent == null) { toast('Ungültiger Preis'); renderPreise(); return; }
+    upd.preis_cent = cent;
+  }
+  if (await dbW(sb.from('kategorie_preis').update(upd).eq('id', id), 'Preis speichern')) {
+    await ladeAlles(); renderPreise(); toast('✓ Gespeichert');
+  }
+}
+async function deleteKatPreis(id) {
+  if (!confirm('Diesen Preis-Eintrag löschen?')) return;
+  const now = new Date().toISOString();
+  if (await dbW(sb.from('kategorie_preis').update({ geloescht_am: now, geaendert_am: now }).eq('id', id), 'Preis löschen')) {
+    await ladeAlles(); renderPreise(); toast('Preis gelöscht');
+  }
+}
+
+/* ── WIKI-ÜBERSICHT ─────────────────────────────────────────── */
+function wikiStatus(pid, code) {
+  const t = textVon(pid, code);
+  if (!t) return 'leer';
+  const anz = ['beschreibung','verkaufstext','kurzbeschreibung'].filter(f => t[f]).length;
+  if (code === 'de') return anz >= 3 ? 'voll' : anz > 0 ? 'teil' : 'leer';
+  return t.kurzbeschreibung ? 'voll' : anz > 0 ? 'teil' : 'leer';
+}
+function renderWiki() {
+  const sprachen = aktiveSprachen();
+  const produkte = cache.produkte.filter(p => p.aktiv);
+  const symbol = { voll: '<span class="dot-voll">●</span>', teil: '<span class="dot-teil">◐</span>', leer: '<span class="dot-leer">○</span>' };
+  let html = '<table class="wiki"><thead><tr><th>Produkt</th>' +
+    sprachen.map(s => `<th>${esc(s.code.toUpperCase())}</th>`).join('') + '</tr></thead><tbody>';
+  for (const p of produkte) {
+    html += `<tr><td class="pname">${esc(p.name)}</td>` + sprachen.map(s =>
+      `<td class="cell" onclick="openWikiZelle('${p.id}','${esc(s.code)}')">${symbol[wikiStatus(p.id, s.code)]}</td>`
+    ).join('') + '</tr>';
+  }
+  html += '</tbody></table>';
+  el('wiki-wrap').innerHTML = html;
+}
+function openWikiZelle(pid, code) {
+  aktSprache = code;
+  openProdukt(pid, 'texte');
+  aktSprache = code;
+  renderTexte();
+}
+
+/* ── FLYER ──────────────────────────────────────────────────── */
+let flyerSprachenAuswahl = [];
+async function initFlyer() {
+  el('flyer-druck-btn').classList.add('hidden');
+  el('flyer-status').textContent = '';
+  // Sprachen-Chips (DE ist immer Basis: Name + Alkohol)
+  const fremd = aktiveSprachen().filter(s => s.code !== 'de');
+  if (!flyerSprachenAuswahl.length) flyerSprachenAuswahl = fremd.map(s => s.code);
+  el('flyer-sprachen').innerHTML = fremd.map(s =>
+    `<button class="chip ${flyerSprachenAuswahl.includes(s.code) ? 'active' : ''}" onclick="toggleFlyerSprache('${esc(s.code)}')">${esc(s.name)}</button>`
+  ).join('');
+  // Bestellungen laden (einmalig / aktualisiert)
+  const { data, error } = await sb.from('bestellung')
+    .select('id, status, versendet_am, erstellt_am, event_instanz:event_instanz_id(name, saison_jahr)')
+    .is('geloescht_am', null)
+    .order('erstellt_am', { ascending: false })
+    .limit(60);
+  if (error) { console.error(error); toast('⚠️ Bestellungen laden fehlgeschlagen'); return; }
+  cache.bestellungen = data || [];
+  el('flyer-bestellung').innerHTML = '<option value="">— Bestellung wählen —</option>' +
+    cache.bestellungen.map(b => {
+      const ev = b.event_instanz ? `${b.event_instanz.name} ${b.event_instanz.saison_jahr}` : 'Ohne Markt';
+      const dat = (b.versendet_am || b.erstellt_am || '').slice(0, 10);
+      return `<option value="${b.id}">${esc(ev)} · ${esc(b.status)} · ${esc(dat)}</option>`;
+    }).join('');
+}
+function toggleFlyerSprache(code) {
+  if (flyerSprachenAuswahl.includes(code)) flyerSprachenAuswahl = flyerSprachenAuswahl.filter(c => c !== code);
+  else flyerSprachenAuswahl.push(code);
+  initFlyer();
+}
+async function generateFlyer() {
+  const bestId = el('flyer-bestellung').value;
+  if (!bestId) { toast('Bitte Bestellung wählen'); return; }
+  el('flyer-status').textContent = 'Lade Bestellpositionen…';
+  const { data: pos, error } = await sb.from('bestellposition')
+    .select('menge, variante:variante_id(produkt_id)')
+    .eq('bestellung_id', bestId)
+    .is('geloescht_am', null);
+  if (error) { console.error(error); toast('⚠️ Positionen laden fehlgeschlagen'); return; }
+  const produktIds = [...new Set((pos || []).filter(p => p.variante).map(p => p.variante.produkt_id))];
+  if (!produktIds.length) { el('flyer-status').textContent = 'Diese Bestellung hat keine Positionen.'; return; }
+
+  const sprachOrd = aktiveSprachen().filter(s => flyerSprachenAuswahl.includes(s.code));
+  const produkte = produktIds
+    .map(id => cache.produkte.find(p => p.id === id))
+    .filter(Boolean)
+    .sort((a, b) => {
+      const ka = katVon(a.kategorie_id), kb = katVon(b.kategorie_id);
+      const rf = (ka ? ka.reihenfolge : 99) - (kb ? kb.reihenfolge : 99);
+      return rf !== 0 ? rf : a.name.localeCompare(b.name, 'de');
+    });
+
+  const titel = el('flyer-titel').value.trim() || 'Unsere Weine & Met';
+  let html = `<div class="fp-kopf"><h1>${esc(titel)}</h1><div class="fp-sub">Beerenweine · mit Leidenschaft &amp; Begeisterung</div></div>`;
+  let fehlend = 0;
+  let letzteKat = null;
+  for (const p of produkte) {
+    const kn = katName(p.kategorie_id);
+    if (kn !== letzteKat) {
+      html += `<div style="margin-top:12px;font-size:12pt;font-weight:700;color:#8b3a1e;font-variant:small-caps;border-bottom:1px solid #8b3a1e;">${esc(kn)}</div>`;
+      letzteKat = kn;
+    }
+    const alk = p.alkohol_vol != null ? `<span class="fp-alk">${String(p.alkohol_vol).replace('.', ',')} % vol</span>` : '';
+    html += `<div class="fp-produkt"><div class="fp-name">${esc(p.name)}${alk}</div>`;
+    const de = textVon(p.id, 'de');
+    if (de && de.kurzbeschreibung) html += `<div class="fp-zeile">${esc(de.kurzbeschreibung)}</div>`;
+    for (const s of sprachOrd) {
+      const t = textVon(p.id, s.code);
+      if (t && t.kurzbeschreibung) {
+        html += `<div class="fp-zeile"><span class="fp-lang">${esc(s.name)}</span>${esc(t.kurzbeschreibung)}</div>`;
+      } else { fehlend++; }
+    }
+    html += '</div>';
+  }
+  html += `<div class="fp-fuss">www.beerenweine.eu</div>`;
+  el('flyer-print').innerHTML = html;
+  el('flyer-druck-btn').classList.remove('hidden');
+  el('flyer-status').textContent = `${produkte.length} Produkte im Flyer.` +
+    (fehlend ? ` ⚠️ ${fehlend} fehlende Übersetzung(en) – im Wiki ergänzen.` : ' Alle Übersetzungen vorhanden.');
+}
+
+/* ── SPRACHEN-VERWALTUNG ────────────────────────────────────── */
+function openSprachenModal() {
+  renderSprachenListe();
+  el('sprachen-modal').classList.remove('hidden');
+}
+function closeSprachenModal() { el('sprachen-modal').classList.add('hidden'); }
+function renderSprachenListe() {
+  el('sprachen-liste').innerHTML = cache.sprachen.map(s => `
+    <div class="card-row" style="padding:7px 0;border-bottom:1px solid var(--border);">
+      <div><b>${esc(s.name)}</b> <span class="hint">(${esc(s.code)})</span></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="text" inputmode="numeric" value="${s.reihenfolge}" style="width:56px;padding:6px;" title="Reihenfolge" onchange="updateSprache('${s.id}','reihenfolge',this.value)">
+        <button class="btn btn-sm ${s.aktiv ? '' : 'btn-danger'}" onclick="updateSprache('${s.id}','aktiv',${!s.aktiv})">${s.aktiv ? 'aktiv' : 'aus'}</button>
+      </div>
+    </div>`).join('');
+}
+async function updateSprache(id, feld, wert) {
+  const now = new Date().toISOString();
+  const upd = { geaendert_am: now };
+  if (feld === 'reihenfolge') upd.reihenfolge = parseInt(wert, 10) || 99;
+  if (feld === 'aktiv') upd.aktiv = wert;
+  if (await dbW(sb.from('sprache').update(upd).eq('id', id), 'Sprache speichern')) {
+    await ladeAlles(); renderSprachenListe(); toast('✓ Gespeichert');
+  }
+}
+async function addSprache() {
+  const code = el('ns-code').value.trim().toLowerCase();
+  const name = el('ns-name').value.trim();
+  if (!code || !name) { toast('Code und Name angeben'); return; }
+  if (cache.sprachen.some(s => s.code === code)) { toast('Code existiert bereits'); return; }
+  const now = new Date().toISOString();
+  const maxRf = Math.max(0, ...cache.sprachen.map(s => s.reihenfolge));
+  if (await dbW(sb.from('sprache').insert({
+    code, name, reihenfolge: maxRf + 1, aktiv: true,
+    erstellt_am: now, geaendert_am: now,
+  }), 'Sprache anlegen')) {
+    el('ns-code').value = ''; el('ns-name').value = '';
+    await ladeAlles(); renderSprachenListe(); toast('✓ Sprache angelegt');
+  }
+}
+</script>
+</body>
+</html>
