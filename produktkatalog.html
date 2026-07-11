@@ -376,7 +376,7 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
 
 <script>
 'use strict';
-const PK_VERSION = 'v1.0';
+const PK_VERSION = 'v1.1';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
@@ -437,7 +437,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   el('pk-version').textContent = PK_VERSION;
   document.title = 'Produktkatalog · ' + PK_VERSION;
 
-  sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+  sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
+    // Eigener Speicher-Schlüssel: verhindert Session-/Lock-Konflikt mit der Haupt-App (gleiche Domain!)
+    auth: { storageKey: 'pk-auth-token' }
+  });
   sb.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT' || !session) showLogin();
   });
@@ -459,7 +462,7 @@ async function doLogin() {
   await pruefeAdminUndStart(data.user);
 }
 async function doLogout() {
-  await sb.auth.signOut();
+  await sb.auth.signOut({ scope: 'local' }); // nur diese App abmelden, Haupt-App-Session nicht widerrufen
   showLogin();
 }
 async function pruefeAdminUndStart(user) {
