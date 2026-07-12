@@ -4,11 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#1a1410">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Marktfahrer · v6.42</title>
+<title>Marktfahrer · v6.43</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -904,7 +905,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.42';
+const APP_VERSION = 'v6.43';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -2474,7 +2475,7 @@ function renderKasseDetailScreen(stand, datum, vorh) {
 
   calcKasseSumme();
   // Vorhandene EC-Buchung für diesen Tag nachladen
-  loadEcVorhandener(standId, datum);
+  loadEcVorhandener(stand.id, datum);
 }
 
 async function switchKasseTag(datum) {
@@ -2488,8 +2489,6 @@ async function switchKasseTag(datum) {
     .select('*').eq('stand_id', currentStandId).eq('datum', datum)
     .is('geloescht_am', null).maybeSingle();
   renderKasseDetailScreen(currentStand, datum, vorh);
-  // EC-Buchung nachladen
-  loadEcVorhandener(currentStandId, datum);
 }
 
 async function loadEcVorhandener(standId, datum) {
