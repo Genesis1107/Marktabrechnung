@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.44</title>
+<title>Marktfahrer · v6.45</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -906,7 +906,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.44';
+const APP_VERSION = 'v6.45';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -3029,7 +3029,7 @@ function exportBestellungPDF() {
 <title>Bestellung ${name}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital@0;1&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body{font-family:-apple-system,sans-serif;color:#1a1208;background:#fff;padding:14px 18px;font-size:11px}
 .header{padding:10px 0 12px;border-bottom:2px solid #c9942a;margin-bottom:12px}
 .header h1{font-family:Cinzel,serif;font-size:18px;font-weight:700;color:#3d1f08;margin-bottom:3px}
@@ -3352,7 +3352,8 @@ function exportChronikPDF() {
 <title>${marktName} ${aktJahr}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital@0;1&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,sans-serif;color:#1a1208;background:#fff;padding:20px 24px;font-size:13px}
+:root{--gold:#c9942a}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-family:-apple-system,sans-serif;color:#1a1208;background:#fff;padding:20px 24px;font-size:13px}
 .pdf-header{text-align:center;padding:14px 0 18px;border-bottom:1px solid #e0d0b0;margin-bottom:18px}
 .pdf-header h1{font-family:Cinzel,serif;font-size:22px;font-weight:700;color:#3d1f08;letter-spacing:1px}
 .pdf-header .sub{font-family:"Crimson Text",serif;font-style:italic;font-size:14px;color:#7a5c3a;margin-top:4px}
