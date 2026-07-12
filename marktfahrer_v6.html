@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.45</title>
+<title>Marktfahrer · v6.46</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -906,7 +906,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.45';
+const APP_VERSION = 'v6.46';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1990,7 +1990,14 @@ function renderStandCard(s) {
 async function saveInstanzStatus() {
   const status = el('plan-status').value;
   await dbW(sb.from('event_instanz').update({ status, geaendert_am: new Date().toISOString() }).eq('id', currentInstanzId), 'Markt speichern');
+  // Aufgaben der neuen Phase anlegen (idempotent, bereits Erledigtes bleibt)
+  await aufgabenAnlegen(currentInstanzId, status);
+  // Speicher-Status aktuell halten, sonst rendert der nächste Tab-Wechsel veraltet
+  if (currentInstanz) currentInstanz.status = status;
   toast('Status gespeichert', 'ok');
+  renderPlanungTab();
+  // Märkte-Liste im Hintergrund aktualisieren
+  loadMaerkte();
 }
 
 async function savePlanungDaten() {
