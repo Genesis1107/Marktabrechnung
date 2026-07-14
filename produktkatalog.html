@@ -134,6 +134,7 @@ h2 { font-size: 16px; color: var(--gold2); margin-bottom: 10px; }
 /* Suche + Filter-Chips */
 .search-row { display: flex; gap: 8px; margin-bottom: 10px; }
 .chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 8px; -webkit-overflow-scrolling: touch; }
+.tag-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
   padding: 6px 13px; border-radius: 999px; font-size: 13px; font-weight: 600;
   background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
@@ -284,6 +285,7 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
           <div class="field"><label>Alkohol (% vol)</label><input type="text" id="p-alkohol" inputmode="decimal" placeholder="z. B. 10,5"></div>
         </div>
         <div class="field"><label>Kategorie</label><select id="p-kategorie"></select></div>
+        <div class="field"><label>Geschmacks-Tags</label><div class="tag-chips" id="p-tags"></div></div>
         <div class="field">
           <label style="display:flex;align-items:center;gap:8px;">
             <input type="checkbox" id="p-aktiv" style="width:auto;"> Produkt aktiv
@@ -304,8 +306,8 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
 
       <div id="detail-texte" class="hidden">
         <div class="chips" id="sprach-chips"></div>
+        <div class="field"><label>Übersetzter Name</label><input type="text" id="t-name" placeholder="z. B. Dragon’s Glow"></div>
         <div class="field"><label>Produktbeschreibung (Wiki)</label><textarea id="t-beschreibung" rows="6"></textarea></div>
-        <div class="field"><label>Verkaufstext (kurz, für den Stand)</label><textarea id="t-verkaufstext" rows="3"></textarea></div>
         <div class="field"><label>Kurzbeschreibung (für Flyer/Übersetzung)</label><textarea id="t-kurzbeschreibung" rows="3"></textarea></div>
         <button class="btn btn-primary btn-full" onclick="saveTexte()">Text speichern</button>
       </div>
@@ -376,7 +378,7 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
 
 <script>
 'use strict';
-const PK_VERSION = 'v1.1';
+const PK_VERSION = 'v1.2';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
@@ -581,6 +583,8 @@ function openProdukt(id, tab) {
   el('p-alkohol').value = p && p.alkohol_vol != null ? String(p.alkohol_vol).replace('.', ',') : '';
   el('p-kategorie').value = p ? p.kategorie_id : (cache.kategorien[0] ? cache.kategorien[0].id : '');
   el('p-aktiv').checked = p ? p.aktiv : true;
+  stammTags = p && Array.isArray(p.tags) ? [...p.tags] : [];
+  renderTagChips();
   el('p-loeschen-btn').classList.toggle('hidden', !id);
   varZeilen = variantenVon(id || '').map(v => ({ ...v }));
   aktSprache = 'de';
@@ -603,6 +607,20 @@ function showDetailTab(tab) {
   if (tab === 'texte') renderTexte();
 }
 
+/* ── GESCHMACKS-TAGS ────────────────────────────────────────── */
+const TAG_VOKABULAR = ['trocken','halbtrocken','feinherb','herb','lieblich','süß','fruchtig','spritzig','Säure','weich','harmonisch','blumig','würzig','scharf','cremig','nussig','exotisch','winterlich'];
+let stammTags = [];
+function renderTagChips() {
+  el('p-tags').innerHTML = TAG_VOKABULAR.map(t =>
+    `<button type="button" class="chip ${stammTags.includes(t) ? 'active' : ''}" onclick="toggleTag('${t}')">${t}</button>`
+  ).join('');
+}
+function toggleTag(t) {
+  const i = stammTags.indexOf(t);
+  if (i >= 0) stammTags.splice(i, 1); else stammTags.push(t);
+  renderTagChips();
+}
+
 async function saveStammdaten() {
   const name = el('p-name').value.trim();
   if (!name) { toast('Name fehlt'); return; }
@@ -614,6 +632,7 @@ async function saveStammdaten() {
     name, kategorie_id: katId,
     artikelnr: el('p-artikelnr').value.trim() || null,
     alkohol_vol: alk,
+    tags: stammTags.length ? stammTags : null,
     aktiv: el('p-aktiv').checked,
     geaendert_am: now, geaendert_von: currentUser.id,
   };
@@ -706,7 +725,7 @@ async function saveVarianten() {
 function renderSprachChips() {
   el('sprach-chips').innerHTML = aktiveSprachen().map(s => {
     const t = textVon(aktProduktId, s.code);
-    const voll = t && (t.beschreibung || t.verkaufstext || t.kurzbeschreibung);
+    const voll = t && (t.name || t.beschreibung || t.kurzbeschreibung);
     return `<button class="chip ${aktSprache === s.code ? 'active' : ''}" onclick="setSprache('${esc(s.code)}')">${voll ? '● ' : ''}${esc(s.name)}</button>`;
   }).join('');
 }
@@ -714,16 +733,16 @@ function setSprache(code) { aktSprache = code; renderTexte(); }
 function renderTexte() {
   renderSprachChips();
   const t = textVon(aktProduktId, aktSprache);
+  el('t-name').value = t ? (t.name || '') : '';
   el('t-beschreibung').value = t ? (t.beschreibung || '') : '';
-  el('t-verkaufstext').value = t ? (t.verkaufstext || '') : '';
   el('t-kurzbeschreibung').value = t ? (t.kurzbeschreibung || '') : '';
 }
 async function saveTexte() {
   if (!aktProduktId) { toast('Bitte zuerst Stammdaten speichern'); return; }
   const now = new Date().toISOString();
   const felder = {
+    name: el('t-name').value.trim() || null,
     beschreibung: el('t-beschreibung').value.trim() || null,
-    verkaufstext: el('t-verkaufstext').value.trim() || null,
     kurzbeschreibung: el('t-kurzbeschreibung').value.trim() || null,
     geaendert_am: now, geaendert_von: currentUser.id,
   };
@@ -845,9 +864,9 @@ async function deleteKatPreis(id) {
 function wikiStatus(pid, code) {
   const t = textVon(pid, code);
   if (!t) return 'leer';
-  const anz = ['beschreibung','verkaufstext','kurzbeschreibung'].filter(f => t[f]).length;
-  if (code === 'de') return anz >= 3 ? 'voll' : anz > 0 ? 'teil' : 'leer';
-  return t.kurzbeschreibung ? 'voll' : anz > 0 ? 'teil' : 'leer';
+  const irgendwas = t.name || t.beschreibung || t.kurzbeschreibung;
+  if (code === 'de') return (t.beschreibung && t.kurzbeschreibung) ? 'voll' : irgendwas ? 'teil' : 'leer';
+  return (t.name && t.kurzbeschreibung) ? 'voll' : irgendwas ? 'teil' : 'leer';
 }
 function renderWiki() {
   const sprachen = aktiveSprachen();
@@ -940,7 +959,8 @@ async function generateFlyer() {
     for (const s of sprachOrd) {
       const t = textVon(p.id, s.code);
       if (t && t.kurzbeschreibung) {
-        html += `<div class="fp-zeile"><span class="fp-lang">${esc(s.name)}</span>${esc(t.kurzbeschreibung)}</div>`;
+        const tn = t.name && t.name !== p.name ? `<b>${esc(t.name)}</b> · ` : '';
+        html += `<div class="fp-zeile"><span class="fp-lang">${esc(s.name)}</span>${tn}${esc(t.kurzbeschreibung)}</div>`;
       } else { fehlend++; }
     }
     html += '</div>';
