@@ -116,6 +116,7 @@ h2 { font-size: 16px; color: var(--gold2); margin-bottom: 10px; }
 .card-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
 .card-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.veg-leaf { font-size: 13px; }
 .badge-aktiv { background: var(--green); color: #fff; }
 .badge-inaktiv { background: var(--surface2); color: var(--text3); border: 1px solid var(--border); }
 .field { margin-bottom: 12px; }
@@ -288,6 +289,11 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
         <div class="field"><label>Geschmacks-Tags</label><div class="tag-chips" id="p-tags"></div></div>
         <div class="field">
           <label style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="p-vegan" style="width:auto;"> 🌱 Vegan
+          </label>
+        </div>
+        <div class="field">
+          <label style="display:flex;align-items:center;gap:8px;">
             <input type="checkbox" id="p-aktiv" style="width:auto;"> Produkt aktiv
           </label>
         </div>
@@ -378,7 +384,7 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
 
 <script>
 'use strict';
-const PK_VERSION = 'v1.2';
+const PK_VERSION = 'v1.3';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
@@ -558,7 +564,7 @@ function renderProdukte() {
     return `<div class="card" onclick="openProdukt('${p.id}')">
       <div class="card-row">
         <div style="min-width:0;">
-          <div class="card-title">${esc(p.name)}</div>
+          <div class="card-title">${esc(p.name)}${p.vegan ? ' <span class="veg-leaf" title="Vegan">🌱</span>' : ''}</div>
           <div class="card-sub">${esc(katName(p.kategorie_id))} · ${vAnz} Größe(n)${alk}${p.artikelnr ? ' · Art. ' + esc(p.artikelnr) : ''}</div>
         </div>
         <div class="badge ${p.aktiv ? 'badge-aktiv' : 'badge-inaktiv'}">${p.aktiv ? 'aktiv' : 'inaktiv'}</div>
@@ -583,6 +589,7 @@ function openProdukt(id, tab) {
   el('p-alkohol').value = p && p.alkohol_vol != null ? String(p.alkohol_vol).replace('.', ',') : '';
   el('p-kategorie').value = p ? p.kategorie_id : (cache.kategorien[0] ? cache.kategorien[0].id : '');
   el('p-aktiv').checked = p ? p.aktiv : true;
+  el('p-vegan').checked = p ? p.vegan === true : false;
   stammTags = p && Array.isArray(p.tags) ? [...p.tags] : [];
   renderTagChips();
   el('p-loeschen-btn').classList.toggle('hidden', !id);
@@ -633,6 +640,7 @@ async function saveStammdaten() {
     artikelnr: el('p-artikelnr').value.trim() || null,
     alkohol_vol: alk,
     tags: stammTags.length ? stammTags : null,
+    vegan: el('p-vegan').checked,
     aktiv: el('p-aktiv').checked,
     geaendert_am: now, geaendert_von: currentUser.id,
   };
