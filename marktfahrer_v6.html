@@ -924,7 +924,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.54';
+const APP_VERSION = 'v6.55';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -3786,11 +3786,12 @@ async function bestMengeSetzen(varId, prodId, proKiste, val) {
   } else if (menge > 0 && pos?.id) {
     await dbW(sb.from('bestellposition').update({ menge, geaendert_am: now }).eq('id', pos.id), 'Position speichern');
   } else if (menge > 0 && !pos?.id) {
-    const { data: newPos } = await sb.from('bestellposition').insert({
-      id: uuid(), bestellung_id: bst.bestellung.id, variante_id: varId,
+    const neueId = uuid();
+    await dbW(sb.from('bestellposition').insert({
+      id: neueId, bestellung_id: bst.bestellung.id, variante_id: varId,
       menge, erstellt_am: now, geaendert_am: now,
-    }).select().single();
-    if (newPos) bst.positionen[varId] = { id: newPos.id, menge };
+    }), 'Position speichern');
+    bst.positionen[varId] = { id: neueId, menge };
   }
 }
 
