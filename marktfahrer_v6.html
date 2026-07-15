@@ -924,7 +924,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.50';
+const APP_VERSION = 'v6.53';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1149,6 +1149,34 @@ const STATUS_ORDER = ['interessent','beworben','akzeptiert','bestaetigt','vorber
 
 const OC_PREFIX = 'mf_oc_';
 
+// Hartes Zeitlimit pro Request. Grund: Im Funkloch meldet das Gerät
+// weiter "online", die Anfrage hängt aber bis zum Browser-Timeout
+// (Minuten). Nach NETZ_TIMEOUT_MS bricht sie ab und die Cache-/Outbox-
+// Pfade greifen sofort. Abbruch bei Schreibzugriffen ist ungefährlich:
+// alles läuft als UUID-Upsert, ein doppelt angekommener Datensatz wird
+// zum harmlosen Update.
+const NETZ_TIMEOUT_MS = 6000;
+let netzGestoert = false; // letzter Request lief in Timeout/Netzfehler
+
+async function fetchMitTimeout(url, opts = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), NETZ_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { ...opts, signal: ctrl.signal });
+    netzGestoert = false;
+    return res;
+  } catch (e) {
+    netzGestoert = true;
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Netz praktisch nicht nutzbar? (echtes Offline ODER hängendes Funkloch)
+function netzSchwach() { return !navigator.onLine || netzGestoert; }
+
+
 function ocSet(key, wert) {
   try {
     localStorage.setItem(OC_PREFIX + key, JSON.stringify({ ts: Date.now(), wert }));
@@ -1165,8 +1193,9 @@ function ocGet(key) {
 // unterscheiden: nur Netzfehler dürfen in die Offline-Pfade laufen.
 function istNetzfehler(e) {
   if (!navigator.onLine) return true;
-  const msg = String(e?.message || e || '');
-  return /Failed to fetch|NetworkError|Load failed|fetch failed|Netzwerk/i.test(msg);
+  const msg = String(e?.message || e?.name || e || '');
+  // Abbruch = unser Timeout; Wortlaut unterscheidet sich je Browser
+  return /Failed to fetch|NetworkError|Load failed|fetch failed|Netzwerk|AbortError|aborted|timed? ?out|timeout/i.test(msg);
 }
 
 // Zeitstempel menschenlesbar für Offline-Banner
@@ -1215,6 +1244,122 @@ function cacheEcBuchung(instanzId, standId, datum) {
   const p = kassePaket(instanzId);
   return p?.buchungen.find(b => b.stand_id === standId && b.datum === datum
     && b.typ === 'einnahme' && b.zahlungsart === 'ec' && !b.geloescht_am) || null;
+}
+
+// ── OFFLINE-VORMERKUNG ────────────────────────────────────────
+// Bewusstes Vorbereiten eines Markts: lädt in einem Rutsch alles, was
+// auf dem Markt gebraucht wird, in den lokalen Speicher. Grund: Der
+// Cache füllt sich sonst nur beim Besuchen jedes einzelnen Tabs – im
+// Funkloch ist das zu spät. Vorgemerkte Märkte werden bei jedem Start
+// mit Netz automatisch aufgefrischt.
+
+const VORMERK_KEY = 'mf_offline_maerkte';
+
+function vormerkListe() {
+  try { return JSON.parse(localStorage.getItem(VORMERK_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+function istVorgemerkt(instanzId) { return vormerkListe().includes(instanzId); }
+function vormerkSpeichern(liste) {
+  try { localStorage.setItem(VORMERK_KEY, JSON.stringify(liste)); } catch (e) {}
+}
+
+// Lädt das komplette Marktpaket in den Cache. Nutzt bewusst dieselben
+// Cache-Schlüssel wie die Render-Funktionen – dadurch findet die App die
+// Daten offline an genau der Stelle, an der sie ohnehin sucht.
+async function vormerkLaden(instanzId, phase) {
+  const inst = await ocQuery('instanz_' + instanzId, () => sb.from('event_instanz')
+    .select('*, event_template(name, ort, plz, km_minden, km_schoellkrippen, wiederholung)')
+    .eq('id', instanzId).single());
+  if (inst.fehler) throw inst.fehler;
+  if (!inst.data) throw new Error('Markt nicht ladbar');
+  const status = phase || inst.data.status;
+
+  // Kasse-Paket (Stände + Zählungen + Buchungen) – identisch zu renderKasseTab
+  const rs = await sb.from('stand').select('*')
+    .eq('event_instanz_id', instanzId).is('geloescht_am', null).order('bezeichnung');
+  if (rs.error) throw rs.error;
+  const standIds = (rs.data || []).map(x => x.id);
+  const [rz, rb] = await Promise.all([
+    sb.from('kassenzaehlung').select('*').in('stand_id', standIds).is('geloescht_am', null).order('datum'),
+    sb.from('buchung').select('*').in('stand_id', standIds).is('geloescht_am', null).order('datum'),
+  ]);
+  if (rz.error) throw rz.error;
+  if (rb.error) throw rb.error;
+  ocSet('kasse_' + instanzId, { staende: rs.data || [], zaehlungen: rz.data || [], buchungen: rb.data || [] });
+  ocSet('staende_' + instanzId, rs.data || []);
+
+  // Stunden + Fahrer (beide Filtervarianten – das Stunden-Modal braucht
+  // die bestätigten, der Planung-Tab beide) + Aufgaben + Checkliste
+  const [rst, rf1, rf0, ra, rcl] = await Promise.all([
+    sb.from('stunde').select('id, datum, stunden, marktfahrer:marktfahrer_id(id, name)')
+      .eq('event_instanz_id', instanzId).is('geloescht_am', null).order('datum'),
+    sb.from('event_marktfahrer').select('id, status, marktfahrer:marktfahrer_id(id, name)')
+      .eq('event_instanz_id', instanzId).is('geloescht_am', null).eq('status', 'bestaetigt'),
+    sb.from('event_marktfahrer').select('id, status, marktfahrer:marktfahrer_id(id, name)')
+      .eq('event_instanz_id', instanzId).is('geloescht_am', null),
+    sb.from('markt_aufgabe').select('*')
+      .eq('event_instanz_id', instanzId).eq('phase', status).order('reihenfolge'),
+    sb.from('user_checkliste_item').select('*')
+      .eq('user_id', currentUser.id).is('geloescht_am', null).order('reihenfolge'),
+  ]);
+  for (const r of [rst, rf1, rf0, ra, rcl]) if (r.error) throw r.error;
+  ocSet('stunden_' + instanzId, rst.data || []);
+  ocSet(`fahrer_${instanzId}_1`, rf1.data || []);
+  ocSet(`fahrer_${instanzId}_0`, rf0.data || []);
+  ocSet(`aufgaben_${instanzId}_${status}`, ra.data || []);
+  ocSet('cl_items_' + currentUser.id, rcl.data || []);
+
+  // Listen-Ebene mitnehmen: ohne diese beiden kommt man offline weder in
+  // die Märkte-Liste noch zur Marktauswahl im Stunden-Tab.
+  const [rsel, rml] = await Promise.all([
+    sb.from('event_instanz')
+      .select('id, name, saison_jahr, status, start_datum, end_datum, start_datum_2, end_datum_2, event_template(name)')
+      .is('geloescht_am', null).order('start_datum', { ascending: false }),
+    sb.from('event_instanz')
+      .select('*, event_template(name, ort, plz, km_minden, km_schoellkrippen)')
+      .is('geloescht_am', null).order('start_datum', { ascending: false }),
+  ]);
+  if (!rsel.error) ocSet('stunden_selector', rsel.data || []);
+  if (!rml.error)  ocSet('maerkte', rml.data || []);
+}
+
+// Karten-Button: vormerken bzw. Vormerkung aufheben
+async function toggleVormerk(instanzId, ev) {
+  if (ev) ev.stopPropagation(); // nicht den Markt öffnen
+  const liste = vormerkListe();
+
+  if (liste.includes(instanzId)) {
+    if (!(await confirmMed('Der Markt wird nicht mehr für Offline-Nutzung vorgehalten. Bereits gespeicherte Änderungen bleiben in der Warteschlange.',
+        {titel:'Vormerkung aufheben', ja:'Aufheben'}))) return;
+    vormerkSpeichern(liste.filter(x => x !== instanzId));
+    toast('Vormerkung aufgehoben');
+    renderMaerkte();
+    return;
+  }
+
+  if (netzSchwach()) { toast('📡 Zum Vormerken wird eine Verbindung gebraucht', 'err'); return; }
+  toast('📥 Markt wird geladen …');
+  try {
+    await vormerkLaden(instanzId);
+  } catch (e) {
+    toast(istNetzfehler(e) ? '📡 Laden fehlgeschlagen – Verbindung zu schwach' : '⚠️ Fehler: ' + (e.message || e), 'err');
+    return;
+  }
+  liste.push(instanzId);
+  vormerkSpeichern(liste);
+  toast('✓ Markt ist offline verfügbar', 'ok');
+  renderMaerkte();
+}
+
+// Beim Start mit Netz alle vorgemerkten Märkte auffrischen (still im
+// Hintergrund; Fehler dürfen den Start nicht stören).
+async function vormerkAuffrischen() {
+  if (netzSchwach() || !currentUser) return;
+  for (const id of vormerkListe()) {
+    try { await vormerkLaden(id); } catch (e) { /* nächster Start versucht es erneut */ }
+  }
+  renderMaerkte();
 }
 
 // ── OUTBOX ────────────────────────────────────────────────────
@@ -1441,7 +1586,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.title = 'Marktfahrer · ' + APP_VERSION;
   document.querySelectorAll('.app-version').forEach(e => e.textContent = APP_VERSION);
 
-  sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+  sb = supabase.createClient(SUPA_URL, SUPA_KEY, { global: { fetch: fetchMitTimeout } });
 
   // Reagiert auf Sitzungsende (Ablauf oder fehlgeschlagener Token-Refresh):
   // zurück zum Login statt stiller Fehler bei jedem weiteren Request.
@@ -1466,7 +1611,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadProfil();
     showApp();
     updateSyncBadge();
-    syncOutbox(); // liegengebliebene Offline-Änderungen direkt beim Start senden
+    // Erst liegengebliebene Änderungen senden, dann vorgemerkte Märkte
+    // auffrischen – so überschreibt der Server keine ungesendeten Werte.
+    syncOutbox().then(vormerkAuffrischen);
   }
 });
 
@@ -1803,13 +1950,18 @@ function renderMarktCard(m) {
   const ampel = ampelFarbe(m);
   const ampelHtml = ampel && ampel !== 'gruen'
     ? `<span class="ampel ampel-${ampel}" style="margin-left:6px;"></span>` : '';
+  const vorgemerkt = istVorgemerkt(m.id);
   return `<div class="card" onclick="openMarktDetail('${m.id}')">
     <div class="card-row">
-      <div class="card-title" style="display:flex;align-items:center;">${name}${ampelHtml}</div>
+      <div class="card-title" style="display:flex;align-items:center;">${vorgemerkt ? '<span title="Offline verfügbar" style="margin-right:5px;">📥</span>' : ''}${name}${ampelHtml}</div>
       <span class="badge status-${m.status || 'interessent'}">${STATUS_LABEL[m.status] || '?'}</span>
     </div>
     <div class="card-sub">${plz}${ort}${dauer ? ' · ' + dauer : ''}</div>
-    <div class="card-sub" style="margin-top:4px;">${zeitraumText(m)}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px;">
+      <span class="card-sub">${zeitraumText(m)}</span>
+      <button class="btn btn-sm${vorgemerkt ? ' btn-primary' : ''}" style="white-space:nowrap;padding:4px 9px;"
+              onclick="toggleVormerk('${m.id}', event)">${vorgemerkt ? '📥 Offline ✓' : '📥 Offline'}</button>
+    </div>
   </div>`;
 }
 
@@ -2066,6 +2218,9 @@ async function heuteZaehlung(instanzId, standId) {
 
 // ── MARKT DETAIL ──────────────────────────────────────────────
 async function openMarktDetail(instanzId, tab = 'planung') {
+  // Ohne brauchbares Netz direkt in die Kasse: das ist der Tab, der auf
+  // dem Markt zählt, und der Planung-Tab hat online-lastige Inhalte.
+  if (tab === 'planung' && netzSchwach()) tab = 'kasse';
   navStack.push({screen: 'markt-detail', instanzId});
   await _openMarktDetailIntern(instanzId, tab);
 }
@@ -2114,13 +2269,18 @@ async function renderPlanungTab() {
   const inst = currentInstanz;
   if (!inst) return;
 
-  const [{ data: staende }, zugeordneteFahrer, aufgaben, clSection] = await Promise.all([
-    sb.from('stand').select('*').eq('event_instanz_id', currentInstanzId)
-      .is('geloescht_am', null).order('bezeichnung'),
-    loadFahrerFuerInstanz(currentInstanzId),
-    ladeAufgaben(currentInstanzId, inst.status),
-    renderClSection(currentInstanzId),
+  // Alle vier Teile einzeln absichern: ohne Netz liefert jeder seinen
+  // Cache-Stand; ein leerer Teil darf den ganzen Tab nicht verhindern.
+  const [staendeRes, zugeordneteFahrer, aufgaben, clSection] = await Promise.all([
+    ocQuery('staende_' + currentInstanzId, () => sb.from('stand').select('*')
+      .eq('event_instanz_id', currentInstanzId)
+      .is('geloescht_am', null).order('bezeichnung')),
+    loadFahrerFuerInstanz(currentInstanzId).catch(e => { if (istNetzfehler(e)) return []; throw e; }),
+    ladeAufgaben(currentInstanzId, inst.status).catch(e => { if (istNetzfehler(e)) return []; throw e; }),
+    renderClSection(currentInstanzId).catch(e => { if (istNetzfehler(e)) return ''; throw e; }),
   ]);
+  const staende = staendeRes.data || [];
+  const planungOffline = staendeRes.offline ? (staendeRes.ts || Date.now()) : null;
 
   const statusOptions = STATUS_ORDER.map(s =>
     `<option value="${s}" ${inst.status === s ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`
@@ -2154,6 +2314,7 @@ async function renderPlanungTab() {
 
   wrap.innerHTML = `
     <div class="section">
+      ${planungOffline ? offlineBanner(planungOffline) : ''}
       ${deadlineBanner(inst)}
       <h2>Planung</h2>
       <div class="field" style="margin-bottom:14px;">
@@ -2567,6 +2728,9 @@ async function renderKasseTab() {
       <hr class="divider">
       <h3>Tageszählungen</h3>
       ${renderZaehlungenListe(zaehlungen || [], stand)}
+      <hr class="divider">
+      <h3>Buchungen</h3>
+      ${renderBuchungenListe(buchungen || [], stand)}
       ${marktReadonly() ? '' : `
       <div style="display:flex;gap:8px;margin-top:10px;">
         <button class="btn btn-sm btn-primary" onclick="openKasseDetail('${stand.id}', '${isoToday()}')">+ Tageszählung</button>
@@ -2584,6 +2748,43 @@ async function renderKasseTab() {
 
   html += '</div>';
   wrap.innerHTML = html;
+}
+
+// Buchungsliste je Kutsche. Bis v6.51 gab es nur Summen-Chips – damit
+// waren Fehleingaben (falscher EC-Betrag, versehentliche Ausgabe) nicht
+// korrigierbar. Löschen = Soft-Delete, offline-fähig über die Outbox.
+function renderBuchungenListe(buchungen, stand) {
+  if (!buchungen.length) return '<p style="color:var(--text3);font-size:13px;">Noch keine Buchungen.</p>';
+  const ro = marktReadonly();
+  return buchungen.map(b => {
+    const ausgabe = b.typ === 'ausgabe';
+    const art = b.zahlungsart === 'ec' ? 'EC' : 'Bar';
+    return `<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          ${ausgabe ? '➖' : '➕'} ${esc(b.bezeichnung || (ausgabe ? 'Ausgabe' : 'Einnahme'))}
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">${dateFmt(b.datum)} · ${art}</div>
+      </div>
+      <span style="font-size:15px;font-weight:600;margin-right:8px;color:${ausgabe ? 'var(--text2)' : 'var(--text)'};">
+        ${ausgabe ? '– ' : ''}${eur(b.betrag_cent || 0)}
+      </span>
+      ${ro ? '' : `<button class="btn btn-sm" style="padding:4px 8px;" onclick="deleteBuchung('${b.id}')">✕</button>`}
+    </div>`;
+  }).join('');
+}
+
+async function deleteBuchung(id) {
+  if (marktReadonly()) { toast('Markt ist abgeschlossen – Löschen nicht möglich', 'err'); return; }
+  if (!(await confirmMed('Die Buchung wird gelöscht.', {titel:'Buchung löschen', ja:'Löschen', gefahr:true}))) return;
+  const now = new Date().toISOString();
+  const res = await dbSchreib('buchung', { id, geloescht_am: now, geaendert_am: now }, 'update');
+  if (res.error) { toast('⚠️ Löschen fehlgeschlagen: ' + res.error.message, 'err'); return; }
+  ocEcho('buchung', { id, event_instanz_id: currentInstanzId, geloescht_am: now });
+  // Falls es die EC-Buchung des offenen Tages war, Merker zurücksetzen
+  if (currentEcBuchungId === id) currentEcBuchungId = null;
+  toast(res.offline ? '📡 Offline gelöscht – Sync folgt bei Netz' : 'Buchung gelöscht');
+  renderKasseTab();
 }
 
 function renderZaehlungenListe(zaehlungen, stand) {
@@ -4083,6 +4284,10 @@ const PHASE_NEXT = {
 async function aufgabenAnlegen(instanzId, phase) {
   const vorlagen = AUFGABEN_VORLAGEN[phase] || [];
   if (!vorlagen.length) return;
+  // Ohne Netz nicht anlegen: Aufgaben sind Vorlagen-Material, kein Feld-
+  // Datensatz. Sie werden beim nächsten Online-Öffnen erzeugt – so bleibt
+  // die Outbox frei von Massen-Inserts und der Tab läuft offline durch.
+  if (netzSchwach()) return;
   // Prüfen ob Tasks für diese Phase schon existieren
   const { data: existing } = await sb.from('markt_aufgabe')
     .select('id').eq('event_instanz_id', instanzId).eq('phase', phase).limit(1);
@@ -4100,9 +4305,9 @@ async function aufgabenAnlegen(instanzId, phase) {
 }
 
 async function ladeAufgaben(instanzId, phase) {
-  const { data } = await sb.from('markt_aufgabe')
+  const { data } = await ocQuery(`aufgaben_${instanzId}_${phase}`, () => sb.from('markt_aufgabe')
     .select('*').eq('event_instanz_id', instanzId).eq('phase', phase)
-    .order('reihenfolge');
+    .order('reihenfolge'));
   return data || [];
 }
 
@@ -4263,8 +4468,8 @@ async function renderAufgabenSection(instanz, aufgaben) {
 }
 
 async function renderClSection(instanzId) {
-  const { data: items } = await sb.from('user_checkliste_item')
-    .select('*').eq('user_id', currentUser.id).is('geloescht_am', null).order('reihenfolge');
+  const { data: items } = await ocQuery('cl_items_' + currentUser.id, () => sb.from('user_checkliste_item')
+    .select('*').eq('user_id', currentUser.id).is('geloescht_am', null).order('reihenfolge'));
 
   if (!items?.length) {
     return `<div class="wf-section">
@@ -4868,6 +5073,7 @@ async function deleteStunden(id) {
   'saveNeuerMarktfahrer', 'saveClItem', 'phasenwechsel',
   'deleteStand', 'deleteKassenzaehlung', 'deleteMarktfahrer',
   'deleteStunden', 'deleteClItem', 'deleteClItemDirect', 'fahrerEntfernen',
+  'deleteBuchung',
   'deleteMarkt'
 ].forEach(n => { if (typeof window[n] === 'function') window[n] = locked(window[n]); });
 </script>
