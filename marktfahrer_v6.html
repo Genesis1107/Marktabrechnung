@@ -144,6 +144,12 @@ body {
 #btn-back { background: none; border: none; color: var(--gold); font-size: 22px; cursor: pointer; padding: 4px 8px 4px 0; display: none; }
 #btn-back.visible { display: block; }
 
+/* ── SYNC-BADGE (Offline-Status) ────────────────────────────── */
+#sync-badge { font-size: 16px; cursor: pointer; padding: 4px 6px; margin-left: auto; margin-right: 6px; border-radius: var(--radius2); user-select: none; line-height: 1; position: relative; }
+#sync-badge.offline { filter: grayscale(1); opacity: .65; }
+#sync-badge .sync-zahl { position: absolute; top: -4px; right: -6px; background: var(--gold); color: var(--bg, #1a1208); font-size: 10px; font-weight: 700; border-radius: 9px; padding: 1px 5px; min-width: 10px; text-align: center; }
+#sync-badge .sync-zahl.fehler { background: #b03030; color: #fff; }
+
 /* ── BOTTOM NAV ─────────────────────────────────────────────── */
 /* Heute-Karte: Direktzugriff auf heute laufende Märkte */
 .heute-karte { background: var(--surface); border: 1px solid var(--gold); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; cursor: pointer; }
@@ -479,6 +485,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <div class="header-title" id="header-title">Marktfahrer</div>
         <div class="header-sub" id="header-sub"></div>
       </div>
+      <div id="sync-badge" onclick="openSyncStatus()" title="Sync-Status">☁️</div>
       <div id="header-right"></div>
     </div>
   </div>
@@ -748,6 +755,17 @@ body.rolle-fahrer .admin-only { display: none !important; }
   </div>
 </div>
 
+<div id="modal-sync-status" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">☁️ Synchronisation</div>
+    <div id="sync-status-inhalt"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-sync-status')">Schließen</button>
+      <button class="btn btn-primary" onclick="syncJetzt()">Jetzt synchronisieren</button>
+    </div>
+  </div>
+</div>
+
 <div id="modal-neue-buchung" class="modal-overlay hidden">
   <div class="modal-box">
     <div class="modal-title">💳 Buchung erfassen</div>
@@ -906,7 +924,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.46';
+const APP_VERSION = 'v6.50';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -923,6 +941,9 @@ let currentInstanz   = null;
 let currentStandId   = null;
 let currentStand     = null;
 let currentKasseTag  = null;
+let currentZaehlungId = null;   // id der geladenen Tageszählung (für Offline-Upsert)
+let currentEcBuchungId = null;  // id der EC-Buchung des Tages (für Offline-Upsert)
+let kasseOfflineTs   = null;    // gesetzt, wenn Kasse aus Cache gerendert wurde
 let activeNavTab     = 'maerkte';
 let activeMarktTab   = 'planung';
 let chronikInstanzId = null; // aktive Instanz im Chronik-Tab
@@ -1047,8 +1068,8 @@ window.addEventListener('unhandledrejection', ev => {
   console.error('Unbehandelter Fehler:', ev.reason);
   toast('⚠️ Verbindungsfehler – bitte erneut versuchen', 'err');
 });
-window.addEventListener('offline', () => toast('📡 Keine Internetverbindung', 'err'));
-window.addEventListener('online',  () => toast('📡 Verbindung wiederhergestellt', 'ok'));
+// (online/offline-Listener liegen im Offline-Modul weiter unten,
+//  dort inklusive Sync-Badge-Update und Outbox-Anstoß.)
 
 // ── DOPPEL-TAP-SCHUTZ ─────────────────────────────────────────
 // Verhindert doppelte Inserts bei zweifachem Tippen; zweiter Aufruf wird verworfen.
@@ -1120,6 +1141,297 @@ const STATUS_LABEL = {
 };
 const STATUS_ORDER = ['interessent','beworben','akzeptiert','bestaetigt','vorbereitung','aktiv','abgeschlossen','abgelehnt'];
 
+// ── OFFLINE-SCHICHT ───────────────────────────────────────────
+// Lokaler Lese-Cache (localStorage) + Netzstatus. Marktkritischer
+// Umfang: Märkte-Liste, Kasse (Zählungen/Buchungen), Stunden.
+// Prinzip: Supabase bleibt die Quelle der Wahrheit, der Cache ist
+// nur Fallback ohne Netz. Schreiben offline → Outbox (s. unten).
+
+const OC_PREFIX = 'mf_oc_';
+
+function ocSet(key, wert) {
+  try {
+    localStorage.setItem(OC_PREFIX + key, JSON.stringify({ ts: Date.now(), wert }));
+  } catch (e) { /* Quota voll → Cache ist verzichtbar, nie die App blockieren */ }
+}
+function ocGet(key) {
+  try {
+    const raw = localStorage.getItem(OC_PREFIX + key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+// Netzfehler (kein Internet) von echten Serverfehlern (RLS, Constraint)
+// unterscheiden: nur Netzfehler dürfen in die Offline-Pfade laufen.
+function istNetzfehler(e) {
+  if (!navigator.onLine) return true;
+  const msg = String(e?.message || e || '');
+  return /Failed to fetch|NetworkError|Load failed|fetch failed|Netzwerk/i.test(msg);
+}
+
+// Zeitstempel menschenlesbar für Offline-Banner
+function ocZeit(ts) {
+  const d = new Date(ts);
+  return `${WD[d.getDay()]}, ${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}. ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} Uhr`;
+}
+
+function offlineBanner(ts) {
+  return `<div style="background:var(--surface);border:1px solid var(--gold);border-radius:var(--radius2);
+    padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--text2);">
+    📡 <b>Offline</b> – Stand von ${ts ? ocZeit(ts) : 'unbekannt'}. Änderungen werden bei Netz synchronisiert.</div>`;
+}
+
+// Query mit Cache-Fallback: Erfolg → Cache aktualisieren.
+// Netzfehler → letzten gepufferten Stand liefern (offline=true).
+// Echter Serverfehler → { fehler } (kein Cache-Fallback, sonst würden
+// RLS-Probleme unsichtbar – Learning: leere Ergebnisse ernst nehmen).
+async function ocQuery(cacheKey, queryFn) {
+  try {
+    const res = await queryFn();
+    if (res.error) {
+      if (!istNetzfehler(res.error)) return { data: null, fehler: res.error };
+    } else {
+      ocSet(cacheKey, res.data);
+      return { data: res.data };
+    }
+  } catch (e) {
+    if (!istNetzfehler(e)) throw e;
+  }
+  const oc = ocGet(cacheKey);
+  return oc ? { data: oc.wert, offline: true, ts: oc.ts }
+            : { data: null, offline: true };
+}
+
+// Kasse-Cache-Zugriff (für Detail-Screens ohne Netz)
+function kassePaket(instanzId) {
+  const oc = ocGet('kasse_' + instanzId);
+  return oc ? oc.wert : null;
+}
+function cacheZaehlung(instanzId, standId, datum) {
+  const p = kassePaket(instanzId);
+  return p?.zaehlungen.find(z => z.stand_id === standId && z.datum === datum && !z.geloescht_am) || null;
+}
+function cacheEcBuchung(instanzId, standId, datum) {
+  const p = kassePaket(instanzId);
+  return p?.buchungen.find(b => b.stand_id === standId && b.datum === datum
+    && b.typ === 'einnahme' && b.zahlungsart === 'ec' && !b.geloescht_am) || null;
+}
+
+// ── OUTBOX ────────────────────────────────────────────────────
+// Warteschlange für Schreibzugriffe ohne Netz. Jeder Eintrag ist ein
+// UUID-Upsert → doppeltes Senden ist harmlos (idempotent), Reihenfolge
+// bleibt gewahrt (FIFO). Echte Serverfehler (RLS/Constraint) blockieren
+// die Queue nicht, sondern werden markiert und im Sync-Status gezeigt.
+
+const OUTBOX_KEY = 'mf_outbox';
+
+function outboxLesen() {
+  try { return JSON.parse(localStorage.getItem(OUTBOX_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+function outboxSchreiben(box) {
+  try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(box)); }
+  catch (e) { toast('⚠️ Lokaler Speicher voll – Änderung konnte nicht gepuffert werden', 'err'); }
+  updateSyncBadge();
+}
+
+// Eintrag anhängen. op: 'upsert' (ganze Zeile) oder 'update' (nur die
+// enthaltenen Felder, z. B. Soft-Delete). Gleiche Tabelle + gleiche id →
+// Payloads verschmelzen; die op des ERSTEN Eintrags bleibt erhalten
+// (offline anlegen, ändern, löschen = EIN Upsert mit geloescht_am).
+function outboxAdd(tabelle, payload, op = 'upsert') {
+  const box = outboxLesen();
+  const vorh = box.find(e => e.tabelle === tabelle && e.payload.id === payload.id && !e.fehler);
+  if (vorh) {
+    Object.assign(vorh.payload, payload);
+    vorh.ts = Date.now();
+  } else {
+    box.push({ tabelle, payload, op, ts: Date.now() });
+  }
+  outboxSchreiben(box);
+}
+
+let _syncLaeuft = false;
+let _syncLetzterErfolg = null;
+
+async function syncOutbox() {
+  if (_syncLaeuft || !navigator.onLine || !currentUser) return;
+  let box = outboxLesen();
+  if (!box.some(e => !e.fehler)) { updateSyncBadge(); return; }
+  _syncLaeuft = true;
+  try {
+    let gesendet = 0;
+    for (const eintrag of box) {
+      if (eintrag.fehler) continue; // markierte Fehler nicht erneut senden
+      try {
+        const q = eintrag.op === 'update'
+          ? sb.from(eintrag.tabelle).update(eintrag.payload).eq('id', eintrag.payload.id)
+          : sb.from(eintrag.tabelle).upsert(eintrag.payload);
+        const { error } = await q;
+        if (error) {
+          if (istNetzfehler(error)) return; // Netz weg → später weiter, Reihenfolge wahren
+          eintrag.fehler = error.message;   // echter Serverfehler → markieren, Queue läuft weiter
+          outboxSchreiben(box);
+          continue;
+        }
+        // Erfolg → Eintrag entfernen
+        box = box.filter(e => e !== eintrag);
+        outboxSchreiben(box);
+        gesendet++;
+      } catch (e) {
+        if (istNetzfehler(e)) return; // Verbindung abgerissen → Rest bleibt liegen
+        eintrag.fehler = String(e?.message || e);
+        outboxSchreiben(box);
+      }
+    }
+    if (gesendet) {
+      _syncLetzterErfolg = Date.now();
+      toast(`☁️ ${gesendet} Änderung${gesendet > 1 ? 'en' : ''} synchronisiert`, 'ok');
+    }
+    if (box.some(e => e.fehler)) {
+      toast('⚠️ Einzelne Änderungen konnten nicht synchronisiert werden – Details am Wolken-Symbol', 'err');
+    }
+  } finally {
+    _syncLaeuft = false;
+    updateSyncBadge();
+  }
+}
+
+// Zentraler Schreibweg: online direkt (Upsert/Update), bei Netzfehler
+// automatisch in die Outbox. Echte Serverfehler (RLS, Constraint) gehen
+// NIE in die Outbox – sie würden dort ewig scheitern und Folgefehler
+// verschleiern. Rückgabe: { ok } | { ok, offline } | { error }.
+async function dbSchreib(tabelle, payload, op = 'upsert') {
+  if (navigator.onLine) {
+    try {
+      const q = op === 'update'
+        ? sb.from(tabelle).update(payload).eq('id', payload.id)
+        : sb.from(tabelle).upsert(payload);
+      const { error } = await q;
+      if (!error) return { ok: true };
+      if (!istNetzfehler(error)) return { error };
+    } catch (e) {
+      if (!istNetzfehler(e)) throw e;
+    }
+  }
+  outboxAdd(tabelle, payload, op);
+  return { ok: true, offline: true };
+}
+
+// Lokales Echo: Änderung sofort in den Lese-Cache spiegeln, damit die
+// Anzeige offline direkt stimmt (echoRow darf Anzeige-Extras enthalten,
+// z. B. den Fahrer-Namen bei Stunden – geht NICHT an die Datenbank).
+function ocEcho(tabelle, echoRow) {
+  let key = null, feld = null;
+  if (tabelle === 'kassenzaehlung') { key = 'kasse_'   + echoRow.event_instanz_id; feld = 'zaehlungen'; }
+  if (tabelle === 'buchung')        { key = 'kasse_'   + echoRow.event_instanz_id; feld = 'buchungen'; }
+  if (tabelle === 'stunde')         { key = 'stunden_' + echoRow.event_instanz_id; }
+  if (!key) return;
+  const oc = ocGet(key);
+  if (!oc) return;
+  const arr = feld ? oc.wert[feld] : oc.wert;
+  if (!Array.isArray(arr)) return;
+  const i = arr.findIndex(r => r.id === echoRow.id);
+  if (echoRow.geloescht_am) { if (i >= 0) arr.splice(i, 1); }
+  else if (i >= 0) Object.assign(arr[i], echoRow);
+  else arr.push(echoRow);
+  ocSet(key, oc.wert);
+}
+
+// ── SYNC-BADGE ────────────────────────────────────────────────
+function updateSyncBadge() {
+  const b = el('sync-badge');
+  if (!b) return;
+  const box = outboxLesen();
+  const offen  = box.filter(e => !e.fehler).length;
+  const fehler = box.filter(e => e.fehler).length;
+  b.classList.toggle('offline', !navigator.onLine);
+  let zahl = '';
+  if (fehler) zahl = `<span class="sync-zahl fehler">${fehler}</span>`;
+  else if (offen) zahl = `<span class="sync-zahl">${offen}</span>`;
+  b.innerHTML = (navigator.onLine ? '☁️' : '📡') + zahl;
+}
+
+function openSyncStatus() { renderSyncStatusModal(); openModal('modal-sync-status'); }
+
+const TAB_LABEL = { kassenzaehlung: 'Tageszählung', buchung: 'Buchung', stunde: 'Stunden' };
+
+function renderSyncStatusModal() {
+  const wrap = el('sync-status-inhalt');
+  if (!wrap) return;
+  const box = outboxLesen();
+  const offen  = box.filter(e => !e.fehler);
+  const fehler = box.filter(e => e.fehler);
+
+  let html = `<p style="font-size:13px;color:var(--text2);margin-bottom:10px;">
+    Netz: <b>${navigator.onLine ? 'verbunden' : 'offline'}</b>
+    ${_syncLetzterErfolg ? ' · Letzter Sync: ' + ocZeit(_syncLetzterErfolg) : ''}</p>`;
+
+  if (!box.length) {
+    html += `<p style="font-size:14px;">✓ Alles synchronisiert – keine wartenden Änderungen.</p>`;
+  }
+  if (offen.length) {
+    html += `<h3 style="margin:8px 0 6px;">Wartend (${offen.length})</h3>` + offen.map(e => `
+      <div style="font-size:13px;padding:6px 0;border-bottom:1px solid var(--border);">
+        ⏳ ${TAB_LABEL[e.tabelle] || e.tabelle} · ${e.payload.datum ? dateFmt(e.payload.datum) + ' · ' : ''}${ocZeit(e.ts)}
+      </div>`).join('');
+  }
+  if (fehler.length) {
+    html += `<h3 style="margin:12px 0 6px;color:#b03030;">Fehlgeschlagen (${fehler.length})</h3>` + fehler.map((e, i) => `
+      <div style="font-size:13px;padding:6px 0;border-bottom:1px solid var(--border);">
+        ⚠️ ${TAB_LABEL[e.tabelle] || e.tabelle} · ${e.payload.datum ? dateFmt(e.payload.datum) + ' · ' : ''}${ocZeit(e.ts)}
+        <div style="font-size:11px;color:var(--text3);margin:2px 0 6px;">${esc(e.fehler)}</div>
+        <button class="btn btn-sm" onclick="syncFehlerNeu(${i})">Erneut versuchen</button>
+        <button class="btn btn-sm" onclick="syncFehlerVerwerfen(${i})">Verwerfen</button>
+      </div>`).join('');
+  }
+  wrap.innerHTML = html;
+}
+
+async function syncJetzt() {
+  if (!navigator.onLine) { toast('📡 Kein Netz – Sync startet automatisch bei Verbindung', 'err'); return; }
+  await syncOutbox();
+  renderSyncStatusModal();
+}
+
+// Fehler-Eintrag erneut freigeben (Fehler-Markierung entfernen → nächster Sync versucht ihn wieder)
+async function syncFehlerNeu(idx) {
+  const box = outboxLesen();
+  const fehlerhafte = box.filter(e => e.fehler);
+  const ziel = fehlerhafte[idx];
+  if (!ziel) return;
+  delete ziel.fehler;
+  outboxSchreiben(box);
+  await syncOutbox();
+  renderSyncStatusModal();
+}
+
+// Fehler-Eintrag endgültig verwerfen – bewusste Nutzerentscheidung mit Rückfrage,
+// denn die Änderung geht damit verloren (sie steht ja nicht in der Datenbank).
+async function syncFehlerVerwerfen(idx) {
+  if (!(await confirmMed('Diese Änderung wird verworfen und geht verloren.', {titel:'Änderung verwerfen', ja:'Verwerfen', gefahr:true}))) return;
+  const box = outboxLesen();
+  const fehlerhafte = box.filter(e => e.fehler);
+  const ziel = fehlerhafte[idx];
+  if (!ziel) return;
+  outboxSchreiben(box.filter(e => e !== ziel));
+  renderSyncStatusModal();
+}
+
+window.addEventListener('offline', () => { toast('📡 Keine Internetverbindung – Offline-Modus', 'err'); updateSyncBadge(); });
+window.addEventListener('online',  () => { toast('📡 Verbindung wiederhergestellt', 'ok'); updateSyncBadge(); syncOutbox(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) syncOutbox(); });
+
+// Warnung beim Schließen mit ungesyncten Änderungen (Desktop/Android;
+// iOS-Safari zeigt den Dialog nicht immer – deshalb zusätzlich Badge + Retry).
+window.addEventListener('beforeunload', (e) => {
+  if (outboxLesen().some(x => !x.fehler)) { e.preventDefault(); e.returnValue = ''; }
+});
+
+// Sicherheitsnetz: alle 30 s Sync anstoßen, solange etwas wartet
+// (syncOutbox selbst prüft Netz, Login und Doppel-Lauf).
+setInterval(() => { if (outboxLesen().some(x => !x.fehler)) syncOutbox(); }, 30000);
+
 // ── INIT ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   // Theme sofort anwenden (vor Login-Prüfung)
@@ -1142,11 +1454,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     hideApp();
   });
 
+  // Service Worker registrieren (ermöglicht App-Start ohne Netz).
+  // Fehlschlag ist unkritisch – die App läuft dann wie bisher nur online.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     currentUser = session.user;
     await loadProfil();
     showApp();
+    updateSyncBadge();
+    syncOutbox(); // liegengebliebene Offline-Änderungen direkt beim Start senden
   }
 });
 
@@ -1245,14 +1565,35 @@ async function doLogout() {
 }
 
 async function loadProfil() {
-  const { data } = await sb.from('profile').select('*').eq('id', currentUser.id).single();
+  let data = null, rolle = null, netzweg = false;
+  try {
+    const res = await sb.from('profile').select('*').eq('id', currentUser.id).single();
+    if (res.error && istNetzfehler(res.error)) netzweg = true;
+    else {
+      data = res.data;
+      // Rolle laden (RLS: Fahrer sieht nur die eigene Zeile)
+      const { data: rollen } = await sb.from('user_rolle').select('rolle').eq('user_id', currentUser.id);
+      rolle = rollen?.[0]?.rolle || 'marktfahrer';
+      // Für Offline-Start puffern
+      ocSet('profil_' + currentUser.id, { profil: data, rolle });
+    }
+  } catch (e) {
+    if (!istNetzfehler(e)) throw e;
+    netzweg = true;
+  }
+  if (netzweg) {
+    // Ohne Netz: gepuffertes Profil verwenden statt hängenzubleiben
+    const oc = ocGet('profil_' + currentUser.id);
+    if (!oc) { toast('📡 Kein Netz und kein lokaler Stand – bitte einmal online starten', 'err'); throw DB_ERR; }
+    data  = oc.wert.profil;
+    rolle = oc.wert.rolle;
+    toast('📡 Offline gestartet – Anzeige aus lokalem Speicher', 'err');
+  }
   currentProfil = data;
   // Einstellungen befüllen
   el('settings-name').textContent  = data?.anzeigename || currentUser.email;
   el('settings-email').textContent = currentUser.email;
-  // Rolle laden (RLS: Fahrer sieht nur die eigene Zeile)
-  const { data: rollen } = await sb.from('user_rolle').select('rolle').eq('user_id', currentUser.id);
-  userRolle = rollen?.[0]?.rolle || 'marktfahrer';
+  userRolle = rolle;
   el('settings-rolle').textContent = userRolle;
   // Fahrer-Ansicht: blendet alle Elemente mit .admin-only per CSS aus
   document.body.classList.toggle('rolle-fahrer', !istAdmin());
@@ -1341,17 +1682,25 @@ async function goBack() {
 
 // ── MÄRKTE LADEN ──────────────────────────────────────────────
 let alleMaerkte = [];
+let maerkteOffline = null; // Zeitstempel des Cache-Stands, wenn offline geladen
 let maerkteJahr = new Date().getFullYear();
 let maerkteOffen = new Set(['aktiv']);   // welche Status-Gruppen aufgeklappt sind
 
 async function loadMaerkte() {
   el('markt-list').innerHTML = '<div class="spinner"></div>';
-  const { data, error } = await sb
+  const { data, fehler, offline, ts } = await ocQuery('maerkte', () => sb
     .from('event_instanz')
     .select('*, event_template(name, ort, plz, km_minden, km_schoellkrippen)')
     .is('geloescht_am', null)
-    .order('start_datum', { ascending: false });
-  if (error) { toast('Fehler beim Laden', 'err'); return; }
+    .order('start_datum', { ascending: false }));
+  if (fehler) { toast('Fehler beim Laden', 'err'); return; }
+  if (offline && !data) {
+    el('markt-list').innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon">📡</div>
+      <div class="empty-state-text">Kein Netz und noch kein lokaler Stand.<br>Bitte einmal mit Verbindung öffnen.</div></div>`;
+    return;
+  }
+  maerkteOffline = offline ? ts : null; // renderMaerkte zeigt dann das Offline-Banner
   alleMaerkte = data || [];
   const jahre = verfuegbareJahre();
   if (!jahre.includes(maerkteJahr)) {
@@ -1360,8 +1709,9 @@ async function loadMaerkte() {
   }
   renderMaerkteJahrTabs(jahre);
   renderMaerkte();
-  renderHeuteKarte();     // asynchron, blockiert die Liste nicht
-  renderAufgabenKasten(); // asynchron, blockiert die Liste nicht
+  // Asynchron, blockieren die Liste nicht; ohne Netz stumm bleiben
+  renderHeuteKarte().catch(e => { if (!istNetzfehler(e)) throw e; });
+  renderAufgabenKasten().catch(e => { if (!istNetzfehler(e)) throw e; });
 }
 
 function verfuegbareJahre() {
@@ -1440,7 +1790,7 @@ function renderMaerkte() {
       </div>
     </div>`;
   });
-  wrap.innerHTML = html;
+  wrap.innerHTML = (maerkteOffline ? offlineBanner(maerkteOffline) : '') + html;
 }
 
 function renderMarktCard(m) {
@@ -1703,12 +2053,13 @@ async function renderHeuteKarte() {
 // Direktsprung aus der Heute-Karte in die Tageszählung (heutiges Datum).
 // Lädt vorher die Instanz, damit das Kasse-Detail die Markttage kennt.
 async function heuteZaehlung(instanzId, standId) {
-  const { data: instanz } = await sb.from('event_instanz')
+  const { data: instanz } = await ocQuery('instanz_' + instanzId, () => sb.from('event_instanz')
     .select('*, event_template(name, ort, plz, km_minden, km_schoellkrippen, wiederholung)')
-    .eq('id', instanzId).single();
-  if (!instanz) { toast('Markt nicht gefunden', 'err'); return; }
+    .eq('id', instanzId).single());
+  const inst = instanz || alleMaerkte.find(m => m.id === instanzId);
+  if (!inst) { toast('Markt nicht gefunden', 'err'); return; }
   currentInstanzId = instanzId;
-  currentInstanz   = instanz;
+  currentInstanz   = inst;
   chronikInstanzId = instanzId;
   await openKasseDetail(standId, isoToday());
 }
@@ -1722,16 +2073,24 @@ async function openMarktDetail(instanzId, tab = 'planung') {
 async function _openMarktDetailIntern(instanzId, tab = 'planung') {
   currentInstanzId = instanzId;
   chronikInstanzId = instanzId; // Chronik zeigt standardmäßig aktuelle Instanz
-  const { data: instanz } = await sb
+  const { data: instanz, offline } = await ocQuery('instanz_' + instanzId, () => sb
     .from('event_instanz')
     .select('*, event_template(name, ort, plz, km_minden, km_schoellkrippen, wiederholung)')
     .eq('id', instanzId)
-    .single();
-  currentInstanz = instanz;
+    .single());
+  if (!instanz) {
+    // Offline ohne Instanz-Cache: Eintrag aus der Märkte-Liste reicht
+    // für Anzeige & Kasse (wiederholung fehlt dort, wird nicht benötigt).
+    const ausListe = alleMaerkte.find(m => m.id === instanzId);
+    if (!ausListe) { toast(offline ? '📡 Offline – Markt noch nie geladen' : 'Markt nicht gefunden', 'err'); return; }
+    currentInstanz = ausListe;
+  } else {
+    currentInstanz = instanz;
+  }
 
-  const name = instanz.name || instanz.event_template?.name || '(Kein Name)';
-  const jahr = instanz.saison_jahr ? ` ${instanz.saison_jahr}` : '';
-  setHeader(name + jahr, zeitraumText(instanz), true);
+  const name = currentInstanz.name || currentInstanz.event_template?.name || '(Kein Name)';
+  const jahr = currentInstanz.saison_jahr ? ` ${currentInstanz.saison_jahr}` : '';
+  setHeader(name + jahr, zeitraumText(currentInstanz), true);
   showScreen('markt-detail');
   showMarktTab(tab);
 }
@@ -2141,12 +2500,37 @@ async function renderKasseTab() {
   const wrap = el('tab-content-kasse');
   wrap.innerHTML = '<div class="spinner"></div>';
 
-  const { data: staende } = await sb
-    .from('stand')
-    .select('*')
-    .eq('event_instanz_id', currentInstanzId)
-    .is('geloescht_am', null)
-    .order('bezeichnung');
+  // Stände + Zählungen + Buchungen als EIN Cache-Paket pro Instanz –
+  // so ist der Offline-Stand in sich konsistent (kein Mischmasch).
+  const { data: paket, offline, ts, fehler } = await ocQuery('kasse_' + currentInstanzId, async () => {
+    const rs = await sb.from('stand').select('*')
+      .eq('event_instanz_id', currentInstanzId)
+      .is('geloescht_am', null).order('bezeichnung');
+    if (rs.error) return rs;
+    const standIds = (rs.data || []).map(s => s.id);
+    // Zählungen + Buchungen für ALLE Kutschen parallel (1 Roundtrip)
+    const [rz, rb] = await Promise.all([
+      sb.from('kassenzaehlung').select('*')
+        .in('stand_id', standIds).is('geloescht_am', null).order('datum'),
+      sb.from('buchung').select('*')
+        .in('stand_id', standIds).is('geloescht_am', null).order('datum'),
+    ]);
+    if (rz.error) return rz;
+    if (rb.error) return rb;
+    return { data: { staende: rs.data, zaehlungen: rz.data || [], buchungen: rb.data || [] } };
+  });
+
+  if (fehler) { wrap.innerHTML = `<div class="section"><div class="hinweis-box">⚠️ Fehler beim Laden: ${esc(fehler.message)}</div></div>`; return; }
+  if (!paket) {
+    wrap.innerHTML = `<div class="section"><div class="empty-state">
+      <div class="empty-state-icon">📡</div>
+      <div class="empty-state-text">Kein Netz und noch kein lokaler Stand dieses Markts.<br>Kasse bitte einmal mit Verbindung öffnen.</div>
+    </div></div>`;
+    return;
+  }
+
+  kasseOfflineTs = offline ? (ts || Date.now()) : null;
+  const staende = paket.staende, alleZaehlungen = paket.zaehlungen, alleBuchungen = paket.buchungen;
 
   if (!staende || !staende.length) {
     wrap.innerHTML = `<div class="section"><div class="empty-state">
@@ -2156,17 +2540,7 @@ async function renderKasseTab() {
     return;
   }
 
-  let html = '<div class="section"><h2>Kasse</h2>';
-
-  // Zählungen + Buchungen für ALLE Kutschen parallel laden (statt N+1:
-  // vorher 2 sequenzielle Queries pro Kutsche, jetzt 1 Roundtrip gesamt)
-  const standIds = staende.map(s => s.id);
-  const [{ data: alleZaehlungen }, { data: alleBuchungen }] = await Promise.all([
-    sb.from('kassenzaehlung').select('*')
-      .in('stand_id', standIds).is('geloescht_am', null).order('datum'),
-    sb.from('buchung').select('*')
-      .in('stand_id', standIds).is('geloescht_am', null).order('datum'),
-  ]);
+  let html = '<div class="section">' + (offline ? offlineBanner(ts) : '') + '<h2>Kasse</h2>';
 
   for (const stand of staende) {
     const zaehlungen = (alleZaehlungen || []).filter(z => z.stand_id === stand.id);
@@ -2330,17 +2704,28 @@ async function openKasseDetail(standId, datum, push = true) {
   currentKasseTag = datum;
   if (push) navStack.push({screen: 'kasse-detail', instanzId: currentInstanzId});
 
-  const { data: stand } = await sb.from('stand').select('*').eq('id', standId).single();
+  let stand = null, vorh = null;
+  try {
+    const rs = await sb.from('stand').select('*').eq('id', standId).single();
+    if (rs.error && istNetzfehler(rs.error)) throw rs.error;
+    stand = rs.data;
+    // Vorhandene Zählung laden
+    const rz = await sb.from('kassenzaehlung').select('*')
+      .eq('stand_id', standId).eq('datum', datum)
+      .is('geloescht_am', null).maybeSingle();
+    if (rz.error && istNetzfehler(rz.error)) throw rz.error;
+    vorh = rz.data;
+  } catch (e) {
+    if (!istNetzfehler(e)) throw e;
+    // Offline: aus dem Kasse-Cache dieser Instanz bedienen
+    const p = kassePaket(currentInstanzId);
+    stand = p?.staende.find(st => st.id === standId) || null;
+    if (!stand) { toast('📡 Offline – Kutsche nicht im lokalen Stand', 'err'); return; }
+    vorh = cacheZaehlung(currentInstanzId, standId, datum);
+  }
+  if (!stand) { toast('Kutsche nicht gefunden', 'err'); return; }
   currentStand = stand;
-
-  // Vorhandene Zählung laden
-  const { data: vorh } = await sb
-    .from('kassenzaehlung')
-    .select('*')
-    .eq('stand_id', standId)
-    .eq('datum', datum)
-    .is('geloescht_am', null)
-    .maybeSingle();
+  currentZaehlungId = vorh?.id || null;
 
   setHeader('Tageszählung', `${stand.bezeichnung} · ${dateFmt(datum)}`, true);
   showScreen('kasse-detail');
@@ -2493,23 +2878,41 @@ async function switchKasseTag(datum) {
     b.classList.toggle('btn-primary', b.id === 'tag-btn-' + datum);
   });
   // Zählung für neuen Tag laden — KEIN navStack-Push
-  const { data: vorh } = await sb.from('kassenzaehlung')
-    .select('*').eq('stand_id', currentStandId).eq('datum', datum)
-    .is('geloescht_am', null).maybeSingle();
+  let vorh = null;
+  try {
+    const rz = await sb.from('kassenzaehlung')
+      .select('*').eq('stand_id', currentStandId).eq('datum', datum)
+      .is('geloescht_am', null).maybeSingle();
+    if (rz.error && istNetzfehler(rz.error)) throw rz.error;
+    vorh = rz.data;
+  } catch (e) {
+    if (!istNetzfehler(e)) throw e;
+    vorh = cacheZaehlung(currentInstanzId, currentStandId, datum);
+  }
+  currentZaehlungId = vorh?.id || null;
   renderKasseDetailScreen(currentStand, datum, vorh);
 }
 
 async function loadEcVorhandener(standId, datum) {
   const ecInp = el('kasse-schnell-ec');
   if (!ecInp) return;
-  const { data } = await sb.from('buchung')
-    .select('betrag_cent')
-    .eq('stand_id', standId)
-    .eq('datum', datum)
-    .eq('typ', 'einnahme')
-    .eq('zahlungsart', 'ec')
-    .is('geloescht_am', null)
-    .maybeSingle();
+  let data = null;
+  try {
+    const r = await sb.from('buchung')
+      .select('id, betrag_cent')
+      .eq('stand_id', standId)
+      .eq('datum', datum)
+      .eq('typ', 'einnahme')
+      .eq('zahlungsart', 'ec')
+      .is('geloescht_am', null)
+      .maybeSingle();
+    if (r.error && istNetzfehler(r.error)) throw r.error;
+    data = r.data;
+  } catch (e) {
+    if (!istNetzfehler(e)) throw e;
+    data = cacheEcBuchung(currentInstanzId, standId, datum);
+  }
+  currentEcBuchungId = data?.id || null;
   if (data) ecInp.value = (data.betrag_cent / 100).toFixed(2);
 }
 
@@ -2597,32 +3000,46 @@ async function saveKassenzaehlung() {
     payload.stueckelung          = null;
   }
 
-  // Kassenzählung upsert
-  const { data: vorh } = await sb.from('kassenzaehlung')
-    .select('id').eq('stand_id', currentStandId).eq('datum', datum)
-    .is('geloescht_am', null).maybeSingle();
-
-  let error;
-  if (vorh) {
-    ({ error } = await sb.from('kassenzaehlung').update(payload).eq('id', vorh.id));
-  } else {
-    payload.id = uuid();
-    payload.erstellt_am = now;
-    ({ error } = await sb.from('kassenzaehlung').insert(payload));
+  // Zählungs-ID bestimmen: aus dem geladenen Screen (currentZaehlungId);
+  // online zur Sicherheit frisch nachschlagen (verhindert Kollision mit
+  // dem partiellen Unique-Index (stand_id, datum) bei veraltetem Zustand).
+  let zid = currentZaehlungId;
+  if (navigator.onLine) {
+    try {
+      const { data: vorh, error: ve } = await sb.from('kassenzaehlung')
+        .select('id').eq('stand_id', currentStandId).eq('datum', datum)
+        .is('geloescht_am', null).maybeSingle();
+      if (!ve) zid = vorh?.id || null;
+      else if (!istNetzfehler(ve)) { toast('Fehler: ' + ve.message, 'err'); return; }
+    } catch (e) { if (!istNetzfehler(e)) throw e; }
   }
-  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  payload.id = zid || uuid();
+  if (!zid) payload.erstellt_am = now;
+
+  const res = await dbSchreib('kassenzaehlung', payload);
+  if (res.error) { toast('Fehler: ' + res.error.message, 'err'); return; }
+  currentZaehlungId = payload.id;
+  ocEcho('kassenzaehlung', payload);
 
   // EC-Buchung automatisch anlegen/updaten – in beiden Modi, das EC-Feld
   // ist modus-unabhängig. Upsert auf (Stand, Tag), 0 → Soft-Delete.
   {
     const ecVal = Math.round((parseFloat(el('kasse-schnell-ec')?.value) || 0) * 100);
-    const { data: vorhEc } = await sb.from('buchung')
-      .select('id').eq('stand_id', currentStandId).eq('datum', datum)
-      .eq('typ','einnahme').eq('zahlungsart','ec')
-      .is('geloescht_am', null).maybeSingle();
+    // EC-Buchungs-ID: aus dem geladenen Screen; online frisch nachschlagen
+    let ecId = currentEcBuchungId;
+    if (navigator.onLine) {
+      try {
+        const { data: vorhEc, error: ee } = await sb.from('buchung')
+          .select('id').eq('stand_id', currentStandId).eq('datum', datum)
+          .eq('typ','einnahme').eq('zahlungsart','ec')
+          .is('geloescht_am', null).maybeSingle();
+        if (!ee) ecId = vorhEc?.id || null;
+      } catch (e) { if (!istNetzfehler(e)) throw e; }
+    }
 
     if (ecVal > 0) {
       const ecPayload = {
+        id: ecId || uuid(),
         event_instanz_id: currentInstanzId,
         stand_id: currentStandId,
         datum, typ: 'einnahme', zahlungsart: 'ec',
@@ -2630,26 +3047,34 @@ async function saveKassenzaehlung() {
         bezeichnung: 'EC-Umsatz',
         geaendert_am: now,
       };
-      if (vorhEc) {
-        await dbW(sb.from('buchung').update(ecPayload).eq('id', vorhEc.id), 'Buchung speichern');
-      } else {
-        await dbW(sb.from('buchung').insert({ ...ecPayload, id: uuid(), erstellt_am: now }), 'Buchung speichern');
+      if (!ecId) ecPayload.erstellt_am = now;
+      const rEc = await dbSchreib('buchung', ecPayload);
+      if (rEc.error) { toast('⚠️ EC-Buchung fehlgeschlagen: ' + rEc.error.message, 'err'); }
+      else { currentEcBuchungId = ecPayload.id; ocEcho('buchung', ecPayload); }
+    } else if (ecVal === 0 && ecId) {
+      // EC auf 0 gesetzt → vorhandene Buchung soft-löschen (gezieltes UPDATE,
+      // kein Upsert – der würde an NOT-NULL-Spalten scheitern)
+      const rEc = await dbSchreib('buchung', { id: ecId, geloescht_am: now, geaendert_am: now }, 'update');
+      if (!rEc.error) {
+        ocEcho('buchung', { id: ecId, event_instanz_id: currentInstanzId, geloescht_am: now });
+        currentEcBuchungId = null;
       }
-    } else if (ecVal === 0 && vorhEc) {
-      // EC auf 0 gesetzt → vorhandene Buchung soft-löschen
-      await dbW(sb.from('buchung').update({ geloescht_am: now }).eq('id', vorhEc.id), 'Buchung speichern');
     }
   }
 
-  toast('✓ Zählung gespeichert', 'ok');
+  toast(res.offline ? '📡 Offline gespeichert – Sync folgt bei Netz' : '✓ Zählung gespeichert', 'ok');
   goBack();
 }
 
 async function deleteKassenzaehlung(id) {
   if (marktReadonly()) { toast('Markt ist abgeschlossen – Löschen nicht möglich', 'err'); return; }
   if (!(await confirmMed('Die Tageszählung wird gelöscht.', {titel:'Zählung löschen', ja:'Löschen', gefahr:true}))) return;
-  await dbW(sb.from('kassenzaehlung').update({ geloescht_am: new Date().toISOString() }).eq('id', id), 'Kassenzählung speichern');
-  toast('Zählung gelöscht');
+  const now = new Date().toISOString();
+  const res = await dbSchreib('kassenzaehlung', { id, geloescht_am: now, geaendert_am: now }, 'update');
+  if (res.error) { toast('⚠️ Löschen fehlgeschlagen: ' + res.error.message, 'err'); return; }
+  ocEcho('kassenzaehlung', { id, event_instanz_id: currentInstanzId, geloescht_am: now });
+  currentZaehlungId = null;
+  toast(res.offline ? '📡 Offline gelöscht – Sync folgt bei Netz' : 'Zählung gelöscht');
   goBack();
 }
 
@@ -2671,7 +3096,7 @@ async function saveBuchung() {
   const datum  = el('buch-datum').value || isoToday();
   if (!betrag) { toast('Betrag fehlt', 'err'); return; }
   const now = new Date().toISOString();
-  const { error } = await sb.from('buchung').insert({
+  const payload = {
     id: uuid(),
     event_instanz_id: _modalBuchungInstanzId,
     stand_id: _modalBuchungStandId || null,
@@ -2681,10 +3106,12 @@ async function saveBuchung() {
     betrag_cent: Math.round(betrag * 100),
     bezeichnung: el('buch-bez').value || '',
     erstellt_am: now, geaendert_am: now,
-  });
-  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  };
+  const res = await dbSchreib('buchung', payload);
+  if (res.error) { toast('Fehler: ' + res.error.message, 'err'); return; }
+  ocEcho('buchung', payload);
   closeModal('modal-neue-buchung');
-  toast('✓ Buchung gespeichert', 'ok');
+  toast(res.offline ? '📡 Offline gespeichert – Sync folgt bei Netz' : '✓ Buchung gespeichert', 'ok');
   renderKasseTab();
 }
 
@@ -3536,12 +3963,14 @@ async function deleteMarktfahrer(id) {
 
 // ── FAHRER-ZUORDNUNG (Planung-Tab) ────────────────────────────
 async function loadFahrerFuerInstanz(instanzId, nurBestaetigt = true) {
-  let q = sb.from('event_marktfahrer')
-    .select('id, status, marktfahrer:marktfahrer_id(id, name)')
-    .eq('event_instanz_id', instanzId)
-    .is('geloescht_am', null);
-  if (nurBestaetigt) q = q.eq('status', 'bestaetigt');
-  const { data } = await q;
+  const { data } = await ocQuery(`fahrer_${instanzId}_${nurBestaetigt ? 1 : 0}`, () => {
+    let q = sb.from('event_marktfahrer')
+      .select('id, status, marktfahrer:marktfahrer_id(id, name)')
+      .eq('event_instanz_id', instanzId)
+      .is('geloescht_am', null);
+    if (nurBestaetigt) q = q.eq('status', 'bestaetigt');
+    return q;
+  });
   return data || [];
 }
 
@@ -4255,10 +4684,10 @@ function saisonJahrWechseln(jahr) {
 let stundenInstanzId = null;
 
 async function ladeStundenMarktSelector() {
-  const { data } = await sb.from('event_instanz')
+  const { data } = await ocQuery('stunden_selector', () => sb.from('event_instanz')
     .select('id, name, saison_jahr, status, start_datum, end_datum, start_datum_2, end_datum_2, event_template(name)')
     .is('geloescht_am', null)
-    .order('start_datum', { ascending: false });
+    .order('start_datum', { ascending: false }));
   const instanzen = (data || []).slice(0, 30);
 
   // Sinnvoller Standard statt leerer Auswahl: eindeutig heute laufender
@@ -4301,11 +4730,12 @@ async function renderStundenContent() {
   const wrap = el('stunden-content');
   wrap.innerHTML = '<div class="spinner" style="margin-top:16px;"></div>';
 
-  const { data: eintraege } = await sb.from('stunde')
+  const { data: eintraege, offline, ts } = await ocQuery('stunden_' + stundenInstanzId, () => sb.from('stunde')
     .select('id, datum, stunden, marktfahrer:marktfahrer_id(id, name)')
     .eq('event_instanz_id', stundenInstanzId)
     .is('geloescht_am', null)
-    .order('datum');
+    .order('datum'));
+  const stundenBanner = offline ? offlineBanner(ts) : '';
 
   if (!eintraege?.length) {
     wrap.innerHTML = '<p style="color:var(--text3);font-size:14px;padding-top:16px;">Noch keine Stunden erfasst.</p>';
@@ -4324,6 +4754,7 @@ async function renderStundenContent() {
   const gesamtStunden = Object.values(fahrerMap).reduce((s,f) => s + f.total, 0);
 
   wrap.innerHTML = `
+    ${stundenBanner}
     <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0 8px;">
       <span style="font-size:12px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;">Gesamt</span>
       <span style="font-size:18px;font-weight:700;color:var(--gold2);">${gesamtStunden.toFixed(1)} h</span>
@@ -4355,9 +4786,18 @@ async function openNeueStundenModal() {
     return;
   }
 
-  // Instanz-Daten für Tage
-  const { data: inst } = await sb.from('event_instanz')
-    .select('start_datum, end_datum').eq('id', stundenInstanzId).single();
+  // Instanz-Daten für Tage (offline: aus Cache oder Märkte-Liste)
+  let inst = null;
+  try {
+    const r = await sb.from('event_instanz')
+      .select('start_datum, end_datum').eq('id', stundenInstanzId).single();
+    if (r.error && istNetzfehler(r.error)) throw r.error;
+    inst = r.data;
+  } catch (e) {
+    if (!istNetzfehler(e)) throw e;
+    inst = ocGet('instanz_' + stundenInstanzId)?.wert
+        || alleMaerkte.find(m => m.id === stundenInstanzId) || null;
+  }
 
   // Fahrer-Select befüllen
   const fahrerSel = el('std-fahrer');
@@ -4390,24 +4830,31 @@ async function saveStunden() {
     toast('Alle Felder ausfüllen', 'err'); return;
   }
   const now = new Date().toISOString();
-  const { error } = await sb.from('stunde').insert({
+  const payload = {
     id: uuid(),
     marktfahrer_id: marktfahrerId,
     event_instanz_id: stundenInstanzId,
     datum, stunden,
     erstellt_am: now, geaendert_am: now,
     erstellt_von: currentUser.id, geaendert_von: currentUser.id,
-  });
-  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  };
+  const res = await dbSchreib('stunde', payload);
+  if (res.error) { toast('Fehler: ' + res.error.message, 'err'); return; }
+  // Echo mit Anzeige-Join (Fahrername aus dem Select) – nur für den Cache
+  const fahrerName = el('std-fahrer').selectedOptions[0]?.textContent || 'Unbekannt';
+  ocEcho('stunde', { ...payload, marktfahrer: { id: marktfahrerId, name: fahrerName } });
   closeModal('modal-neue-stunden');
-  toast('✓ Stunden gespeichert', 'ok');
+  toast(res.offline ? '📡 Offline gespeichert – Sync folgt bei Netz' : '✓ Stunden gespeichert', 'ok');
   renderStundenContent();
 }
 
 async function deleteStunden(id) {
   if (!(await confirmMed('Der Eintrag wird gelöscht.', {titel:'Eintrag löschen', ja:'Löschen', gefahr:true}))) return;
-  await dbW(sb.from('stunde').update({ geloescht_am: new Date().toISOString() }).eq('id', id), 'Stunden speichern');
-  toast('Gelöscht');
+  const now = new Date().toISOString();
+  const res = await dbSchreib('stunde', { id, geloescht_am: now, geaendert_am: now }, 'update');
+  if (res.error) { toast('⚠️ Löschen fehlgeschlagen: ' + res.error.message, 'err'); return; }
+  ocEcho('stunde', { id, event_instanz_id: stundenInstanzId, geloescht_am: now });
+  toast(res.offline ? '📡 Offline gelöscht – Sync folgt bei Netz' : 'Gelöscht');
   renderStundenContent();
 }
 
