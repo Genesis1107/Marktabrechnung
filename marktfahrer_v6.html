@@ -924,7 +924,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.53';
+const APP_VERSION = 'v6.54';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1325,8 +1325,7 @@ async function vormerkLaden(instanzId, phase) {
 }
 
 // Karten-Button: vormerken bzw. Vormerkung aufheben
-async function toggleVormerk(instanzId, ev) {
-  if (ev) ev.stopPropagation(); // nicht den Markt öffnen
+async function toggleVormerk(instanzId) {
   const liste = vormerkListe();
 
   if (liste.includes(instanzId)) {
@@ -1334,7 +1333,7 @@ async function toggleVormerk(instanzId, ev) {
         {titel:'Vormerkung aufheben', ja:'Aufheben'}))) return;
     vormerkSpeichern(liste.filter(x => x !== instanzId));
     toast('Vormerkung aufgehoben');
-    renderMaerkte();
+    nachVormerkAnzeigeAuffrischen();
     return;
   }
 
@@ -1349,7 +1348,16 @@ async function toggleVormerk(instanzId, ev) {
   liste.push(instanzId);
   vormerkSpeichern(liste);
   toast('✓ Markt ist offline verfügbar', 'ok');
-  renderMaerkte();
+  nachVormerkAnzeigeAuffrischen();
+}
+
+// Der Knopf sitzt im Planung-Tab, das 📥 in der Märkte-Liste. Je nachdem,
+// was gerade sichtbar ist, das Passende neu zeichnen. (Kein eigener
+// Screen-Merker in der App – der aktive Screen trägt die Klasse .active.)
+function nachVormerkAnzeigeAuffrischen() {
+  const imMarktDetail = el('screen-markt-detail')?.classList.contains('active');
+  if (imMarktDetail && activeMarktTab === 'planung') renderPlanungTab();
+  else renderMaerkte();
 }
 
 // Beim Start mit Netz alle vorgemerkten Märkte auffrischen (still im
@@ -1957,11 +1965,7 @@ function renderMarktCard(m) {
       <span class="badge status-${m.status || 'interessent'}">${STATUS_LABEL[m.status] || '?'}</span>
     </div>
     <div class="card-sub">${plz}${ort}${dauer ? ' · ' + dauer : ''}</div>
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px;">
-      <span class="card-sub">${zeitraumText(m)}</span>
-      <button class="btn btn-sm${vorgemerkt ? ' btn-primary' : ''}" style="white-space:nowrap;padding:4px 9px;"
-              onclick="toggleVormerk('${m.id}', event)">${vorgemerkt ? '📥 Offline ✓' : '📥 Offline'}</button>
-    </div>
+    <div class="card-sub" style="margin-top:4px;">${zeitraumText(m)}</div>
   </div>`;
 }
 
@@ -2326,6 +2330,20 @@ async function renderPlanungTab() {
               ? ` · N ${inst.event_template?.km_minden ?? '?'} / S ${inst.event_template?.km_schoellkrippen ?? '?'} km` : ''}
           </span>
           <button class="btn btn-sm admin-only" style="white-space:nowrap;" onclick="openStammdatenModal()">✏️ Bearbeiten</button>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:14px;">
+        <label>Offline</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span style="flex:1;min-width:0;font-size:13px;color:var(--text2);">
+            ${istVorgemerkt(currentInstanzId)
+              ? '📥 Markt ist ohne Netz nutzbar'
+              : 'Braucht derzeit eine Verbindung'}
+          </span>
+          <button class="btn btn-sm${istVorgemerkt(currentInstanzId) ? '' : ' btn-primary'}" style="white-space:nowrap;"
+                  onclick="toggleVormerk('${currentInstanzId}')">
+            ${istVorgemerkt(currentInstanzId) ? 'Aufheben' : '📥 Vormerken'}
+          </button>
         </div>
       </div>
       <div class="field">
