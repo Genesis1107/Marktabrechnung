@@ -924,7 +924,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.55';
+const APP_VERSION = 'v6.56';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -4509,7 +4509,8 @@ async function renderClSection(instanzId) {
   }
 
   const { data: checks } = await sb.from('user_checkliste_check')
-    .select('item_id').eq('event_instanz_id', instanzId);
+    .select('item_id').eq('event_instanz_id', instanzId)
+    .not('erledigt_am', 'is', null);
   const checkedIds = new Set((checks || []).map(c => c.item_id));
 
   const n    = items.length;
@@ -4592,12 +4593,13 @@ async function skaldenmetSpeichern(aufgabeId, shortId) {
 async function clItemToggle(itemId, instanzId, erledigt) {
   if (erledigt) {
     await dbW(sb.from('user_checkliste_check').upsert(
-      { id: uuid(), item_id: itemId, event_instanz_id: instanzId },
+      { id: uuid(), item_id: itemId, event_instanz_id: instanzId, erledigt_am: new Date().toISOString() },
       { onConflict: 'item_id,event_instanz_id' }
     ), 'Checkliste speichern');
   } else {
+    // Kein Hard-Delete: Zeile bleibt bestehen, erledigt_am = NULL bedeutet "nicht erledigt"
     await dbW(sb.from('user_checkliste_check')
-      .delete().eq('item_id', itemId).eq('event_instanz_id', instanzId), 'Checkliste speichern');
+      .update({ erledigt_am: null }).eq('item_id', itemId).eq('event_instanz_id', instanzId), 'Checkliste speichern');
   }
   renderPlanungTab();
 }
