@@ -924,7 +924,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.56';
+const APP_VERSION = 'v6.57';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1929,6 +1929,13 @@ function renderMaerkte() {
     if (gruppen[st]) gruppen[st].push(m);
   });
 
+  // Innerhalb jeder Gruppe: nächste Termine zuerst (aufsteigend nach Start).
+  // Ausnahme „Abgeschlossen": dort interessiert der jüngste Markt oben.
+  STATUS_ORDER.forEach(s => gruppen[s].sort((a, b) => {
+    const cmp = (a.start_datum || '').localeCompare(b.start_datum || '');
+    return s === 'abgeschlossen' ? -cmp : cmp;
+  }));
+
   let html = '';
   STATUS_ORDER.forEach(status => {
     const gruppe = gruppen[status];
@@ -2144,7 +2151,7 @@ async function renderHeuteKarte() {
   const heutige = alleMaerkte
     .filter(m => m.status === 'aktiv' && marktTage(m).includes(heute))
     .sort((a, b) => (a.start_datum || '').localeCompare(b.start_datum || ''));
-  if (!heutige.length) { wrap.innerHTML = ''; return; }
+  if (!heutige.length) { await renderNaechsteKarte(wrap); return; }
 
   const ids = heutige.map(m => m.id);
   const [{ data: staende }, { data: zaehl }, { data: buch }] = await Promise.all([
@@ -2204,6 +2211,45 @@ async function renderHeuteKarte() {
       ${btns}
     </div>`;
   }).join('');
+}
+
+// ── NÄCHSTER-MARKT-KARTE ──────────────────────────────────────
+// Erscheint nur, wenn heute kein Markt läuft (die Heute-Karte hat Vorrang).
+// Zeigt den nächsten Markt, den der eingeloggte Nutzer fährt – ermittelt
+// über seine Zuteilung in event_marktfahrer (Client-Pendant zur
+// SQL-Funktion mein_marktfahrer_id()). Ohne eigene Zuteilung fällt die
+// Karte auf den nächsten anstehenden Markt insgesamt zurück.
+async function renderNaechsteKarte(wrap) {
+  const heute = isoToday();
+  const kandidaten = alleMaerkte
+    .filter(m => ['bestaetigt', 'vorbereitung', 'aktiv'].includes(m.status)
+      && m.start_datum && m.start_datum > heute)
+    .sort((a, b) => a.start_datum.localeCompare(b.start_datum));
+  if (!kandidaten.length) { wrap.innerHTML = ''; return; }
+
+  let next = null;
+  const { data: mf } = await sb.from('marktfahrer').select('id')
+    .eq('user_id', currentUser.id).is('geloescht_am', null).limit(1);
+  if (mf && mf.length) {
+    const { data: zut } = await sb.from('event_marktfahrer')
+      .select('event_instanz_id')
+      .eq('marktfahrer_id', mf[0].id).is('geloescht_am', null)
+      .in('event_instanz_id', kandidaten.map(m => m.id));
+    const ids = new Set((zut || []).map(z => z.event_instanz_id));
+    next = kandidaten.find(m => ids.has(m.id)) || null;
+  }
+  if (!next) next = kandidaten[0];
+
+  const dTage = Math.ceil((new Date(next.start_datum + 'T00:00:00')
+    - new Date(heute + 'T00:00:00')) / 86400000);
+  const wann = dTage === 1 ? 'morgen' : `in ${dTage} Tagen`;
+  const name = esc(next.name || next.event_template?.name || '(Kein Name)');
+  const ort  = esc(next.event_template?.ort || '');
+  wrap.innerHTML = `<div class="heute-karte" onclick="openMarktDetail('${next.id}')">
+    <div class="heute-kopf">⚜ Nächster Markt · Start ${wann}</div>
+    <div class="heute-name">${name}</div>
+    <div class="heute-sub">${ort}${ort ? ' · ' : ''}${zeitraumText(next)}</div>
+  </div>`;
 }
 
 // Direktsprung aus der Heute-Karte in die Tageszählung (heutiges Datum).
