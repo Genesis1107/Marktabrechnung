@@ -969,7 +969,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.59';
+const APP_VERSION = 'v6.60';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -4108,7 +4108,13 @@ function bestQtyLive(varId, prodId, proKiste, val) {
     bst.positionen[varId] = { ...(bst.positionen[varId] || {}), menge };
     bst.expandedProds.add(prodId);
   } else {
-    delete bst.positionen[varId];
+    // Menge 0: existiert eine gespeicherte Position (mit DB-id), Eintrag mit
+    // menge:0 behalten – sonst verliert bestMengeSetzen die id und der
+    // Soft-Delete in der DB läuft nie (Bug bis v6.59). Alle Leser prüfen
+    // menge>0, ein 0-Eintrag zählt also überall als "nicht bestellt".
+    const vorh = bst.positionen[varId];
+    if (vorh?.id) bst.positionen[varId] = { ...vorh, menge: 0 };
+    else delete bst.positionen[varId];
   }
   const inp = el('bqv-' + varId.slice(0,8));
   if (inp) inp.classList.toggle('aktiv', menge > 0);
