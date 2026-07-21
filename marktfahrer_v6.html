@@ -969,7 +969,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.58';
+const APP_VERSION = 'v6.59';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -3798,6 +3798,7 @@ function renderBestProduktListe() {
         <div class="best-var-controls">
           <input type="number" class="best-qty-input ${menge>0?'aktiv':''}"
             id="bqv-${v.id.slice(0,8)}" value="${menge||''}" min="0" step="1"
+            inputmode="numeric" pattern="[0-9]*"
             placeholder="0"
             oninput="bestQtyLive('${v.id}','${p.id}',${v.pro_kiste||0},this.value)"
             onchange="bestMengeSetzen('${v.id}','${p.id}',${v.pro_kiste||0},this.value)"
