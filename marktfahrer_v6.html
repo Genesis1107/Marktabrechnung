@@ -376,6 +376,51 @@ body.rolle-fahrer .admin-only { display: none !important; }
 .best-qty-einheit { font-size: 10px; color: var(--text3); min-width: 26px; }
 .best-setup { padding: 20px 16px; }
 .best-versendet { background: rgba(76,175,80,.1); border: 1px solid var(--green2); border-radius: var(--radius); padding: 10px 14px; margin: 12px 14px; font-size: 13px; color: var(--green2); }
+/* ── BESTELLUNG: Zusatz-Aktionen (⋯ / Notizen) ─────────────── */
+.best-menu-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 7px 12px; font-size: 14px; color: var(--text2); cursor: pointer; white-space: nowrap; }
+.best-menu-btn:active { background: var(--bg3); }
+/* Grundlage-Auswahl im Setup */
+.best-grundlage-hint { font-size: 12px; color: var(--text3); margin-top: -6px; margin-bottom: 12px; line-height: 1.4; }
+/* Produktzeile: Vorjahres-Badge (Notiz-Signal) */
+.notiz-badge { display: inline-block; margin-left: 6px; font-size: 12px; cursor: pointer; vertical-align: middle; }
+.notiz-badge.top { filter: none; }
+/* Hinweiskasten „nachgefragt, nicht an Bord" */
+.best-gefragt-box { background: var(--bg3); border: 1px solid var(--border2); border-left: 3px solid var(--gold); border-radius: var(--radius); padding: 10px 12px; margin: 10px 14px 0; font-size: 12px; color: var(--text2); line-height: 1.5; }
+.best-gefragt-box b { color: var(--gold); }
+/* ── SHEET (von unten einfahrendes Panel, iOS-Stil) ────────── */
+.mf-sheet-overlay { position: fixed; inset: 0; background: rgba(10,6,2,.6); z-index: 950; display: flex; align-items: flex-end; justify-content: center; animation: sheetFade .18s ease-out; }
+.mf-sheet { background: var(--bg2); border-top: 2px solid var(--gold); border-radius: 18px 18px 0 0; box-shadow: 0 -8px 40px rgba(0,0,0,.5); width: 100%; max-width: 520px; max-height: 88vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 8px 16px 24px; animation: sheetUp .22s cubic-bezier(.2,.8,.2,1); }
+.mf-sheet-griff { width: 38px; height: 4px; border-radius: 2px; background: var(--border2); margin: 6px auto 12px; }
+.mf-sheet-title { font-family: Georgia, 'Times New Roman', serif; font-size: 18px; font-weight: 700; color: var(--gold2); text-align: center; margin-bottom: 4px; }
+.mf-sheet-sub { font-size: 12px; color: var(--text3); text-align: center; margin-bottom: 16px; }
+@keyframes sheetFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+/* Bewertungs-Chips (Läuft / Bleibt liegen / Gefragt) */
+.bew-chips { display: flex; gap: 8px; margin-bottom: 14px; }
+.bew-chip { flex: 1; padding: 12px 6px; border-radius: var(--radius); border: 1.5px solid var(--border2); background: var(--surface); color: var(--text2); font-size: 13px; font-weight: 600; text-align: center; cursor: pointer; transition: all .12s; user-select: none; }
+.bew-chip .bew-icon { display: block; font-size: 20px; margin-bottom: 3px; }
+.bew-chip.sel-top    { border-color: var(--green2); background: rgba(76,175,80,.14); color: var(--green2); }
+.bew-chip.sel-flop   { border-color: var(--text3); background: var(--bg3); color: var(--text); }
+.bew-chip.sel-gefragt{ border-color: var(--gold); background: rgba(201,148,42,.14); color: var(--gold); }
+/* Notiz-Liste im Sheet */
+.notiz-liste { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+.notiz-eintrag { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.notiz-eintrag:last-child { border-bottom: none; }
+.notiz-eintrag-icon { font-size: 16px; margin-top: 1px; }
+.notiz-eintrag-body { flex: 1; min-width: 0; }
+.notiz-eintrag-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.notiz-eintrag-text { font-size: 12px; color: var(--text3); margin-top: 2px; word-break: break-word; }
+.notiz-eintrag-del { background: none; border: none; color: var(--red2); font-size: 16px; cursor: pointer; padding: 2px 6px; flex: none; }
+/* Auswahl-Liste (Grundlage/Vorlagen) im Sheet */
+.wahl-item { display: flex; align-items: center; gap: 10px; padding: 13px 12px; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; cursor: pointer; background: var(--surface); }
+.wahl-item:active { background: var(--bg3); }
+.wahl-item-icon { font-size: 20px; flex: none; }
+.wahl-item-body { flex: 1; min-width: 0; }
+.wahl-item-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.wahl-item-sub { font-size: 12px; color: var(--text3); margin-top: 1px; }
+.wahl-item-del { background: none; border: none; color: var(--red2); font-size: 16px; cursor: pointer; padding: 4px 8px; flex: none; }
+.mf-sheet-suche { width: 100%; background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); color: var(--text); padding: 10px 12px; font-size: 15px; margin-bottom: 12px; outline: none; }
+.mf-sheet-suche:focus { border-color: var(--gold); }
 .std-fahrer-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
 .std-fahrer-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); }
 .std-fahrer-name { font-size: 14px; font-weight: 600; color: var(--text); }
@@ -924,7 +969,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.57';
+const APP_VERSION = 'v6.58';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1116,6 +1161,37 @@ function confirmMed(text, opts = {}) {
   });
 }
 
+// Texteingabe-Dialog (Pergament-Stil). Auflösung: eingegebener String,
+// oder null bei Abbruch. Nutzung:
+//   const name = await promptMed('Name', {titel:'…', platzhalter:'…', ja:'Speichern'});
+function promptMed(text, opts = {}) {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.className = 'confirm-overlay';
+    ov.innerHTML = `
+      <div class="confirm-box">
+        <div class="confirm-title">${esc(opts.titel || 'Eingabe')}</div>
+        <div class="confirm-orn">✦ ❦ ✦</div>
+        <div class="confirm-text">${esc(text)}</div>
+        <input type="text" id="prompt-med-input" placeholder="${esc(opts.platzhalter || '')}"
+          value="${esc(opts.wert || '')}"
+          style="width:100%;margin:12px 0 4px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:10px 12px;font-size:15px;outline:none;">
+        <div class="confirm-actions">
+          <button class="btn" id="prompt-nein">Abbrechen</button>
+          <button class="btn btn-primary" id="prompt-ja">${esc(opts.ja || 'OK')}</button>
+        </div>
+      </div>`;
+    const inp = ov.querySelector('#prompt-med-input');
+    const done = v => { ov.remove(); resolve(v); };
+    ov.querySelector('#prompt-ja').onclick  = () => done(inp.value);
+    ov.querySelector('#prompt-nein').onclick = () => done(null);
+    ov.addEventListener('click', e => { if (e.target === ov) done(null); });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') done(inp.value); });
+    document.body.appendChild(ov);
+    setTimeout(() => inp.focus(), 50);
+  });
+}
+
 let toastTimer;
 function toast(msg, type='') {
   const t = el('toast');
@@ -1127,6 +1203,28 @@ function toast(msg, type='') {
 
 function closeModal(id) { el(id).classList.add('hidden'); }
 function openModal(id)  { el(id).classList.remove('hidden'); }
+
+// ── SHEET (von unten einfahrendes Panel) ──────────────────────
+// Generischer iOS-Stil-Container. bodyHtml wird eingesetzt; Schließen
+// per Griff-Tap, Overlay-Tap oder schliesseSheet(). Immer nur eines offen.
+function oeffneSheet(titel, sub, bodyHtml) {
+  schliesseSheet();
+  const ov = document.createElement('div');
+  ov.className = 'mf-sheet-overlay';
+  ov.id = 'mf-sheet-overlay';
+  ov.innerHTML = `<div class="mf-sheet" onclick="event.stopPropagation()">
+    <div class="mf-sheet-griff"></div>
+    ${titel ? `<div class="mf-sheet-title">${esc(titel)}</div>` : ''}
+    ${sub ? `<div class="mf-sheet-sub">${esc(sub)}</div>` : ''}
+    <div id="mf-sheet-body">${bodyHtml}</div>
+  </div>`;
+  ov.addEventListener('click', schliesseSheet);
+  document.body.appendChild(ov);
+}
+function schliesseSheet() {
+  const ov = el('mf-sheet-overlay');
+  if (ov) ov.remove();
+}
 
 // ── STATUS ────────────────────────────────────────────────────
 const STATUS_LABEL = {
@@ -1310,6 +1408,12 @@ async function vormerkLaden(instanzId, phase) {
   ocSet(`aufgaben_${instanzId}_${status}`, ra.data || []);
   ocSet('cl_items_' + currentUser.id, rcl.data || []);
 
+  // Marktnotizen dieser Instanz (offline erfassbar am Stand)
+  const rn = await sb.from('markt_produkt_notiz')
+    .select('*').eq('event_instanz_id', instanzId).is('geloescht_am', null).order('erstellt_am');
+  if (rn.error) throw rn.error;
+  ocSet('notizen_' + instanzId, rn.data || []);
+
   // Listen-Ebene mitnehmen: ohne diese beiden kommt man offline weder in
   // die Märkte-Liste noch zur Marktauswahl im Stunden-Tab.
   const [rsel, rml] = await Promise.all([
@@ -1479,6 +1583,7 @@ function ocEcho(tabelle, echoRow) {
   if (tabelle === 'kassenzaehlung') { key = 'kasse_'   + echoRow.event_instanz_id; feld = 'zaehlungen'; }
   if (tabelle === 'buchung')        { key = 'kasse_'   + echoRow.event_instanz_id; feld = 'buchungen'; }
   if (tabelle === 'stunde')         { key = 'stunden_' + echoRow.event_instanz_id; }
+  if (tabelle === 'markt_produkt_notiz') { key = 'notizen_' + echoRow.event_instanz_id; }
   if (!key) return;
   const oc = ocGet(key);
   if (!oc) return;
@@ -3402,6 +3507,12 @@ let bst = {
   fahrzeug: 'solo',
   expandedProds: new Set(),
   abholdatum: '',
+  vorjahrNotizen: [],   // Notizen früherer Instanzen desselben Templates (Anzeige)
+  notizProdMap: {},     // produkt_id → beste Vorjahres-Bewertung (für Inline-Badge)
+  gefragtOhne: [],      // im Vorjahr nachgefragt, aber nicht im Sortiment (Freitext + Flop-ohne-Bestellung)
+  grundlagen: [],       // verfügbare Grundlagen (Vorlagen + frühere Bestellungen)
+  gewaehlteGrundlage: null,
+  eigeneNotizen: [],    // Notizen dieser Instanz (im Notiz-Sheet)
 };
 
 async function renderBestellungTab() {
@@ -3452,7 +3563,52 @@ async function renderBestellungTab() {
     if (p.varianten.some(v => bst.positionen[v.id]?.menge > 0)) bst.expandedProds.add(p.id);
   });
 
+  // Vorjahresnotizen laden (frühere Instanzen desselben Templates)
+  await ladeVorjahrNotizen();
+
   renderBestellungUI(wrap);
+}
+
+// Notizen aus früheren Instanzen desselben Templates laden und für die
+// Anzeige aufbereiten: ein Inline-Badge je Produkt (beste Bewertung) und
+// die Liste der nachgefragten Ware, die nicht im Sortiment war.
+async function ladeVorjahrNotizen() {
+  bst.vorjahrNotizen = []; bst.notizProdMap = {}; bst.gefragtOhne = [];
+  const templateId = currentInstanz?.template_id;
+  if (!templateId) return;
+  // Frühere Instanzen (nicht die aktuelle) desselben Templates
+  const { data: fruehere } = await sb.from('event_instanz')
+    .select('id, saison_jahr').eq('template_id', templateId)
+    .neq('id', currentInstanzId).is('geloescht_am', null);
+  const ids = (fruehere || []).map(i => i.id);
+  if (!ids.length) return;
+  const jahrMap = {}; (fruehere || []).forEach(i => { jahrMap[i.id] = i.saison_jahr; });
+
+  const { data: notizen } = await sb.from('markt_produkt_notiz')
+    .select('*').in('event_instanz_id', ids).is('geloescht_am', null)
+    .order('erstellt_am', { ascending: false });
+  bst.vorjahrNotizen = (notizen || []).map(n => ({ ...n, jahr: jahrMap[n.event_instanz_id] }));
+
+  // Pro Produkt die "stärkste" Bewertung merken (top schlägt flop schlägt gefragt-nur)
+  const RANG = { top: 3, flop: 2, gefragt: 1 };
+  bst.vorjahrNotizen.forEach(n => {
+    if (!n.produkt_id) return;
+    const alt = bst.notizProdMap[n.produkt_id];
+    if (!alt || RANG[n.bewertung] > RANG[alt.bewertung]) bst.notizProdMap[n.produkt_id] = n;
+  });
+
+  // Nachgefragte Ware ohne Sortiments-Bezug: Freitext-Notizen +
+  // Katalog-Produkte, die als "gefragt" markiert, aber aktuell nicht
+  // bestellt/vorhanden sind (informativer Hinweis oben im Tab).
+  bst.vorjahrNotizen.forEach(n => {
+    if (n.bewertung !== 'gefragt') return;
+    if (n.produkt_id) {
+      const p = bst.produkte.find(pp => pp.id === n.produkt_id);
+      bst.gefragtOhne.push({ name: p?.name || '(unbekannt)', jahr: n.jahr, notiz: n.notiz });
+    } else {
+      bst.gefragtOhne.push({ name: n.freitext_name, jahr: n.jahr, notiz: n.notiz });
+    }
+  });
 }
 
 function renderBestellungUI(wrap) {
@@ -3474,8 +3630,11 @@ function renderBestellungUI(wrap) {
       <span class="best-topbar-chip">🏪 ${lager.code}</span>
       <span class="best-topbar-chip gold" id="best-chip-kg">⚖ ${kgGesamt} kg · ${kistenBerechnet} Kisten · ${pal} Pal.</span>
       <span class="best-topbar-chip gold" id="best-chip-umsatz">💰 ${eur(umsatzCent)}</span>
+      <button class="best-menu-btn" onclick="oeffneNotizSheet()" title="Marktnotizen">📝</button>
+      <button class="best-menu-btn" onclick="oeffneBestMenue()" title="Mehr">⋯</button>
       <button class="best-senden-btn" onclick="exportBestellungPDF()">📄 PDF</button>
     </div>
+    ${bestGefragtHinweis()}
     <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--border);">
       <label style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;">📅 Abholdatum</label>
       <input type="date" id="best-abholdatum" value="${bst.abholdatum}"
@@ -3495,16 +3654,81 @@ function renderBestellungUI(wrap) {
   renderBestProduktListe();
 }
 
-function renderBestellungSetup(wrap) {
+// Grundlage-Optionen für eine neue Bestellung sammeln:
+//   - Vorlagen (bestell_vorlage)
+//   - frühere Bestellungen desselben Templates (Wiederhol-Märkte wie Annotopia)
+// Ergebnis wird in bst.grundlagen zwischengespeichert. Smarte Vorauswahl:
+// gibt es eine frühere Bestellung desselben Templates, ist sie vorbelegt.
+async function ladeBestGrundlagen() {
+  const grundlagen = [];
+
+  // 1) Vorlagen
+  const { data: vorlagen } = await sb.from('bestell_vorlage')
+    .select('id, name, lager_id, positionen').is('geloescht_am', null).order('name');
+  (vorlagen || []).forEach(v => {
+    const anzahl = Object.values(v.positionen || {}).reduce((s, m) => s + (parseInt(m) || 0), 0);
+    grundlagen.push({ typ: 'vorlage', id: v.id, name: v.name,
+      sub: `Vorlage · ${anzahl} Stk`, positionen: v.positionen || {}, lager_id: v.lager_id });
+  });
+
+  // 2) Frühere Bestellungen desselben Templates (jüngste zuerst)
+  const templateId = currentInstanz?.template_id;
+  if (templateId) {
+    const { data: instanzen } = await sb.from('event_instanz')
+      .select('id, saison_jahr, name').eq('template_id', templateId)
+      .neq('id', currentInstanzId).is('geloescht_am', null)
+      .order('saison_jahr', { ascending: false });
+    const instIds = (instanzen || []).map(i => i.id);
+    if (instIds.length) {
+      const jahrMap = {}; (instanzen || []).forEach(i => { jahrMap[i.id] = i.saison_jahr; });
+      const { data: bestell } = await sb.from('bestellung')
+        .select('id, event_instanz_id, lager_id, erstellt_am').in('event_instanz_id', instIds)
+        .is('geloescht_am', null).order('erstellt_am', { ascending: false });
+      // pro Instanz nur die jüngste Bestellung
+      const gesehen = new Set();
+      for (const b of (bestell || [])) {
+        if (gesehen.has(b.event_instanz_id)) continue;
+        gesehen.add(b.event_instanz_id);
+        grundlagen.push({ typ: 'bestellung', id: b.id, bestellungId: b.id,
+          name: (currentInstanz?.event_template?.name || 'Markt') + ' ' + (jahrMap[b.event_instanz_id] || ''),
+          sub: 'Frühere Bestellung', lager_id: b.lager_id, jahr: jahrMap[b.event_instanz_id] });
+      }
+    }
+  }
+
+  bst.grundlagen = grundlagen;
+  return grundlagen;
+}
+
+async function renderBestellungSetup(wrap) {
+  wrap.innerHTML = '<div class="best-setup"><div class="spinner"></div></div>';
+  const grundlagen = await ladeBestGrundlagen();
+
+  // Smarte Vorauswahl: erste frühere Bestellung desselben Templates
+  const smartGrundlage = grundlagen.find(g => g.typ === 'bestellung');
+  bst.gewaehlteGrundlage = smartGrundlage || null;
+  // Lager aus der Grundlage übernehmen, falls vorhanden
+  if (smartGrundlage?.lager_id) bst.lagerId = smartGrundlage.lager_id;
+
   const lagerOptionen = BEST_LAGER.map(l =>
     `<option value="${l.id}" ${l.id === bst.lagerId ? 'selected' : ''}>${l.code} – ${l.email}</option>`
   ).join('');
   const fzgOptionen = FAHRZEUGE.map(f =>
     `<option value="${f.id}" ${f.id === bst.fahrzeug ? 'selected' : ''}>${f.label}</option>`
   ).join('');
+
   wrap.innerHTML = `<div class="best-setup">
     <h2>Bestellung anlegen</h2>
     <div class="field" style="margin-top:14px;">
+      <label>Grundlage</label>
+      <button class="field" id="best-grundlage-btn" onclick="bestGrundlageWaehlen()"
+        style="width:100%;text-align:left;cursor:pointer;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:11px 12px;font-size:15px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+        <span id="best-grundlage-label">${bestGrundlageLabel()}</span>
+        <span style="color:var(--gold);font-size:13px;">Ändern ›</span>
+      </button>
+      ${grundlagen.length ? `<div class="best-grundlage-hint">${grundlagen.length} Vorlage(n)/frühere Bestellung(en) verfügbar.</div>` : `<div class="best-grundlage-hint">Noch keine Vorlagen. Du kannst eine bestehende Bestellung später als Vorlage speichern.</div>`}
+    </div>
+    <div class="field">
       <label>Lager</label>
       <select id="best-setup-lager">${lagerOptionen}</select>
     </div>
@@ -3514,6 +3738,40 @@ function renderBestellungSetup(wrap) {
     </div>
     <button class="btn btn-primary btn-full" style="margin-top:8px;" onclick="bestellungAnlegen()">+ Bestellung anlegen</button>
   </div>`;
+}
+
+function bestGrundlageLabel() {
+  const g = bst.gewaehlteGrundlage;
+  if (!g) return '📄 Leere Bestellung';
+  const icon = g.typ === 'vorlage' ? '📋' : '📦';
+  return `${icon} ${esc(g.name)}`;
+}
+
+// Sheet mit Auswahlliste der Grundlagen
+function bestGrundlageWaehlen() {
+  const items = [{ typ: 'leer', name: 'Leere Bestellung', sub: 'Alle Mengen bei 0 starten', icon: '📄' }]
+    .concat((bst.grundlagen || []).map(g => ({
+      ...g, icon: g.typ === 'vorlage' ? '📋' : '📦'
+    })));
+  const html = items.map((it, i) => `
+    <div class="wahl-item" onclick="bestGrundlageSetzen(${i})">
+      <span class="wahl-item-icon">${it.icon}</span>
+      <div class="wahl-item-body">
+        <div class="wahl-item-name">${esc(it.name)}</div>
+        ${it.sub ? `<div class="wahl-item-sub">${esc(it.sub)}</div>` : ''}
+      </div>
+    </div>`).join('');
+  bst._grundlagenSheet = items;
+  oeffneSheet('Grundlage wählen', 'Womit soll die Bestellung starten?', html);
+}
+
+function bestGrundlageSetzen(idx) {
+  const it = bst._grundlagenSheet?.[idx];
+  if (!it) return;
+  bst.gewaehlteGrundlage = it.typ === 'leer' ? null : it;
+  if (it.lager_id) { bst.lagerId = it.lager_id; const sel = el('best-setup-lager'); if (sel) sel.value = it.lager_id; }
+  const lbl = el('best-grundlage-label'); if (lbl) lbl.innerHTML = bestGrundlageLabel();
+  schliesseSheet();
 }
 
 function renderBestProduktListe() {
@@ -3548,10 +3806,11 @@ function renderBestProduktListe() {
         </div>
       </div>`;
     }).join('') : '';
+    const nBadge = notizBadge(p.id);
     return `<div class="best-produkt">
       <div class="best-prod-name" onclick="toggleBestProdukt('${p.id}')" style="cursor:pointer;display:flex;align-items:center;user-select:none;">
         <span style="color:var(--text3);margin-right:6px;font-size:12px;">${expanded ? '▼' : '▶'}</span>
-        ${p.name}${badge}
+        ${p.name}${badge}${nBadge}
       </div>
       ${varHtml}
     </div>`;
@@ -3631,6 +3890,53 @@ async function bestellungAnlegen() {
   if (error) { toast('Fehler: ' + error.message, 'err'); return; }
   bst.bestellung = data;
   bst.positionen = {};
+
+  // Grundlage übernehmen: Positionen mit NEUEN UUIDs in die neue Bestellung
+  // kopieren (die Quelle bleibt unberührt). Nicht mehr existierende Varianten
+  // werden übersprungen und am Ende gemeldet.
+  const g = bst.gewaehlteGrundlage;
+  if (g && g.typ !== 'leer') {
+    let quellPos = {}; // variante_id → menge
+    if (g.typ === 'vorlage') {
+      quellPos = g.positionen || {};
+    } else if (g.typ === 'bestellung' && g.bestellungId) {
+      const { data: pos } = await sb.from('bestellposition')
+        .select('variante_id, menge').eq('bestellung_id', g.bestellungId).is('geloescht_am', null);
+      (pos || []).forEach(p => { quellPos[p.variante_id] = p.menge; });
+    }
+    // Gültige Varianten-IDs (aus dem aktuellen Sortiment)
+    const gueltigeVarIds = new Set();
+    bst.produkte.forEach(p => p.varianten.forEach(v => gueltigeVarIds.add(v.id)));
+
+    const einträge = Object.entries(quellPos).filter(([, m]) => (parseInt(m) || 0) > 0);
+    let übernommen = 0, übersprungen = 0;
+    const neuePositionen = [];
+    for (const [varId, menge] of einträge) {
+      if (!gueltigeVarIds.has(varId)) { übersprungen++; continue; }
+      const neueId = uuid();
+      neuePositionen.push({ id: neueId, bestellung_id: data.id, variante_id: varId,
+        menge: parseInt(menge), erstellt_am: now, geaendert_am: now });
+      bst.positionen[varId] = { id: neueId, menge: parseInt(menge) };
+      übernommen++;
+    }
+    if (neuePositionen.length) {
+      const { error: posErr } = await sb.from('bestellposition').insert(neuePositionen);
+      if (posErr) { toast('Positionen konnten nicht übernommen werden: ' + posErr.message, 'err'); bst.positionen = {}; }
+      else {
+        let msg = `${übernommen} Position(en) übernommen`;
+        if (übersprungen) msg += ` · ${übersprungen} nicht mehr im Sortiment`;
+        toast(msg);
+      }
+    } else if (übersprungen) {
+      toast(`${übersprungen} Position(en) nicht mehr im Sortiment – leer gestartet`, 'err');
+    }
+  }
+
+  // Produkte mit übernommenen Mengen auto-aufklappen
+  bst.expandedProds = new Set();
+  bst.produkte.forEach(p => {
+    if (p.varianten.some(v => bst.positionen[v.id]?.menge > 0)) bst.expandedProds.add(p.id);
+  });
   renderBestellungUI(el('tab-content-bestellung'));
 }
 
@@ -3839,6 +4145,244 @@ async function bestMengeSetzen(varId, prodId, proKiste, val) {
     }), 'Position speichern');
     bst.positionen[varId] = { id: neueId, menge };
   }
+}
+
+// ── MARKTNOTIZEN ──────────────────────────────────────────────
+// Was lief, was blieb liegen, was wurde nachgefragt. Erfassung am Stand
+// (offline-fähig über dbSchreib/ocEcho), Anzeige im Folgejahr.
+
+const BEW = {
+  top:     { icon: '🔥', label: 'Läuft',         cls: 'sel-top' },
+  flop:    { icon: '🐌', label: 'Bleibt liegen', cls: 'sel-flop' },
+  gefragt: { icon: '❓', label: 'Nachgefragt',   cls: 'sel-gefragt' },
+};
+
+// Inline-Badge neben dem Produktnamen (beste Vorjahres-Bewertung)
+function notizBadge(prodId) {
+  const n = bst.notizProdMap[prodId];
+  if (!n) return '';
+  const b = BEW[n.bewertung];
+  if (!b) return '';
+  const titel = `${b.label}${n.jahr ? ' ' + n.jahr : ''}${n.notiz ? ': ' + n.notiz : ''}`;
+  return `<span class="notiz-badge" onclick="event.stopPropagation();zeigeNotizDetail('${prodId}')" title="${esc(titel)}">${b.icon}</span>`;
+}
+
+function zeigeNotizDetail(prodId) {
+  const eintraege = bst.vorjahrNotizen.filter(n => n.produkt_id === prodId);
+  if (!eintraege.length) return;
+  const prod = bst.produkte.find(p => p.id === prodId);
+  const html = eintraege.map(n => {
+    const b = BEW[n.bewertung] || {};
+    return `<div class="notiz-eintrag">
+      <span class="notiz-eintrag-icon">${b.icon || '•'}</span>
+      <div class="notiz-eintrag-body">
+        <div class="notiz-eintrag-name">${b.label || ''}${n.jahr ? ' · ' + n.jahr : ''}</div>
+        ${n.notiz ? `<div class="notiz-eintrag-text">${esc(n.notiz)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  oeffneSheet(prod?.name || 'Notiz', 'Aus früheren Jahren', `<div class="notiz-liste" style="border-top:none;padding-top:0;">${html}</div>`);
+}
+
+// Hinweiskasten oben im Tab: im Vorjahr nachgefragt, nicht an Bord
+function bestGefragtHinweis() {
+  if (!bst.gefragtOhne?.length) return '';
+  // pro Name nur einmal, jüngstes Jahr
+  const seen = new Map();
+  bst.gefragtOhne.forEach(g => {
+    if (!seen.has(g.name) || (g.jahr || 0) > (seen.get(g.name).jahr || 0)) seen.set(g.name, g);
+  });
+  const namen = [...seen.values()].map(g => esc(g.name)).join(', ');
+  return `<div class="best-gefragt-box">❓ <b>Im Vorjahr nachgefragt, nicht an Bord:</b> ${namen}</div>`;
+}
+
+// Erfassungs-Sheet: Bewertung + optional Produkt + optional Notiz
+let notizEntwurf = { bewertung: 'top', produktId: null, freitext: '' };
+
+async function oeffneNotizSheet() {
+  notizEntwurf = { bewertung: 'top', produktId: null, freitext: '' };
+  // Bestehende Notizen dieser Instanz (offline-fähig laden)
+  const r = await ocQuery('notizen_' + currentInstanzId, () => sb.from('markt_produkt_notiz')
+    .select('*').eq('event_instanz_id', currentInstanzId).is('geloescht_am', null).order('erstellt_am', { ascending: false }));
+  const eigene = r.data || [];
+  bst.eigeneNotizen = eigene;
+
+  const chips = Object.entries(BEW).map(([k, b]) =>
+    `<div class="bew-chip ${k === notizEntwurf.bewertung ? b.cls : ''}" id="bew-chip-${k}" onclick="notizBewertung('${k}')">
+      <span class="bew-icon">${b.icon}</span>${b.label}</div>`).join('');
+
+  const ro = marktReadonly();
+  const eingabe = ro ? '<div class="hinweis-box">🔒 Markt abgeschlossen – nur Ansicht.</div>' : `
+    <div class="bew-chips">${chips}</div>
+    <div class="field">
+      <label>Produkt</label>
+      <input type="text" class="mf-sheet-suche" id="notiz-produkt-such" placeholder="🔍 Produkt suchen (oder Freitext eingeben)"
+        oninput="notizProduktSuche(this.value)" autocomplete="off">
+      <div id="notiz-produkt-treffer"></div>
+      <div id="notiz-produkt-gewaehlt" style="font-size:13px;color:var(--gold);margin-top:4px;"></div>
+    </div>
+    <div class="field">
+      <label>Notiz (optional)</label>
+      <textarea id="notiz-text" placeholder="z. B. 1,0 Ton nach Tag 2 ausverkauft"></textarea>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="notizSpeichern()">Speichern</button>`;
+
+  const liste = eigene.length ? `<div class="notiz-liste">
+    <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">Bereits erfasst (${eigene.length})</div>
+    ${eigene.map(n => notizEintragHtml(n)).join('')}
+  </div>` : '';
+
+  oeffneSheet('Marktnotizen', 'Was läuft, was bleibt liegen, was fehlt?', eingabe + liste);
+}
+
+function notizEintragHtml(n) {
+  const b = BEW[n.bewertung] || {};
+  const prod = bst.produkte.find(p => p.id === n.produkt_id);
+  const name = prod?.name || n.freitext_name || '(unbekannt)';
+  const ro = marktReadonly();
+  return `<div class="notiz-eintrag">
+    <span class="notiz-eintrag-icon">${b.icon || '•'}</span>
+    <div class="notiz-eintrag-body">
+      <div class="notiz-eintrag-name">${esc(name)}</div>
+      ${n.notiz ? `<div class="notiz-eintrag-text">${esc(n.notiz)}</div>` : ''}
+    </div>
+    ${ro ? '' : `<button class="notiz-eintrag-del" onclick="notizLoeschen('${n.id}')" title="Löschen">✕</button>`}
+  </div>`;
+}
+
+function notizBewertung(k) {
+  notizEntwurf.bewertung = k;
+  Object.entries(BEW).forEach(([kk, b]) => {
+    const c = el('bew-chip-' + kk);
+    if (c) c.className = 'bew-chip' + (kk === k ? ' ' + b.cls : '');
+  });
+}
+
+function notizProduktSuche(term) {
+  const treffer = el('notiz-produkt-treffer');
+  notizEntwurf.freitext = term.trim();
+  notizEntwurf.produktId = null;
+  const gew = el('notiz-produkt-gewaehlt'); if (gew) gew.textContent = '';
+  if (!term.trim() || term.trim().length < 2) { treffer.innerHTML = ''; return; }
+  const q = term.trim().toLowerCase();
+  const funde = bst.produkte.filter(p => p.name.toLowerCase().includes(q)).slice(0, 6);
+  treffer.innerHTML = funde.map(p =>
+    `<div class="wahl-item" style="padding:9px 12px;margin-bottom:6px;" onclick="notizProduktWaehlen('${p.id}')">
+      <div class="wahl-item-body"><div class="wahl-item-name" style="font-size:13px;">${esc(p.name)}</div></div>
+    </div>`).join('');
+}
+
+function notizProduktWaehlen(prodId) {
+  const p = bst.produkte.find(pp => pp.id === prodId);
+  if (!p) return;
+  notizEntwurf.produktId = prodId;
+  notizEntwurf.freitext = '';
+  const such = el('notiz-produkt-such'); if (such) such.value = p.name;
+  const treffer = el('notiz-produkt-treffer'); if (treffer) treffer.innerHTML = '';
+  const gew = el('notiz-produkt-gewaehlt'); if (gew) gew.textContent = '✓ ' + p.name;
+}
+
+async function notizSpeichern() {
+  if (marktReadonly()) { toast('Markt ist abgeschlossen', 'err'); return; }
+  const text = el('notiz-text')?.value.trim() || '';
+  const prodId = notizEntwurf.produktId;
+  const freitext = prodId ? null : (notizEntwurf.freitext || '');
+  if (!prodId && !freitext) { toast('Bitte Produkt wählen oder Freitext eingeben', 'err'); return; }
+  const now = new Date().toISOString();
+  const id = uuid();
+  const row = {
+    id, event_instanz_id: currentInstanzId,
+    produkt_id: prodId, freitext_name: freitext || null,
+    bewertung: notizEntwurf.bewertung, notiz: text || null,
+    erstellt_am: now, geaendert_am: now,
+    erstellt_von: currentUser.id, geaendert_von: currentUser.id,
+  };
+  const res = await dbSchreib('markt_produkt_notiz', row, 'upsert');
+  ocEcho('markt_produkt_notiz', row);
+  if (res.offline) toast('📡 Offline gespeichert – wird synchronisiert');
+  else toast('Notiz gespeichert');
+  oeffneNotizSheet(); // Sheet mit aktualisierter Liste neu aufbauen
+}
+
+async function notizLoeschen(id) {
+  if (marktReadonly()) return;
+  if (!(await confirmMed('Diese Notiz löschen?', { titel: 'Notiz löschen', ja: 'Löschen', gefahr: true }))) return;
+  const now = new Date().toISOString();
+  const row = { id, event_instanz_id: currentInstanzId, geloescht_am: now, geaendert_am: now };
+  await dbSchreib('markt_produkt_notiz', row, 'update');
+  ocEcho('markt_produkt_notiz', row);
+  toast('Notiz gelöscht');
+  oeffneNotizSheet();
+}
+
+// ── BESTELL-MENÜ (⋯): Als Vorlage speichern / Vorlagen verwalten ──
+function oeffneBestMenue() {
+  const anzahl = Object.values(bst.positionen).reduce((s, p) => s + (p.menge || 0), 0);
+  const html = `
+    <div class="wahl-item" onclick="vorlageSpeichernDialog()">
+      <span class="wahl-item-icon">💾</span>
+      <div class="wahl-item-body">
+        <div class="wahl-item-name">Als Vorlage speichern</div>
+        <div class="wahl-item-sub">${anzahl} Position(en) als Standardbestellung sichern</div>
+      </div>
+    </div>
+    <div class="wahl-item" onclick="vorlagenVerwalten()">
+      <span class="wahl-item-icon">📋</span>
+      <div class="wahl-item-body">
+        <div class="wahl-item-name">Vorlagen verwalten</div>
+        <div class="wahl-item-sub">Gespeicherte Vorlagen ansehen und löschen</div>
+      </div>
+    </div>`;
+  oeffneSheet('Mehr', null, html);
+}
+
+async function vorlageSpeichernDialog() {
+  schliesseSheet();
+  const anzahl = Object.values(bst.positionen).reduce((s, p) => s + (p.menge || 0), 0);
+  if (!anzahl) { toast('Bestellung ist leer – nichts zu speichern', 'err'); return; }
+  const name = await promptMed('Name der Vorlage', { titel: 'Als Vorlage speichern',
+    platzhalter: 'z. B. Kleiner Markt (<5.000)', ja: 'Speichern' });
+  if (name === null) return;
+  const nameT = name.trim();
+  if (!nameT) { toast('Bitte einen Namen eingeben', 'err'); return; }
+  // Positionen → { variante_id: menge }
+  const positionen = {};
+  Object.entries(bst.positionen).forEach(([varId, p]) => { if (p.menge > 0) positionen[varId] = p.menge; });
+  const now = new Date().toISOString();
+  const { error } = await sb.from('bestell_vorlage').insert({
+    id: uuid(), name: nameT, lager_id: bst.lagerId, positionen,
+    erstellt_am: now, geaendert_am: now,
+    erstellt_von: currentUser.id, geaendert_von: currentUser.id,
+  });
+  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  toast('Vorlage „' + nameT + '" gespeichert');
+}
+
+async function vorlagenVerwalten() {
+  const { data: vorlagen } = await sb.from('bestell_vorlage')
+    .select('id, name, lager_id, positionen').is('geloescht_am', null).order('name');
+  if (!vorlagen?.length) { oeffneSheet('Vorlagen', null, '<p style="color:var(--text3);text-align:center;padding:12px;">Noch keine Vorlagen gespeichert.</p>'); return; }
+  const html = vorlagen.map(v => {
+    const anzahl = Object.values(v.positionen || {}).reduce((s, m) => s + (parseInt(m) || 0), 0);
+    const lager = BEST_LAGER.find(l => l.id === v.lager_id);
+    return `<div class="wahl-item">
+      <span class="wahl-item-icon">📋</span>
+      <div class="wahl-item-body">
+        <div class="wahl-item-name">${esc(v.name)}</div>
+        <div class="wahl-item-sub">${anzahl} Stk${lager ? ' · Lager ' + lager.code : ''}</div>
+      </div>
+      <button class="wahl-item-del" onclick="vorlageLoeschen('${v.id}','${esc(v.name).replace(/'/g, "\\'")}')" title="Löschen">✕</button>
+    </div>`;
+  }).join('');
+  oeffneSheet('Vorlagen verwalten', 'Antippen zum Löschen', html);
+}
+
+async function vorlageLoeschen(id, name) {
+  if (!(await confirmMed('Vorlage „' + name + '" löschen?', { titel: 'Vorlage löschen', ja: 'Löschen', gefahr: true }))) return;
+  const now = new Date().toISOString();
+  await dbW(sb.from('bestell_vorlage').update({ geloescht_am: now, geaendert_am: now }).eq('id', id), 'Vorlage löschen');
+  toast('Vorlage gelöscht');
+  vorlagenVerwalten();
 }
 
 // ── CHRONIK TAB ───────────────────────────────────────────────
@@ -5141,7 +5685,9 @@ async function deleteStunden(id) {
   'deleteStand', 'deleteKassenzaehlung', 'deleteMarktfahrer',
   'deleteStunden', 'deleteClItem', 'deleteClItemDirect', 'fahrerEntfernen',
   'deleteBuchung',
-  'deleteMarkt'
+  'deleteMarkt',
+  'bestellungAnlegen', 'notizSpeichern', 'notizLoeschen',
+  'vorlageSpeichernDialog', 'vorlageLoeschen'
 ].forEach(n => { if (typeof window[n] === 'function') window[n] = locked(window[n]); });
 </script>
 </body>
