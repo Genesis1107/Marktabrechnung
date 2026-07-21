@@ -969,7 +969,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.60';
+const APP_VERSION = 'v6.61';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -3967,7 +3967,7 @@ function exportBestellungPDF() {
   const pal    = (kgGesamt / PALETTE_KG).toFixed(1);
 
   // Größen-Reihenfolge (kanonisch)
-  const GROESSE_ORDER = ['0,04','0,2','0,25 Bord','0,5','0,75','1,0 Ton','1,0 Euro','1,5','Stück'];
+  const GROESSE_ORDER = ['0,04','0,2','0,25 Bord','0,5','0,75','0,75 Ton','1,0 Ton','1,0 Euro','1,5','Stück'];
   function sortGroessen(arr) {
     return [...arr].sort((a,b) => {
       const ia = GROESSE_ORDER.indexOf(a); const ib = GROESSE_ORDER.indexOf(b);
