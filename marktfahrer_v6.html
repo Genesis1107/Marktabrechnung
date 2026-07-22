@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.65</title>
+<title>Marktfahrer · v6.66</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -376,6 +376,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
 .best-topbar { position: sticky; top: 0; z-index: 10; background: var(--bg2); border-bottom: 1px solid var(--border); padding: 10px 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .best-topbar-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--text2); white-space: nowrap; }
 .best-topbar-chip.gold { border-color: var(--gold); color: var(--gold); }
+.best-topbar-chip.warn { border-color: var(--amber2); color: var(--amber2); font-weight: 600; }
 .best-senden-btn { margin-left: auto; background: var(--gold); border: none; border-radius: 20px; padding: 7px 16px; font-size: 13px; font-weight: 700; color: var(--bg); cursor: pointer; white-space: nowrap; }
 .best-senden-btn:active { background: var(--gold2); }
 .best-kat-tabs { display: flex; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--border); background: var(--bg2); }
@@ -561,7 +562,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.65</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.66</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -678,7 +679,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.65</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.66</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -1010,7 +1011,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.65';
+const APP_VERSION = 'v6.66';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -3607,11 +3608,14 @@ const BEST_LAGER = [
   { id: 'a1b2c3d4-0002-0002-0002-000000000002', code: 'Nord', email: 'Bestellung-nord@beerenweine.eu' },
 ];
 const FAHRZEUGE = [
-  { id: 'solo',    label: 'Iveco Solo (1 Palette, ~750 kg)',    maxKg: 750 },
-  { id: 'haenger', label: 'Mit Anhänger (5 Paletten, ~3.750 kg)', maxKg: 3750 },
+  { id: 'solo',    label: 'Iveco Solo (30 Kisten)',       maxKisten: 30 },
+  { id: 'haenger', label: 'Mit Anhänger (100 Kisten)',    maxKisten: 100 },
 ];
-const KG_KISTE = 30;
-const PALETTE_KG = 750;
+// Palettenlogik: bei uns ist die Kistenzahl je Palette konstant, nicht das Gewicht.
+const KISTEN_PRO_PALETTE = 20;
+// Gewicht wird je Größe aus produkt_variante.gewicht_kg × pro_kiste berechnet
+// (siehe bestGewicht). KG_KISTE/PALETTE_KG (pauschal 30 kg / 750 kg) sind seit
+// v6.66 abgelöst und entfallen bewusst.
 
 // Bestellung-State
 let bst = {
@@ -3737,14 +3741,14 @@ function renderBestellungUI(wrap) {
   }
   const lager  = BEST_LAGER.find(l => l.id === bst.lagerId) || BEST_LAGER[0];
   const fzg    = FAHRZEUGE.find(f => f.id === bst.fahrzeug) || FAHRZEUGE[0];
-  const { kgGesamt, kistenBerechnet, umsatzCent } = bestGewicht();
-  const pal    = (kgGesamt / PALETTE_KG).toFixed(1);
+  const { kgGesamt, kistenBerechnet, paletten, umsatzCent } = bestGewicht();
+  const ueberladen = kistenBerechnet > fzg.maxKisten;
   const versendet = bst.bestellung?.status === 'versendet';
 
   wrap.innerHTML = `
     <div class="best-topbar">
       <span class="best-topbar-chip">🏪 ${lager.code}</span>
-      <span class="best-topbar-chip gold" id="best-chip-kg">⚖ ${kgGesamt} kg · ${kistenBerechnet} Kisten · ${pal} Pal.</span>
+      <span class="best-topbar-chip ${ueberladen ? 'warn' : 'gold'}" id="best-chip-kg">${ueberladen ? '⚠️' : '⚖'} ${kistenBerechnet} Kisten · ${paletten} Pal. · ${kgGesamt} kg</span>
       <span class="best-topbar-chip gold" id="best-chip-umsatz">💰 ${eur(umsatzCent)}</span>
       <button class="best-menu-btn" onclick="oeffneNotizSheet()" title="Marktnotizen">📝</button>
       <button class="best-menu-btn" onclick="oeffneBestMenue()" title="Mehr">⋯</button>
@@ -3961,7 +3965,7 @@ function bestGewicht() {
       const v = p.varianten.find(vv => vv.id === varId);
       if (v) {
         if (v.pro_kiste && v.pro_kiste > 0) {
-          if (!groesseMap[v.groesse]) groesseMap[v.groesse] = { stueck: 0, proKiste: v.pro_kiste };
+          if (!groesseMap[v.groesse]) groesseMap[v.groesse] = { stueck: 0, proKiste: v.pro_kiste, gewichtKg: Number(v.gewicht_kg) || 0 };
           groesseMap[v.groesse].stueck += pos.menge;
         }
         const kat = bst.kategorien.find(k => k.id === p.kategorie_id);
@@ -3973,13 +3977,17 @@ function bestGewicht() {
   });
 
   let kistenBerechnet = 0, kgGesamt = 0;
-  Object.values(groesseMap).forEach(({ stueck, proKiste }) => {
+  Object.values(groesseMap).forEach(({ stueck, proKiste, gewichtKg }) => {
     const kisten = Math.ceil(stueck / proKiste);
     kistenBerechnet += kisten;
-    kgGesamt        += kisten * KG_KISTE;
+    // Echtes Gewicht: volle Kisten × Flaschen/Kiste × Flaschengewicht.
+    // Angebrochene Kisten werden (wie die Kistenzahl) aufgerundet mitgezählt.
+    kgGesamt        += kisten * proKiste * gewichtKg;
   });
+  kgGesamt = Math.round(kgGesamt);
+  const paletten = Math.ceil(kistenBerechnet / KISTEN_PRO_PALETTE);
 
-  return { kgGesamt, kistenBerechnet, umsatzCent, groesseMap };
+  return { kgGesamt, kistenBerechnet, paletten, umsatzCent, groesseMap };
 }
 
 function bestWechselKat(idx) {
@@ -4079,8 +4087,7 @@ function exportBestellungPDF() {
   const ort    = inst?.event_template?.ort || '';
   const datum  = inst?.start_datum ? dateFmt(inst.start_datum) + (inst.end_datum ? ' – ' + dateFmt(inst.end_datum) : '') : '';
   const heute  = new Date().toLocaleDateString('de-DE');
-  const { kgGesamt, kistenBerechnet, umsatzCent } = bestGewicht();
-  const pal    = (kgGesamt / PALETTE_KG).toFixed(1);
+  const { kgGesamt, kistenBerechnet, paletten, umsatzCent } = bestGewicht();
 
   // Größen-Reihenfolge (kanonisch)
   const GROESSE_ORDER = ['0,04','0,2','0,25 Bord','0,5','0,75','0,75 Ton','1,0 Ton','1,0 Euro','1,5','Stück'];
@@ -4198,7 +4205,7 @@ tr{break-inside:avoid;page-break-inside:avoid}
 <div class="summary">
   <div class="sum-box"><div class="sum-val">${kistenBerechnet}</div><div class="sum-label">Kisten</div></div>
   <div class="sum-box"><div class="sum-val">${kgGesamt} kg</div><div class="sum-label">Gewicht</div></div>
-  <div class="sum-box"><div class="sum-val">${pal}</div><div class="sum-label">Paletten</div></div>
+  <div class="sum-box"><div class="sum-val">${paletten}</div><div class="sum-label">Paletten</div></div>
   <div class="sum-box"><div class="sum-val" style="font-size:13px">${eur(umsatzCent)}</div><div class="sum-label">VK-Umsatz</div></div>
 </div>
 ${katBlöcke}
@@ -4235,10 +4242,15 @@ function bestQtyLive(varId, prodId, proKiste, val) {
   const inp = el('bqv-' + varId.slice(0,8));
   if (inp) inp.classList.toggle('aktiv', menge > 0);
   // Topbar
-  const { kgGesamt, kistenBerechnet, umsatzCent } = bestGewicht();
-  const pal = (kgGesamt / PALETTE_KG).toFixed(1);
+  const { kgGesamt, kistenBerechnet, paletten, umsatzCent } = bestGewicht();
+  const fzg = FAHRZEUGE.find(f => f.id === bst.fahrzeug) || FAHRZEUGE[0];
+  const ueberladen = kistenBerechnet > fzg.maxKisten;
   const kgEl = el('best-chip-kg'); const usEl = el('best-chip-umsatz');
-  if (kgEl) kgEl.textContent = `⚖ ${kgGesamt} kg · ${kistenBerechnet} Kisten · ${pal} Pal.`;
+  if (kgEl) {
+    kgEl.textContent = `${ueberladen ? '⚠️' : '⚖'} ${kistenBerechnet} Kisten · ${paletten} Pal. · ${kgGesamt} kg`;
+    kgEl.classList.toggle('warn', ueberladen);
+    kgEl.classList.toggle('gold', !ueberladen);
+  }
   if (usEl) usEl.textContent = `💰 ${eur(umsatzCent)}`;
   // Tab-Badge
   const kat = bst.kategorien[bst.aktKatIdx];
