@@ -8,9 +8,10 @@
 //     Hintergrund-Aktualisierung (ändern sich selten).
 //   · Supabase-API: wird NIE angefasst (kein Cache, kein Intercept).
 // ═══════════════════════════════════════════════════════════════
-const CACHE = 'marktfahrer-v6.53';
+const CACHE = 'marktfahrer-v6.63';
 const SHELL = [
   './marktfahrer_v6.html',
+  './anleitung.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
@@ -43,18 +44,24 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   if (url.hostname.endsWith('supabase.co')) return;
 
-  // App-Datei & PWA-Start: Network-first mit Cache-Fallback
+  // App-Dateien (HTML) & PWA-Start: Network-first mit Cache-Fallback.
+  // Sowohl die App selbst als auch die Anleitung sollen sich sofort
+  // aktualisieren – sonst hängt eine alte Fassung im Cache fest.
+  const istAnleitung = url.pathname.endsWith('anleitung.html');
   const istAppDatei = e.request.mode === 'navigate'
-    || url.pathname.endsWith('marktfahrer_v6.html');
+    || url.pathname.endsWith('marktfahrer_v6.html')
+    || istAnleitung;
   if (istAppDatei) {
+    // Fallback-Ziel bestimmen: bei der Anleitung die Anleitung, sonst die App.
+    const fallback = istAnleitung ? './anleitung.html' : './marktfahrer_v6.html';
     e.respondWith(
       fetch(e.request)
         .then((res) => {
           const kopie = res.clone();
-          caches.open(CACHE).then((c) => c.put('./marktfahrer_v6.html', kopie));
+          caches.open(CACHE).then((c) => c.put(fallback, kopie));
           return res;
         })
-        .catch(() => caches.match('./marktfahrer_v6.html'))
+        .catch(() => caches.match(fallback))
     );
     return;
   }
