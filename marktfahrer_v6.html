@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.63</title>
+<title>Marktfahrer · v6.64</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -261,6 +261,24 @@ body.rolle-fahrer .admin-only { display: none !important; }
 .confirm-text { font-size: 14px; color: var(--text2); line-height: 1.55; white-space: pre-line; margin-bottom: 18px; }
 .confirm-actions { display: flex; gap: 10px; }
 .confirm-actions .btn { flex: 1; }
+
+/* ── QUICKSTART-OVERLAY ─────────────────────────────────────── */
+.qs-overlay { position: fixed; inset: 0; background: rgba(10,6,2,.82); z-index: 940; display: none; align-items: center; justify-content: center; padding: 24px; }
+.qs-overlay.visible { display: flex; }
+.qs-box { background: var(--bg2); border: 2px solid var(--gold); border-radius: var(--radius2); box-shadow: 0 0 0 4px var(--bg2), 0 0 0 5px var(--border2), 0 14px 44px rgba(0,0,0,.65); max-width: 360px; width: 100%; padding: 20px; text-align: center; animation: confirmIn .18s ease-out; }
+.qs-skip { text-align: right; margin: -6px -4px 2px 0; }
+.qs-skip button { background: none; border: none; color: var(--text3); font-size: 13px; cursor: pointer; padding: 4px 6px; }
+.qs-icon { font-size: 40px; line-height: 1; margin: 4px 0 8px; }
+.qs-title { font-family: Georgia, 'Times New Roman', serif; font-size: 19px; font-weight: 700; color: var(--gold2); letter-spacing: .5px; }
+.qs-orn { color: var(--gold); font-size: 12px; letter-spacing: 5px; margin: 6px 0 12px; }
+.qs-text { font-size: 14px; color: var(--text2); line-height: 1.6; margin-bottom: 16px; min-height: 96px; }
+.qs-text strong { color: var(--text); }
+.qs-dots { display: flex; justify-content: center; gap: 7px; margin-bottom: 16px; }
+.qs-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border2); transition: background .15s; }
+.qs-dot.active { background: var(--gold); }
+.qs-actions { display: flex; gap: 10px; }
+.qs-actions .btn { flex: 1; }
+.qs-actions .btn.qs-zurueck { flex: 0 0 auto; min-width: 96px; }
 
 /* ── DIVIDER ────────────────────────────────────────────────── */
 .divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
@@ -543,7 +561,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.63</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.64</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -656,9 +674,11 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <h2>Hilfe</h2>
         <p style="font-size:12px;color:var(--text3);margin-bottom:10px;">Vollständiges Handbuch zur App – Kasse, Bestellung, Stunden und Offline-Nutzung Schritt für Schritt erklärt.</p>
         <button class="btn btn-full" onclick="window.location.href='anleitung.html'">📖 Anleitung öffnen</button>
+        <div style="height:8px;"></div>
+        <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.63</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.64</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -681,6 +701,22 @@ body.rolle-fahrer .admin-only { display: none !important; }
   </nav>
 
 </div><!-- /app -->
+
+<!-- ── QUICKSTART-OVERLAY (einmalig nach erstem Login) ───────── -->
+<div id="qs-overlay" class="qs-overlay">
+  <div class="qs-box">
+    <div class="qs-skip"><button onclick="qsSchliessen()">Überspringen ✕</button></div>
+    <div class="qs-icon" id="qs-icon">⚜</div>
+    <div class="qs-title" id="qs-title">—</div>
+    <div class="qs-orn">✦ ✦ ✦</div>
+    <div class="qs-text" id="qs-text">—</div>
+    <div class="qs-dots" id="qs-dots"></div>
+    <div class="qs-actions">
+      <button class="btn qs-zurueck" id="qs-zurueck" onclick="qsZurueck()" style="display:none;">Zurück</button>
+      <button class="btn btn-primary" id="qs-weiter" onclick="qsWeiter()">Weiter</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── MODALS ───────────────────────────────────────────────── -->
 <div id="modal-neuer-markt" class="modal-overlay hidden">
@@ -974,7 +1010,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.63';
+const APP_VERSION = 'v6.64';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1775,6 +1811,71 @@ function setTheme(id) {
   toast('Theme gespeichert', 'ok');
 }
 
+// ── QUICKSTART-RUNDGANG ───────────────────────────────────────
+// Einmaliges Onboarding-Overlay nach dem ersten Login (Flag in
+// localStorage). Rein erklärend, kein DB-Zugriff, offline-sicher.
+// Über die Einstellungen jederzeit wiederholbar (qsStart(true)).
+const QS_FLAG = 'mf_quickstart_v1';
+const QS_SCHRITTE = [
+  {
+    icon: '⚜',
+    titel: 'Willkommen',
+    text: 'Dies ist deine <strong>Marktfahrer-App</strong>: Märkte planen, an der Kutsche abrechnen, bestellen und Stunden festhalten – alles an einem Ort, auch ohne Empfang.\n\nEin kurzer Rundgang in vier Schritten.',
+  },
+  {
+    icon: '🧭',
+    titel: 'Die vier Bereiche',
+    text: 'Unten wechselst du zwischen <strong>Märkte</strong> (deine Einsätze), <strong>Saison</strong> (Zahlen des Jahres), <strong>Stunden</strong> (Arbeitszeit) und <strong>Einstellungen</strong>.\n\nÖffnest du einen Markt, findest du oben die Reiter <strong>Planung · Kasse · Bestellung · Chronik</strong>.',
+  },
+  {
+    icon: '💰',
+    titel: 'Kasse abrechnen',
+    text: 'Pro Kutsche rechnest du die Kasse ab – im Modus <strong>Zählen</strong> (Geld stückeln, die App rechnet) oder <strong>Schnell</strong> (Umsatz direkt eingeben).\n\n<strong>EC-Einnahmen</strong> und <strong>Barausgaben</strong> erfasst du getrennt als Buchung.',
+  },
+  {
+    icon: '📥',
+    titel: 'Offline & Hilfe',
+    text: 'Kein Netz auf dem Markt? <strong>Merke den Markt vorab vor</strong> (Knopf im Planung-Tab) – dann hast du alles dabei. Das Wolken-Symbol oben zeigt den Sync-Stand.\n\nDas ausführliche Handbuch findest du jederzeit unter <strong>Einstellungen → Hilfe</strong>.',
+  },
+];
+let qsIndex = 0;
+
+function qsStart(erzwingen) {
+  // Nur einmal automatisch; bei erzwingen (aus Einstellungen) immer.
+  if (!erzwingen && localStorage.getItem(QS_FLAG)) return;
+  qsIndex = 0;
+  qsRender();
+  el('qs-overlay').classList.add('visible');
+}
+
+function qsRender() {
+  const s = QS_SCHRITTE[qsIndex];
+  el('qs-icon').textContent = s.icon;
+  el('qs-title').textContent = s.titel;
+  el('qs-text').innerHTML = s.text;
+  // Punkt-Indikator
+  el('qs-dots').innerHTML = QS_SCHRITTE
+    .map((_, i) => `<div class="qs-dot${i === qsIndex ? ' active' : ''}"></div>`).join('');
+  // Buttons
+  el('qs-zurueck').style.display = qsIndex > 0 ? '' : 'none';
+  el('qs-weiter').textContent = qsIndex === QS_SCHRITTE.length - 1 ? "Los geht's" : 'Weiter';
+}
+
+function qsWeiter() {
+  if (qsIndex < QS_SCHRITTE.length - 1) { qsIndex++; qsRender(); }
+  else qsSchliessen();
+}
+
+function qsZurueck() {
+  if (qsIndex > 0) { qsIndex--; qsRender(); }
+}
+
+function qsSchliessen() {
+  el('qs-overlay').classList.remove('visible');
+  try { localStorage.setItem(QS_FLAG, '1'); } catch (e) { /* localStorage gesperrt – dann halt bei jedem Start */ }
+}
+
+
 function renderThemeSelector() {
   const wrap = el('theme-selector');
   if (!wrap) return;
@@ -1873,6 +1974,9 @@ function showApp() {
   el('nav-stunden').style.display = istAdmin() ? '' : 'none';
   setHeader('Märkte', '');
   navTo('maerkte');
+  // Einmaliger Quickstart-Rundgang beim ersten Login (Flag in localStorage).
+  // Kurz verzögert, damit die Haupt-UI sichtbar steht, bevor sich das Overlay legt.
+  setTimeout(() => qsStart(false), 400);
 }
 
 function hideApp() {
