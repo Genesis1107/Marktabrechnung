@@ -367,15 +367,30 @@ mark { background:var(--gold); color:var(--bg); padding:0 2px; border-radius:2px
   <!-- ═══ 8 ═══ -->
   <section class="sec" id="s8" data-rolle="alle">
     <h2><span class="num">08</span> Bestellungen aufgeben</h2>
-    <p>Für jeden Markt bestellst du Ware aus einem der beiden Lager (<strong>Süd/Schöllkrippen</strong> oder <strong>Nord/Minden</strong>). Pro Markt sind mehrere Bestellungen möglich &ndash; Erstbestellung und Nachbestellung.</p>
+    <p>Für jeden Markt bestellst du Ware aus einem der beiden Lager (<strong>Süd/Schöllkrippen</strong> oder <strong>Nord/Minden</strong>). Die erste Bestellung ist die <strong>Grundbestellung</strong>, jede weitere eine <strong>Nachbestellung</strong>.</p>
     <div class="box box-info">
-      <div class="box-t">ℹ️ Pro Markt, nicht pro Kutsche</div>
-      <p>Anders als Kasse und Zählung (die pro Kutsche getrennt laufen) gilt eine Bestellung für den <strong>ganzen Markt</strong>. Du bestellst die Ware fürs Fahrzeug &ndash; die Aufteilung auf die Kutschen passiert vor Ort.</p>
+      <div class="box-t">🛒 Jede Kutsche bestellt für sich</div>
+      <p>Hat ein Markt <strong>mehrere Kutschen</strong>, bestellt jede ihre eigene Ware &ndash; sie laufen nicht gleich. Oben erscheint dann eine Leiste mit den Kutschen; darunter siehst du die Bestellungen der gewählten Kutsche. Ans Lager gehen <strong>getrennte PDFs</strong>, jedes mit Kutsche und Bestellart im Kopf.</p>
+      <p>Bei einem Markt mit nur <strong>einer Kutsche</strong> ändert sich nichts &ndash; keine Leiste, keine Auswahl.</p>
     </div>
     <div class="flow">
       <div class="flow-step"><div>Im Markt den <strong>Bestellung-Bereich</strong> öffnen.</div></div>
+      <div class="flow-step"><div>Bei mehreren Kutschen oben die <strong>Kutsche</strong> wählen.</div></div>
       <div class="flow-step"><div>Produkte und <strong>Mengen</strong> je Größe erfassen.</div></div>
-      <div class="flow-step"><div>Bestellung prüfen und <strong>senden</strong> &ndash; sie geht ans zuständige Lager.</div></div>
+      <div class="flow-step"><div><strong>PDF</strong> erzeugen und ans Lager schicken.</div></div>
+      <div class="flow-step"><div>Danach <strong>„Als versendet markieren"</strong> antippen.</div></div>
+    </div>
+    <div class="box box-info">
+      <div class="box-t">📤 Als versendet markieren</div>
+      <p>Sobald die Bestellung beim Lager ist, tippst du <strong>„Als versendet markieren"</strong>. Zwei Dinge passieren: Die Bestellung wird als verschickt gekennzeichnet, und bei der Grundbestellung wird die Aufgabe <strong>„Warenbestellung aufgegeben"</strong> in der Planung automatisch abgehakt &ndash; du musst sie nicht doppelt pflegen. Vertippt? <strong>„Rückgängig"</strong> nimmt die Markierung zurück; der Haken in der Planung bleibt stehen.</p>
+    </div>
+    <div class="box box-warn">
+      <div class="box-t">⚠️ Änderung nach dem Versand</div>
+      <p>Willst du eine bereits versendete Bestellung ändern, fragt die App nach. Meistens ist eine <strong>Nachbestellung</strong> gemeint &ndash; die kannst du direkt aus der Rückfrage heraus anlegen. Sie startet leer: Du trägst nur ein, was <em>zusätzlich</em> kommt. Wer stattdessen die alte Bestellung überschreibt, ändert nichts mehr an der Ware, die schon unterwegs ist.</p>
+    </div>
+    <div class="box box-info">
+      <div class="box-t">📅 Grundlage fürs nächste Jahr</div>
+      <p>Legst du im Folgejahr eine Bestellung an, kannst du die des Vorjahres als <strong>Grundlage</strong> wählen. Dort sind Grund- und Nachbestellung bereits <strong>zusammengezählt</strong>: Wurden 48 Flaschen bestellt und 24 nachgeordert, stehen dort 72 &ndash; mit dem Hinweis „48 Grund + 24 Nach". So siehst du auf einen Blick, dass die erste Menge nicht gereicht hat. Auch die <strong>Marktnotizen</strong> werden je Kutsche fortgeschrieben.</p>
     </div>
     <div class="shot" data-shot="bestellung">
       <img src="anleitung-bilder/07-bestellung.jpg" alt="Bestellung mit Produktmengen, Lager Süd und PDF-Export" loading="lazy" onclick="zoomBild(this)">
