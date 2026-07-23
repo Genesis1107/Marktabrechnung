@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.69</title>
+<title>Marktfahrer · v6.70</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -422,6 +422,15 @@ body.rolle-fahrer .admin-only { display: none !important; }
 .rest-ungez { color: var(--text3); font-style: italic; }
 .rest-ausverk { color: var(--gold); font-weight: 600; }
 .rest-warn { color: var(--orange, #e08a2e); }
+/* Ausverkauft-Marker aus der Vorjahres-Zählung (v6.70) */
+.best-var-avk { font-size: 12px; margin-left: 2px; }
+.best-avk-hinweis { margin: 10px 14px 0; padding: 8px 12px; border-left: 3px solid var(--gold); background: var(--bg2); border-radius: 4px; font-size: 12px; color: var(--text2); line-height: 1.45; }
+/* Kutschen-Zuordnung im Planung-Tab (v6.70) */
+.stand-fahrer { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.stand-fahrer-chip { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 2px 9px; font-size: 11px; color: var(--text2); }
+.stand-fahrer-leer { margin-top: 8px; font-size: 11px; color: var(--text3); font-style: italic; }
+.stand-fahrer-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.stand-fahrer-hint { font-size: 11px; color: var(--text3); margin-top: 2px; }
 /* ── BESTELLUNG: Zusatz-Aktionen (⋯ / Notizen) ─────────────── */
 .best-menu-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 7px 12px; font-size: 14px; color: var(--text2); cursor: pointer; white-space: nowrap; }
 .best-menu-btn:active { background: var(--bg3); }
@@ -589,7 +598,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.69</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.70</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -706,7 +715,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.69</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.70</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -1038,7 +1047,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.69';
+const APP_VERSION = 'v6.70';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1051,6 +1060,7 @@ function marktReadonly(inst) {
   return !istAdmin() && ['abgeschlossen','abgelehnt'].includes(i?.status);
 }
 let currentInstanzId = null;
+let standZuordnungen = [];   // {id, stand_id, marktfahrer_id} der offenen Instanz (v6.70)
 let currentInstanz   = null;
 let currentStandId   = null;
 let currentStand     = null;
@@ -1487,6 +1497,13 @@ async function vormerkLaden(instanzId, phase) {
   // Die Maske braucht dafür DREI Dinge im Cache – die bisherigen Zählungen,
   // die Bestellungen der Kutsche und deren Positionen (sonst weiß sie nicht,
   // was überhaupt bestellt war). Der Bestellung-Tab selbst bleibt online-only.
+  // Kutschen-Zuordnungen (v6.70): der Planung-Tab zeigt sie offline mit an.
+  const rsz = await sb.from('stand_zuordnung')
+    .select('id, stand_id, marktfahrer_id, stand!inner(event_instanz_id)')
+    .eq('stand.event_instanz_id', instanzId).is('geloescht_am', null);
+  if (rsz.error) throw rsz.error;
+  ocSet('standzuo_' + instanzId, rsz.data || []);
+
   const rr = await sb.from('markt_restbestand')
     .select('id, stand_id, variante_id, rest_menge')
     .eq('event_instanz_id', instanzId).is('geloescht_am', null);
@@ -2490,6 +2507,23 @@ async function renderHeuteKarte() {
   }).join('');
 }
 
+// Eigene marktfahrer_id des eingeloggten Nutzers (Client-Pendant zur
+// SQL-Funktion mein_marktfahrer_id()). Ergebnis wird gemerkt – die Zuordnung
+// Login→Fahrer ändert sich innerhalb einer Sitzung nicht.
+let _meineFahrerId;   // undefined = noch nicht ermittelt, null = kein Fahrer
+async function meineFahrerId() {
+  if (_meineFahrerId !== undefined) return _meineFahrerId;
+  try {
+    const { data } = await sb.from('marktfahrer').select('id')
+      .eq('user_id', currentUser.id).is('geloescht_am', null).limit(1);
+    _meineFahrerId = data?.[0]?.id || null;
+  } catch (e) {
+    if (!istNetzfehler(e)) throw e;
+    return null;   // offline: keine Vorauswahl, aber kein Fehler
+  }
+  return _meineFahrerId;
+}
+
 // ── NÄCHSTER-MARKT-KARTE ──────────────────────────────────────
 // Erscheint nur, wenn heute kein Markt läuft (die Heute-Karte hat Vorrang).
 // Zeigt den nächsten Markt, den der eingeloggte Nutzer fährt – ermittelt
@@ -2598,15 +2632,30 @@ async function renderPlanungTab() {
 
   // Alle vier Teile einzeln absichern: ohne Netz liefert jeder seinen
   // Cache-Stand; ein leerer Teil darf den ganzen Tab nicht verhindern.
-  const [staendeRes, zugeordneteFahrer, aufgaben, clSection] = await Promise.all([
+  const [staendeRes, zugeordneteFahrer, aufgaben, clSection, zuoRes] = await Promise.all([
     ocQuery('staende_' + currentInstanzId, () => sb.from('stand').select('*')
       .eq('event_instanz_id', currentInstanzId)
       .is('geloescht_am', null).order('bezeichnung')),
     loadFahrerFuerInstanz(currentInstanzId).catch(e => { if (istNetzfehler(e)) return []; throw e; }),
     ladeAufgaben(currentInstanzId, inst.status).catch(e => { if (istNetzfehler(e)) return []; throw e; }),
     renderClSection(currentInstanzId).catch(e => { if (istNetzfehler(e)) return ''; throw e; }),
+    // Kutschen-Zuordnungen (v6.70): welcher Fahrer arbeitet an welcher Kutsche.
+    // Filter über die Instanz des Stands (!inner), damit die Stand-IDs nicht
+    // vorab bekannt sein müssen.
+    ocQuery('standzuo_' + currentInstanzId, () => sb.from('stand_zuordnung')
+      .select('id, stand_id, marktfahrer_id, stand!inner(event_instanz_id)')
+      .eq('stand.event_instanz_id', currentInstanzId)
+      .is('geloescht_am', null)),
   ]);
   const staende = staendeRes.data || [];
+  standZuordnungen = zuoRes?.data || [];
+  // Namen für die Kutschenkarten: allMarktfahrer wird sonst erst im
+  // Zuordnungs-Modal gefüllt, die Karte bräuchte ihn aber schon jetzt.
+  if (standZuordnungen.length && !allMarktfahrer.length) {
+    const { data: mfs } = await sb.from('marktfahrer').select('id, name')
+      .is('geloescht_am', null).order('name');
+    allMarktfahrer = mfs || [];
+  }
   const planungOffline = staendeRes.offline ? (staendeRes.ts || Date.now()) : null;
 
   const statusOptions = STATUS_ORDER.map(s =>
@@ -2837,15 +2886,101 @@ async function deleteMarkt() {
 
 function renderStandCard(s) {
   const abg = s.abgeschlossen_am;
+  // Zugeordnete Fahrer dieser Kutsche (v6.70). Ohne Zuordnung bleibt die
+  // Kutsche bewusst für alle offen – ein vergessener Haken darf niemanden
+  // am Markttag aussperren (darf_stand() ist genau so gebaut).
+  const zuo = standZuordnungen.filter(z => z.stand_id === s.id);
+  const namen = zuo.map(z => {
+    const mf = allMarktfahrer.find(m => m.id === z.marktfahrer_id);
+    return mf ? mf.name : '?';
+  }).filter(Boolean);
+  const fahrerZeile = namen.length
+    ? `<div class="stand-fahrer">${namen.map(n => `<span class="stand-fahrer-chip">${esc(n)}</span>`).join('')}</div>`
+    : `<div class="stand-fahrer-leer">Kein Fahrer zugeordnet – offen für alle</div>`;
   return `<div class="card" style="cursor:default;">
     <div class="card-row">
       <div class="card-title">🐴 ${esc(s.bezeichnung)}</div>
       ${abg ? '<span class="badge status-abgeschlossen">✓ Abgeschlossen</span>' : '<span class="badge status-aktiv">Offen</span>'}
     </div>
+    ${fahrerZeile}
     <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn btn-sm admin-only" onclick="openStandFahrerModal('${s.id}')">👤 Fahrer</button>
       <button class="btn btn-sm admin-only" onclick="deleteStand('${s.id}')">Löschen</button>
     </div>
   </div>`;
+}
+
+// ── KUTSCHEN-ZUORDNUNG (v6.70) ────────────────────────────────
+// Ordnet die dem Markt zugeteilten Fahrer einzelnen Kutschen zu. Zweck ist
+// nicht das Aussperren, sondern die richtige Vorauswahl im Bestellung-Tab:
+// ohne Zuordnung landet jeder Fahrer auf der ersten Kutsche und bestellt
+// womöglich unter der falschen.
+async function openStandFahrerModal(standId) {
+  const stand = (await ocQuery('staende_' + currentInstanzId, () => sb.from('stand')
+    .select('*').eq('event_instanz_id', currentInstanzId).is('geloescht_am', null)
+    .order('bezeichnung'))).data?.find(x => x.id === standId);
+  if (!stand) { toast('Kutsche nicht gefunden', 'err'); return; }
+
+  // Wählbar sind nur Fahrer, die diesem Markt zugeteilt sind
+  const zugeteilt = await loadFahrerFuerInstanz(currentInstanzId, false);
+  if (!zugeteilt.length) {
+    toast('Erst Fahrer dem Markt zuordnen', 'err');
+    return;
+  }
+  const zuoDieserStand = standZuordnungen.filter(z => z.stand_id === standId);
+
+  const liste = zugeteilt.map(z => {
+    const mf = z.marktfahrer;
+    const drin = zuoDieserStand.find(x => x.marktfahrer_id === mf.id);
+    // An welchen anderen Kutschen hängt der Fahrer schon?
+    const andere = standZuordnungen.filter(x =>
+      x.marktfahrer_id === mf.id && x.stand_id !== standId);
+    const hinweis = andere.length
+      ? `<div class="stand-fahrer-hint">auch an ${andere.length} weiterer Kutsche</div>` : '';
+    return `<div class="stand-fahrer-row">
+      <div>
+        <div style="font-size:14px;color:var(--text);">${esc(mf.name)}</div>
+        ${hinweis}
+      </div>
+      ${drin
+        ? `<button class="btn btn-sm btn-danger" onclick="standFahrerEntfernen('${drin.id}','${standId}')">Entfernen</button>`
+        : `<button class="btn btn-sm btn-primary" onclick="standFahrerZuordnen('${standId}','${mf.id}')">Zuordnen</button>`}
+    </div>`;
+  }).join('');
+
+  const body = `
+    <div class="hinweis-box" style="margin-bottom:12px;font-size:12px;">
+      Wer arbeitet an dieser Kutsche? Die Zuordnung bestimmt, welche Kutsche im
+      Bestellung-Bereich <b>vorausgewählt</b> ist. Bleibt eine Kutsche ohne Fahrer,
+      ist sie weiterhin <b>für alle offen</b>.
+    </div>
+    ${liste}`;
+  oeffneSheet('🐴 ' + stand.bezeichnung, 'Fahrer dieser Kutsche', body);
+}
+
+async function standFahrerZuordnen(standId, marktfahrerId) {
+  const now = new Date().toISOString();
+  // stand_zuordnung hat nur id/stand_id/marktfahrer_id/erstellt_am/geloescht_am
+  // – kein geaendert_am, kein erstellt_von (abweichend von der sonstigen Konvention).
+  const row = { id: uuid(), stand_id: standId, marktfahrer_id: marktfahrerId,
+                erstellt_am: now };
+  const { error } = await sb.from('stand_zuordnung').insert(row);
+  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  standZuordnungen.push(row);
+  toast('✓ Zugeordnet', 'ok');
+  schliesseSheet();
+  renderPlanungTab();
+}
+
+async function standFahrerEntfernen(zuordnungId, standId) {
+  const now = new Date().toISOString();
+  const { error } = await sb.from('stand_zuordnung')
+    .update({ geloescht_am: now }).eq('id', zuordnungId);
+  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  standZuordnungen = standZuordnungen.filter(z => z.id !== zuordnungId);
+  toast('Entfernt');
+  schliesseSheet();
+  renderPlanungTab();
 }
 
 async function saveInstanzStatus() {
@@ -3708,6 +3843,7 @@ let bst = {
   warnungGezeigt: {},   // bestellung_id → true: Versandwarnung in dieser Sitzung schon quittiert
   reste: {},            // variante_id → {id, menge} der gewählten Kutsche (v6.69)
   restEntwurf: {},      // variante_id → Eingabewert in der offenen Maske
+  ausverkauftVorjahr: new Set(),  // variante_ids, die in der Vorlage ausverkauft waren (v6.70)
 };
 
 async function renderBestellungTab() {
@@ -3756,7 +3892,10 @@ async function renderBestellungTab() {
   // Bei 0 oder 1 Kutsche bleibt aktStandId null → Ansicht wie bisher.
   if (bst.staende.length > 1) {
     if (!bst.aktStandId || !bst.staende.some(st => st.id === bst.aktStandId)) {
-      bst.aktStandId = bst.staende[0].id;
+      // Vorauswahl (v6.70): die eigene Kutsche, wenn zugeordnet. Sonst würde
+      // immer die erste alphabetisch gewählt – und ein Fahrer der zweiten
+      // Kutsche bestellt versehentlich unter der falschen.
+      bst.aktStandId = (await meineKutscheFuer(bst.staende)) || bst.staende[0].id;
     }
   } else {
     bst.aktStandId = null;
@@ -3898,6 +4037,7 @@ function renderBestellungUI(wrap) {
     </div>
     ${bestKutschenLeiste()}
     ${bestellListeLeiste()}
+    ${bestAvkHinweis()}
     ${bestGefragtHinweis()}
     <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--border);">
       <label style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;">📅 Abholdatum</label>
@@ -3916,6 +4056,14 @@ function renderBestellungUI(wrap) {
     <div id="best-produkt-liste"></div>`;
 
   renderBestProduktListe();
+}
+
+// Hinweis auf ausverkaufte Positionen der Vorlage (v6.70)
+function bestAvkHinweis() {
+  const n = bst.ausverkauftVorjahr?.size || 0;
+  if (!n) return '';
+  return `<div class="best-avk-hinweis">🔥 ${n} Sorte${n === 1 ? '' : 'n'} war${n === 1 ? '' : 'en'}
+    im Vorjahr ausverkauft – dort lag der Bedarf höher als die bestellte Menge.</div>`;
 }
 
 // Kutschen-Umschalter – nur bei mehr als einer Kutsche sichtbar, damit die
@@ -4145,6 +4293,22 @@ async function restSpeichern() {
 // Je Kutsche gilt: die erste Bestellung ist die Grundbestellung, jede
 // weitere eine Nachbestellung (Reihenfolge über erstellt_am).
 // stand_id NULL = markt-weite Bestellung (Altdaten, Ein-Kutschen-Märkte).
+
+// Eigene Kutsche unter den Ständen dieser Instanz finden (v6.70).
+// Rückgabe: stand_id oder null (kein Login-Fahrer / keine Zuordnung / offline).
+async function meineKutscheFuer(staende) {
+  const mfId = await meineFahrerId();
+  if (!mfId || !staende.length) return null;
+  try {
+    const { data } = await sb.from('stand_zuordnung')
+      .select('stand_id').eq('marktfahrer_id', mfId)
+      .in('stand_id', staende.map(st => st.id)).is('geloescht_am', null);
+    return data?.[0]?.stand_id || null;
+  } catch (e) {
+    if (!istNetzfehler(e)) throw e;
+    return null;   // ohne Netz keine Vorauswahl – erste Kutsche greift
+  }
+}
 
 // Bestellungen einer Kutsche, chronologisch. Bei standId=null werden die
 // markt-weiten Bestellungen geliefert – plus, falls es gar keine Kutschen
@@ -4409,12 +4573,14 @@ async function ladeBestGrundlagen() {
           const reste = restMap[g.instanzId + '|' + (g.standId || '')] || {};
           const gezaehlt = Object.keys(reste).length;
           const mengen = {};
+          const ausverkauft = [];   // Rest war 0 → Bedarf lag höher (v6.70)
           let restSumme = 0;
           Object.entries(g.positionen).forEach(([varId, menge]) => {
             if (Object.prototype.hasOwnProperty.call(reste, varId)) {
               const r = reste[varId];
               restSumme += r;
               mengen[varId] = Math.max(0, menge - r);   // nie negativ vorschlagen
+              if (r === 0 && menge > 0) ausverkauft.push(varId);
             } else {
               mengen[varId] = menge;
             }
@@ -4426,7 +4592,8 @@ async function ladeBestGrundlagen() {
           if (gezaehlt) {
             const teilweise = gezaehlt < Object.keys(g.positionen).length;
             sub = `${gesamt} Stk · aus ${bestelltGesamt} bestellt − ${restSumme} Rest`
-                + (teilweise ? ' (teilweise gezählt)' : ' (gezählt)');
+                + (teilweise ? ' (teilweise gezählt)' : ' (gezählt)')
+                + (ausverkauft.length ? ` · ${ausverkauft.length}× ausverkauft` : '');
           } else if (g.bestellungen.length > 1) {
             const teile = g.bestellungen.map((b, i) =>
               `${b.stk} ${i === 0 ? 'Grund' : 'Nach'}`).join(' + ');
@@ -4438,6 +4605,7 @@ async function ladeBestGrundlagen() {
             typ: 'bestellung',
             id: g.instanzId + '|' + (g.standId || ''),
             positionen: mengen,   // bereits summiert und rest-bereinigt
+            ausverkauft,          // variante_ids, die im Vorjahr ausverkauft waren
             name: (currentInstanz?.event_template?.name || 'Markt') + ' ' + jahr
                   + (kutsche ? ' · ' + kutsche : ''),
             sub, lager_id: g.lager_id, jahr,
@@ -4543,9 +4711,13 @@ function renderBestProduktListe() {
       const preis  = bestPreis(v, kat);
       const pos    = bst.positionen[v.id];
       const menge  = pos?.menge || 0;
+      // 🔥 = war im Vorjahr ausverkauft (Rest 0). Reiner Hinweis: der Bedarf
+      // lag höher als die Menge, ein Aufschlag ist Erfahrungssache.
+      const avk = bst.ausverkauftVorjahr?.has(v.id)
+        ? '<span class="best-var-avk" title="Im Vorjahr ausverkauft – Bedarf lag höher">🔥</span>' : '';
       return `<div class="best-var-row">
         <span class="best-var-groesse">${v.groesse}</span>
-        <span class="best-var-preis">${preis != null ? eur(preis) : '—'}</span>
+        <span class="best-var-preis">${preis != null ? eur(preis) : '—'}</span>${avk}
         <div class="best-var-controls">
           <input type="number" class="best-qty-input ${menge>0?'aktiv':''}"
             id="bqv-${v.id.slice(0,8)}" value="${menge||''}" min="0" step="1"
@@ -4670,6 +4842,11 @@ async function bestellungAnlegen(alsNachbestellung = false) {
     // g.positionen (variante_id → menge). Bei früheren Bestellungen ist das
     // die Summe aus Grund- und Nachbestellung(en) – siehe ladeBestGrundlagen.
     const quellPos = g.positionen || {};
+    // Ausverkauft-Marker der Vorlage übernehmen (v6.70): rein informativ,
+    // damit beim Durchgehen sichtbar ist, wo die Menge im Vorjahr nicht
+    // gereicht hat. Die App schlägt bewusst KEINEN Aufschlag vor – wie viel
+    // mehr gegangen wäre, weiß nur der Fahrer.
+    bst.ausverkauftVorjahr = new Set(g.ausverkauft || []);
     // Gültige Varianten-IDs (aus dem aktuellen Sortiment)
     const gueltigeVarIds = new Set();
     bst.produkte.forEach(p => p.varianten.forEach(v => gueltigeVarIds.add(v.id)));
