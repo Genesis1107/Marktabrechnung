@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.67</title>
+<title>Marktfahrer · v6.68</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -398,6 +398,17 @@ body.rolle-fahrer .admin-only { display: none !important; }
 .best-qty-einheit { font-size: 10px; color: var(--text3); min-width: 26px; }
 .best-setup { padding: 20px 16px; }
 .best-versendet { background: rgba(76,175,80,.1); border: 1px solid var(--green2); border-radius: var(--radius); padding: 10px 14px; margin: 12px 14px; font-size: 13px; color: var(--green2); }
+/* Kutschen-Umschalter & Bestellliste (v6.68) */
+.best-kutschen-leiste { display: flex; gap: 6px; padding: 8px 14px; background: var(--bg2); border-bottom: 1px solid var(--border); overflow-x: auto; }
+.best-kutsche-btn { flex: 0 0 auto; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: var(--text2); padding: 7px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.best-kutsche-btn.active { background: var(--gold); border-color: var(--gold); color: var(--bg); font-weight: 600; }
+.best-liste-leiste { display: flex; gap: 6px; padding: 7px 14px; background: var(--bg2); border-bottom: 1px solid var(--border); overflow-x: auto; }
+.best-liste-btn { flex: 0 0 auto; background: transparent; border: 1px solid var(--border); border-radius: 12px; color: var(--text3); padding: 4px 12px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.best-liste-btn.active { border-color: var(--gold); color: var(--gold); font-weight: 600; }
+.best-versendet { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.best-versendet-undo { background: transparent; border: 1px solid var(--green2); border-radius: 5px; color: var(--green2); padding: 3px 10px; font-size: 11px; cursor: pointer; }
+.best-versand-hinweis { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; margin: 12px 14px; font-size: 12px; color: var(--text3); }
+.best-versand-btn { background: var(--gold); border: none; border-radius: 6px; color: var(--bg); padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 /* ── BESTELLUNG: Zusatz-Aktionen (⋯ / Notizen) ─────────────── */
 .best-menu-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 7px 12px; font-size: 14px; color: var(--text2); cursor: pointer; white-space: nowrap; }
 .best-menu-btn:active { background: var(--bg3); }
@@ -565,7 +576,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.67</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.68</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -682,7 +693,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.67</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.68</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -1014,7 +1025,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.67';
+const APP_VERSION = 'v6.68';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -3648,6 +3659,12 @@ let bst = {
   grundlagen: [],       // verfügbare Grundlagen (Vorlagen + frühere Bestellungen)
   gewaehlteGrundlage: null,
   eigeneNotizen: [],    // Notizen dieser Instanz (im Notiz-Sheet)
+  // ── Kutschen & Mehrfachbestellungen (v6.68) ──
+  staende: [],          // Kutschen dieser Instanz (leer = Markt ohne Kutschen-Aufteilung)
+  aktStandId: null,     // gewählte Kutsche (null = markt-weit / einzige Kutsche)
+  bestellListe: [],     // alle Bestellungen der Instanz
+  bestellungenKutsche: [], // davon die der gewählten Kutsche, chronologisch
+  warnungGezeigt: {},   // bestellung_id → true: Versandwarnung in dieser Sitzung schon quittiert
 };
 
 async function renderBestellungTab() {
@@ -3661,13 +3678,16 @@ async function renderBestellungTab() {
     { data: produkte },
     { data: varianten },
     { data: katPreise },
+    { data: staende },
   ] = await Promise.all([
-    sb.from('bestellung').select('id, lager_id, status, versendet_am, abhol_datum, fahrzeug')
-      .eq('event_instanz_id', currentInstanzId).is('geloescht_am', null).order('erstellt_am', {ascending:false}),
+    sb.from('bestellung').select('id, lager_id, status, versendet_am, abhol_datum, fahrzeug, stand_id, erstellt_am')
+      .eq('event_instanz_id', currentInstanzId).is('geloescht_am', null).order('erstellt_am', {ascending:true}),
     sb.from('kategorie').select('id, name, reihenfolge, preis_modus').order('reihenfolge'),
     sb.from('produkt').select('id, name, artikelnr, kategorie_id').eq('aktiv', true).order('name'),
     sb.from('produkt_variante').select('id, produkt_id, groesse, preis_cent, pro_kiste, gewicht_kg').is('geloescht_am', null),
     sb.from('kategorie_preis').select('kategorie_id, groesse, preis_cent'),
+    sb.from('stand').select('id, bezeichnung').eq('event_instanz_id', currentInstanzId)
+      .is('geloescht_am', null).order('bezeichnung'),
   ]);
 
   // State aufbauen
@@ -3681,8 +3701,30 @@ async function renderBestellungTab() {
   bst.produkte = (produkte || []).map(p => ({ ...p, varianten: (varMap[p.id] || []).sort((a,b) => a.groesse.localeCompare(b.groesse)) }))
     .filter(p => p.varianten.length > 0);
 
-  // Aktive Bestellung
-  bst.bestellung = bestellungen?.[0] || null;
+  // ── Kutschen & Bestellauswahl (v6.68) ──
+  // Bis v6.67 wurde hart die jüngste Bestellung genommen; Grund- und
+  // Nachbestellung waren nicht unterscheidbar und bei zwei Kutschen war
+  // eine davon unsichtbar.
+  bst.staende = staende || [];
+  bst.bestellListe = bestellungen || [];
+
+  // Gewählte Kutsche: bestehende Wahl halten, sonst erste Kutsche.
+  // Bei 0 oder 1 Kutsche bleibt aktStandId null → Ansicht wie bisher.
+  if (bst.staende.length > 1) {
+    if (!bst.aktStandId || !bst.staende.some(st => st.id === bst.aktStandId)) {
+      bst.aktStandId = bst.staende[0].id;
+    }
+  } else {
+    bst.aktStandId = null;
+  }
+
+  // Bestellungen der gewählten Kutsche (bzw. markt-weite bei einer Kutsche)
+  bst.bestellungenKutsche = bestellungenFuerKutsche(bst.aktStandId);
+
+  // Aktive Bestellung: bestehende Wahl halten, sonst die jüngste der Kutsche
+  const vorher = bst.bestellung?.id;
+  bst.bestellung = bst.bestellungenKutsche.find(b => b.id === vorher)
+    || bst.bestellungenKutsche[bst.bestellungenKutsche.length - 1] || null;
   bst.positionen = {};
   bst.abholdatum = bst.bestellung?.abhol_datum || '';
   if (bst.bestellung) {
@@ -3725,7 +3767,26 @@ async function ladeVorjahrNotizen() {
   const { data: notizen } = await sb.from('markt_produkt_notiz')
     .select('*').in('event_instanz_id', ids).is('geloescht_am', null)
     .order('erstellt_am', { ascending: false });
-  bst.vorjahrNotizen = (notizen || []).map(n => ({ ...n, jahr: jahrMap[n.event_instanz_id] }));
+  let roh = (notizen || []).map(n => ({ ...n, jahr: jahrMap[n.event_instanz_id] }));
+
+  // Kutschen-Zuschnitt (v6.68): Bei mehreren Kutschen zählen nur die Notizen
+  // der gleichnamigen Kutsche des Vorjahres (K1↔K1) – Kutschen laufen auf
+  // demselben Markt unterschiedlich. Markt-weite Notizen (stand_id NULL,
+  // z. B. Altdaten) gelten immer, sonst verschwände die Historie.
+  if (bst.staende.length > 1 && bst.aktStandId) {
+    const eigeneBez = aktKutscheName();
+    const fremdIds = [...new Set(roh.map(n => n.stand_id).filter(Boolean))];
+    let passend = new Set();
+    if (fremdIds.length && eigeneBez) {
+      const { data: alteStaende } = await sb.from('stand')
+        .select('id, bezeichnung').in('id', fremdIds).is('geloescht_am', null);
+      (alteStaende || []).forEach(st => {
+        if (st.bezeichnung === eigeneBez) passend.add(st.id);
+      });
+    }
+    roh = roh.filter(n => !n.stand_id || passend.has(n.stand_id));
+  }
+  bst.vorjahrNotizen = roh;
 
   // Pro Produkt die "stärkste" Bewertung merken (top schlägt flop schlägt gefragt-nur)
   const RANG = { top: 3, flop: 2, gefragt: 1 };
@@ -3776,6 +3837,8 @@ function renderBestellungUI(wrap) {
       <button class="best-menu-btn" onclick="oeffneBestMenue()" title="Mehr">⋯</button>
       <button class="best-senden-btn" onclick="exportBestellungPDF()">📄 PDF</button>
     </div>
+    ${bestKutschenLeiste()}
+    ${bestellListeLeiste()}
     ${bestGefragtHinweis()}
     <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--border);">
       <label style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;">📅 Abholdatum</label>
@@ -3784,7 +3847,7 @@ function renderBestellungUI(wrap) {
         style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:14px;outline:none;max-width:180px;" ${marktReadonly() ? 'disabled' : ''}>
     </div>
     ${marktReadonly() ? '<div class="hinweis-box" style="margin:10px 14px 0;">🔒 Markt abgeschlossen – nur Ansicht und PDF-Druck.</div>' : ''}
-    ${versendet ? `<div class="best-versendet">✓ Versendet am ${dateFmt(bst.bestellung.versendet_am?.slice(0,10))}</div>` : ''}
+    ${bestVersandLeiste(versendet)}
     <div class="best-kat-tabs" id="best-kat-tabs">
       ${bst.kategorien.map((k,i) => {
         const anzahl = bestKatAnzahl(k.id);
@@ -3796,11 +3859,226 @@ function renderBestellungUI(wrap) {
   renderBestProduktListe();
 }
 
+// Kutschen-Umschalter – nur bei mehr als einer Kutsche sichtbar, damit die
+// ~60 Ein-Kutschen-Märkte die Ansicht unverändert behalten.
+function bestKutschenLeiste() {
+  if (bst.staende.length < 2) return '';
+  const btns = bst.staende.map(st => {
+    const n = bestellungenFuerKutsche(st.id).length;
+    return `<button class="best-kutsche-btn ${st.id === bst.aktStandId ? 'active' : ''}"
+      onclick="bestKutscheWechseln('${st.id}')">🛒 ${esc(st.bezeichnung)}${n ? ` (${n})` : ''}</button>`;
+  }).join('');
+  return `<div class="best-kutschen-leiste">${btns}</div>`;
+}
+
+// Liste der Bestellungen dieser Kutsche (Grund- + Nachbestellungen).
+// Nur sichtbar, sobald es mehr als eine gibt.
+function bestellListeLeiste() {
+  const liste = bst.bestellungenKutsche || [];
+  if (liste.length < 2) return '';
+  const btns = liste.map(b => {
+    const aktiv = b.id === bst.bestellung?.id;
+    const vs = b.status === 'versendet' ? ' ✓' : '';
+    return `<button class="best-liste-btn ${aktiv ? 'active' : ''}"
+      onclick="bestWechseln('${b.id}')">${esc(bestellungName(b))}${vs}</button>`;
+  }).join('');
+  return `<div class="best-liste-leiste">${btns}</div>`;
+}
+
+// Versand-Markierung: Knopf zum Setzen, Bestätigungszeile mit Rücknahme.
+function bestVersandLeiste(versendet) {
+  if (!bst.bestellung) return '';
+  const name = bestellungName(bst.bestellung);
+  if (versendet) {
+    const d = bst.bestellung.versendet_am ? dateFmt(bst.bestellung.versendet_am.slice(0,10)) : '';
+    return `<div class="best-versendet">
+      <span>✓ ${esc(name)} versendet${d ? ' am ' + d : ''}</span>
+      ${marktReadonly() ? '' : `<button class="best-versendet-undo" onclick="bestVersendetZuruecknehmen()">Rückgängig</button>`}
+    </div>`;
+  }
+  if (marktReadonly()) return '';
+  return `<div class="best-versand-hinweis">
+    <span>${esc(name)} – noch nicht als versendet markiert</span>
+    <button class="best-versand-btn" onclick="bestVersendetSetzen()">📤 Als versendet markieren</button>
+  </div>`;
+}
+
+// ── KUTSCHEN & MEHRFACHBESTELLUNGEN (v6.68) ───────────────────
+// Ein Markt kann mehrere Kutschen haben, jede bestellt eigenständig.
+// Je Kutsche gilt: die erste Bestellung ist die Grundbestellung, jede
+// weitere eine Nachbestellung (Reihenfolge über erstellt_am).
+// stand_id NULL = markt-weite Bestellung (Altdaten, Ein-Kutschen-Märkte).
+
+// Bestellungen einer Kutsche, chronologisch. Bei standId=null werden die
+// markt-weiten Bestellungen geliefert – plus, falls es gar keine Kutschen
+// gibt, schlicht alle.
+function bestellungenFuerKutsche(standId) {
+  const alle = bst.bestellListe || [];
+  if (bst.staende.length > 1) return alle.filter(b => b.stand_id === standId);
+  // Eine oder keine Kutsche: alles zusammen (auch alte ohne stand_id)
+  return alle.slice();
+}
+
+// "Grundbestellung" / "Nachbestellung 1" … anhand der Position in der Kutsche
+function bestellungName(b) {
+  const liste = bst.bestellungenKutsche || [];
+  const idx = liste.findIndex(x => x.id === b.id);
+  if (idx <= 0) return 'Grundbestellung';
+  return liste.length > 2 ? `Nachbestellung ${idx}` : 'Nachbestellung';
+}
+
+function istGrundbestellung(b) {
+  const liste = bst.bestellungenKutsche || [];
+  return liste.length > 0 && liste[0].id === b?.id;
+}
+
+function aktKutscheName() {
+  const st = bst.staende.find(s2 => s2.id === bst.aktStandId);
+  return st?.bezeichnung || '';
+}
+
+// Kutsche wechseln – Auswahl merken, Tab neu aufbauen
+async function bestKutscheWechseln(standId) {
+  if (bst.aktStandId === standId) return;
+  bst.aktStandId = standId;
+  bst.bestellung = null;   // Auswahl der alten Kutsche verwerfen
+  await renderBestellungTab();
+}
+
+// Bestellung innerhalb der Kutsche wechseln
+async function bestWechseln(bestellungId) {
+  const b = (bst.bestellungenKutsche || []).find(x => x.id === bestellungId);
+  if (!b) return;
+  bst.bestellung = b;
+  await renderBestellungTab();
+}
+
+// ── Versendet-Markierung ──────────────────────────────────────
+// Setzt status/versendet_am. Bei der Grundbestellung wird zusätzlich die
+// Planungsaufgabe "Warenbestellung" abgehakt (Schlüssel 'warenbestellung'),
+// damit die Fristwarnung nicht unnötig anschlägt.
+async function bestVersendetSetzen() {
+  const b = bst.bestellung;
+  if (!b || marktReadonly()) return;
+  const now = new Date().toISOString();
+  const { error } = await sb.from('bestellung')
+    .update({ status: 'versendet', versendet_am: now, geaendert_am: now,
+              geaendert_von: currentUser.id })
+    .eq('id', b.id);
+  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  b.status = 'versendet'; b.versendet_am = now;
+
+  // Nur die Grundbestellung hakt die Planungsaufgabe ab – eine Nachbestellung
+  // ändert nichts daran, dass die Warenbestellung aufgegeben wurde.
+  if (istGrundbestellung(b)) await aufgabeWarenbestellungHaken();
+
+  toast('Als versendet markiert');
+  await renderBestellungTab();
+}
+
+// Rücknahme: Haken in der Planung bleibt bewusst stehen (bewusste
+// Planungsaussage von Andy soll nicht automatisch zurückgenommen werden).
+async function bestVersendetZuruecknehmen() {
+  const b = bst.bestellung;
+  if (!b || marktReadonly()) return;
+  if (!(await confirmMed(
+    'Die Markierung „versendet" wieder entfernen? Der Haken in der Planung bleibt bestehen.',
+    { titel: 'Markierung zurücknehmen', ja: 'Entfernen' }))) return;
+  const now = new Date().toISOString();
+  const { error } = await sb.from('bestellung')
+    .update({ status: 'entwurf', versendet_am: null, geaendert_am: now,
+              geaendert_von: currentUser.id })
+    .eq('id', b.id);
+  if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  b.status = 'entwurf'; b.versendet_am = null;
+  delete bst.warnungGezeigt[b.id];
+  toast('Markierung entfernt');
+  await renderBestellungTab();
+}
+
+// Planungsaufgabe "Warenbestellung" abhaken (über stabilen Schlüssel, damit
+// ein geänderter Vorlagentext die Verknüpfung nicht still bricht).
+async function aufgabeWarenbestellungHaken() {
+  try {
+    const { data } = await sb.from('markt_aufgabe')
+      .select('id, erledigt').eq('event_instanz_id', currentInstanzId)
+      .eq('schluessel', 'warenbestellung').limit(1);
+    const a = data?.[0];
+    if (!a || a.erledigt) return;          // nicht vorhanden oder schon erledigt
+    const now = new Date().toISOString();
+    const { error: aufErr } = await sb.from('markt_aufgabe').update({
+      erledigt: true, erledigt_am: now, erledigt_von: currentUser.id, geaendert_am: now,
+    }).eq('id', a.id);
+    if (aufErr) { console.warn('Aufgaben-Haken fehlgeschlagen', aufErr); return; }
+    // ocQuery fragt immer zuerst den Server und nutzt den Cache nur als
+    // Netz-Fallback – der Haken erscheint also beim nächsten Laden ohnehin.
+    // Wir aktualisieren den Cache trotzdem, damit er offline nicht veraltet.
+    const ocAlt = ocGet(`aufgaben_${currentInstanzId}_vorbereitung`);
+    if (ocAlt?.wert) {
+      ocSet(`aufgaben_${currentInstanzId}_vorbereitung`,
+        ocAlt.wert.map(x => x.id === a.id
+          ? { ...x, erledigt: true, erledigt_am: now, erledigt_von: currentUser.id } : x));
+    }
+    toast('✓ Aufgabe „Warenbestellung" abgehakt');
+  } catch (e) {
+    // Kein harter Fehler: die Bestellung ist markiert, nur der Komfort-Haken
+    // fehlt. Andy kann ihn in der Planung selbst setzen.
+    console.warn('Aufgaben-Haken fehlgeschlagen', e);
+  }
+}
+
+// Schutz vor versehentlichem Überschreiben einer bereits versendeten
+// Bestellung: einmal je Bestellung und Sitzung nachfragen und dabei den
+// richtigen Weg (Nachbestellung) anbieten.
+// Rückgabe: true = Änderung darf laufen.
+async function bestAenderungErlaubt() {
+  const b = bst.bestellung;
+  if (!b || b.status !== 'versendet') return true;
+  if (bst.warnungGezeigt[b.id]) return true;
+
+  const wahl = await bestVersandWarnung();
+  if (wahl === 'nach')   { await bestellungAnlegen(true); return false; }
+  if (wahl === 'weiter') { bst.warnungGezeigt[b.id] = true;   return true;  }
+  return false; // abbrechen
+}
+
+// Drei-Wege-Dialog. Nutzt das vorhandene Sheet, weil confirmMed nur ja/nein kann.
+function bestVersandWarnung() {
+  return new Promise(resolve => {
+    bst._warnResolve = resolve;
+    const html = `
+      <div class="hinweis-box" style="margin-bottom:14px;">
+        Diese Bestellung ist bereits ans Lager gegangen. Änderungen hier ändern
+        nichts an der Ware, die schon unterwegs ist.
+      </div>
+      <button class="btn btn-primary btn-full" style="margin-bottom:8px;"
+        onclick="bestWarnWahl('nach')">📦 Nachbestellung anlegen</button>
+      <button class="btn btn-full" style="margin-bottom:8px;"
+        onclick="bestWarnWahl('weiter')">✏️ Trotzdem ändern</button>
+      <button class="btn btn-full" onclick="bestWarnWahl('ab')">Abbrechen</button>`;
+    oeffneSheet('⚠️ Bereits versendet', 'Wolltest du vielleicht nachbestellen?', html);
+  });
+}
+
+function bestWarnWahl(wahl) {
+  schliesseSheet();
+  const r = bst._warnResolve; bst._warnResolve = null;
+  if (r) r(wahl);
+}
+
 // Grundlage-Optionen für eine neue Bestellung sammeln:
 //   - Vorlagen (bestell_vorlage)
 //   - frühere Bestellungen desselben Templates (Wiederhol-Märkte wie Annotopia)
-// Ergebnis wird in bst.grundlagen zwischengespeichert. Smarte Vorauswahl:
-// gibt es eine frühere Bestellung desselben Templates, ist sie vorbelegt.
+//
+// WICHTIG (seit v6.68): Eine frühere Grundlage fasst ALLE Bestellungen einer
+// Instanz und Kutsche zusammen – Grundbestellung + Nachbestellung(en) werden
+// je Variante summiert. Vorher wurde nur die jüngste Bestellung angeboten:
+// wer 48 Stk grund- und 24 Stk nachbestellt hatte, bekam im Folgejahr 24
+// vorgeschlagen statt 72. Die Aufschlüsselung ("48 Grund + 24 Nach") steht im
+// Untertitel, damit erkennbar bleibt, dass nachbestellt werden musste.
+//
+// Hinweis zur Genauigkeit: Die Summe ist der bestellte, nicht der verkaufte
+// Bedarf. Restbestände sind (noch) nicht erfasst – siehe Roadmap "Restmengen".
 async function ladeBestGrundlagen() {
   const grundlagen = [];
 
@@ -3813,7 +4091,7 @@ async function ladeBestGrundlagen() {
       sub: `Vorlage · ${anzahl} Stk`, positionen: v.positionen || {}, lager_id: v.lager_id });
   });
 
-  // 2) Frühere Bestellungen desselben Templates (jüngste zuerst)
+  // 2) Frühere Bestellungen desselben Templates (jüngstes Jahr zuerst)
   const templateId = currentInstanz?.template_id;
   if (templateId) {
     const { data: instanzen } = await sb.from('event_instanz')
@@ -3823,17 +4101,77 @@ async function ladeBestGrundlagen() {
     const instIds = (instanzen || []).map(i => i.id);
     if (instIds.length) {
       const jahrMap = {}; (instanzen || []).forEach(i => { jahrMap[i.id] = i.saison_jahr; });
+
+      // ALLE Bestellungen dieser Instanzen (nicht nur die jüngste je Instanz),
+      // dazu die Kutschenbezeichnung für die Gruppierung.
       const { data: bestell } = await sb.from('bestellung')
-        .select('id, event_instanz_id, lager_id, erstellt_am').in('event_instanz_id', instIds)
-        .is('geloescht_am', null).order('erstellt_am', { ascending: false });
-      // pro Instanz nur die jüngste Bestellung
-      const gesehen = new Set();
-      for (const b of (bestell || [])) {
-        if (gesehen.has(b.event_instanz_id)) continue;
-        gesehen.add(b.event_instanz_id);
-        grundlagen.push({ typ: 'bestellung', id: b.id, bestellungId: b.id,
-          name: (currentInstanz?.event_template?.name || 'Markt') + ' ' + (jahrMap[b.event_instanz_id] || ''),
-          sub: 'Frühere Bestellung', lager_id: b.lager_id, jahr: jahrMap[b.event_instanz_id] });
+        .select('id, event_instanz_id, lager_id, stand_id, erstellt_am').in('event_instanz_id', instIds)
+        .is('geloescht_am', null).order('erstellt_am', { ascending: true });
+
+      if ((bestell || []).length) {
+        // Kutschenbezeichnungen der beteiligten Stände nachladen
+        const standIds = [...new Set((bestell || []).map(b => b.stand_id).filter(Boolean))];
+        const standMap = {};
+        if (standIds.length) {
+          const { data: staende } = await sb.from('stand')
+            .select('id, bezeichnung').in('id', standIds).is('geloescht_am', null);
+          (staende || []).forEach(st => { standMap[st.id] = st.bezeichnung; });
+        }
+
+        // Positionen aller gefundenen Bestellungen in einem Rutsch
+        const bestIds = (bestell || []).map(b => b.id);
+        const { data: allePos } = await sb.from('bestellposition')
+          .select('bestellung_id, variante_id, menge').in('bestellung_id', bestIds)
+          .is('geloescht_am', null);
+        const posProBestellung = {};
+        (allePos || []).forEach(p => {
+          if (!posProBestellung[p.bestellung_id]) posProBestellung[p.bestellung_id] = [];
+          posProBestellung[p.bestellung_id].push(p);
+        });
+
+        // Gruppieren nach Instanz + Kutsche (stand_id NULL = markt-weit)
+        const gruppen = {};
+        for (const b of (bestell || [])) {
+          const key = b.event_instanz_id + '|' + (b.stand_id || '');
+          if (!gruppen[key]) {
+            gruppen[key] = { instanzId: b.event_instanz_id, standId: b.stand_id || null,
+              lager_id: b.lager_id, bestellungen: [], positionen: {} };
+          }
+          const g = gruppen[key];
+          const eigenePos = posProBestellung[b.id] || [];
+          const stk = eigenePos.reduce((s, p) => s + (parseInt(p.menge) || 0), 0);
+          g.bestellungen.push({ id: b.id, stk });
+          // Mengen je Variante aufsummieren
+          eigenePos.forEach(p => {
+            g.positionen[p.variante_id] = (g.positionen[p.variante_id] || 0) + (parseInt(p.menge) || 0);
+          });
+        }
+
+        // Gruppen als Grundlagen anbieten, jüngstes Jahr zuerst
+        const sortiert = Object.values(gruppen).sort((a, b) =>
+          (jahrMap[b.instanzId] || 0) - (jahrMap[a.instanzId] || 0));
+        for (const g of sortiert) {
+          const jahr = jahrMap[g.instanzId] || '';
+          const kutsche = g.standId ? standMap[g.standId] : null;
+          const gesamt = Object.values(g.positionen).reduce((s, m) => s + m, 0);
+          // Untertitel: bei mehreren Bestellungen die Aufschlüsselung zeigen
+          let sub;
+          if (g.bestellungen.length > 1) {
+            const teile = g.bestellungen.map((b, i) =>
+              `${b.stk} ${i === 0 ? 'Grund' : 'Nach'}`).join(' + ');
+            sub = `${gesamt} Stk = ${teile}`;
+          } else {
+            sub = `Frühere Bestellung · ${gesamt} Stk`;
+          }
+          grundlagen.push({
+            typ: 'bestellung',
+            id: g.instanzId + '|' + (g.standId || ''),
+            positionen: g.positionen,   // bereits summiert – kein Nachladen nötig
+            name: (currentInstanz?.event_template?.name || 'Markt') + ' ' + jahr
+                  + (kutsche ? ' · ' + kutsche : ''),
+            sub, lager_id: g.lager_id, jahr,
+          });
+        }
       }
     }
   }
@@ -4022,35 +4360,45 @@ function bestWechselKat(idx) {
   renderBestProduktListe();
 }
 
-async function bestellungAnlegen() {
+// alsNachbestellung = true: leere Nachbestellung für dieselbe Kutsche anlegen
+// (bewusst OHNE Übernahme der Grundmengen – sonst würde versehentlich alles
+// doppelt bestellt; die Summe fürs Folgejahr entsteht ohnehin automatisch).
+async function bestellungAnlegen(alsNachbestellung = false) {
   if (marktReadonly()) { toast('Markt ist abgeschlossen – keine Bestellung möglich', 'err'); return; }
-  const lagerId = el('best-setup-lager')?.value || bst.lagerId;
-  const fzg     = el('best-setup-fzg')?.value   || bst.fahrzeug;
+  const lagerId = alsNachbestellung ? bst.lagerId : (el('best-setup-lager')?.value || bst.lagerId);
+  const fzg     = alsNachbestellung ? bst.fahrzeug : (el('best-setup-fzg')?.value || bst.fahrzeug);
   bst.lagerId   = lagerId;
   bst.fahrzeug  = fzg;
   const now = new Date().toISOString();
   const { data, error } = await sb.from('bestellung').insert({
     id: uuid(), event_instanz_id: currentInstanzId, lager_id: lagerId,
+    stand_id: bst.aktStandId,   // null bei Märkten ohne Kutschen-Aufteilung
     status: 'entwurf', fahrzeug: fzg, erstellt_am: now, geaendert_am: now,
     erstellt_von: currentUser.id, geaendert_von: currentUser.id,
   }).select().single();
   if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+  bst.bestellListe.push(data);
+  bst.bestellungenKutsche = bestellungenFuerKutsche(bst.aktStandId);
   bst.bestellung = data;
   bst.positionen = {};
+
+  // Nachbestellung startet leer – Grundlagen-Übernahme überspringen
+  if (alsNachbestellung) {
+    bst.expandedProds = new Set();
+    toast('Nachbestellung angelegt');
+    await renderBestellungTab();
+    return;
+  }
 
   // Grundlage übernehmen: Positionen mit NEUEN UUIDs in die neue Bestellung
   // kopieren (die Quelle bleibt unberührt). Nicht mehr existierende Varianten
   // werden übersprungen und am Ende gemeldet.
   const g = bst.gewaehlteGrundlage;
   if (g && g.typ !== 'leer') {
-    let quellPos = {}; // variante_id → menge
-    if (g.typ === 'vorlage') {
-      quellPos = g.positionen || {};
-    } else if (g.typ === 'bestellung' && g.bestellungId) {
-      const { data: pos } = await sb.from('bestellposition')
-        .select('variante_id, menge').eq('bestellung_id', g.bestellungId).is('geloescht_am', null);
-      (pos || []).forEach(p => { quellPos[p.variante_id] = p.menge; });
-    }
+    // Beide Grundlagentypen liefern ihre Mengen inzwischen fertig in
+    // g.positionen (variante_id → menge). Bei früheren Bestellungen ist das
+    // die Summe aus Grund- und Nachbestellung(en) – siehe ladeBestGrundlagen.
+    const quellPos = g.positionen || {};
     // Gültige Varianten-IDs (aus dem aktuellen Sortiment)
     const gueltigeVarIds = new Set();
     bst.produkte.forEach(p => p.varianten.forEach(v => gueltigeVarIds.add(v.id)));
@@ -4141,6 +4489,11 @@ function exportBestellungPDF() {
   const datum  = inst?.start_datum ? dateFmt(inst.start_datum) + (inst.end_datum ? ' – ' + dateFmt(inst.end_datum) : '') : '';
   const heute  = new Date().toLocaleDateString('de-DE');
   const { kgGesamt, kistenBerechnet, paletten, umsatzCent } = bestGewicht();
+  // Kutschen-/Bestellkennung fürs Lager (v6.68): bei zwei Kutschen gehen zwei
+  // getrennte PDFs raus – sie müssen auf einen Blick unterscheidbar sein.
+  const kutsche  = bst.staende.length > 1 ? aktKutscheName() : '';
+  const bestName = bst.bestellung ? bestellungName(bst.bestellung) : 'Bestellung';
+  const kennung  = (kutsche ? kutsche + ' · ' : '') + bestName;
 
   // Größen-Reihenfolge (kanonisch)
   const GROESSE_ORDER = ['0,04','0,2','0,25 Bord','0,5','0,75','0,75 Ton','1,0 Ton','1,0 Euro','1,5','Stück'];
@@ -4208,12 +4561,13 @@ function exportBestellungPDF() {
   });
 
   const printHtml = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">
-<title>Bestellung ${name}</title>
+<title>Bestellung ${name}${kutsche ? ' – ' + kutsche : ''} – ${bestName}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital@0;1&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body{font-family:-apple-system,sans-serif;color:#1a1208;background:#fff;padding:14px 18px;font-size:11px}
 .header{padding:10px 0 12px;border-bottom:2px solid #c9942a;margin-bottom:12px}
+.kennung{display:inline-block;margin-top:5px;padding:3px 12px;border:1px solid #c9942a;border-radius:3px;font-size:12px;font-weight:700;letter-spacing:.5px;color:#3d1f08;background:#fdf8ef}
 .header h1{font-family:Cinzel,serif;font-size:18px;font-weight:700;color:#3d1f08;margin-bottom:3px}
 .header .sub{font-family:"Crimson Text",serif;font-style:italic;font-size:12px;color:#7a5c3a}
 .header .meta{font-size:10px;color:#9a7a4a;margin-top:4px;display:flex;flex-wrap:wrap;gap:0 16px}
@@ -4247,6 +4601,7 @@ tr{break-inside:avoid;page-break-inside:avoid}
 </style></head><body>
 <div class="header">
   <h1>⚜ Bestellung – ${name}</h1>
+  <div class="kennung">${kennung}</div>
   <div class="meta">
     ${ort ? `<span>${ort}</span>` : ''}
     <span>Zeitraum: ${datum}</span>
@@ -4305,6 +4660,17 @@ function bestQtyLive(varId, prodId, proKiste, val) {
 // DB-Write beim Verlassen des Feldes
 async function bestMengeSetzen(varId, prodId, proKiste, val) {
   if (marktReadonly()) { toast('Markt ist abgeschlossen – keine Änderungen möglich', 'err'); return; }
+  // Schutz bei bereits versendeter Bestellung (einmal je Bestellung/Sitzung).
+  // Kommt der Abbruch, muss das Eingabefeld auf den alten Wert zurück – das
+  // onchange hat es optisch längst geändert.
+  if (!(await bestAenderungErlaubt())) {
+    const alt = bst.positionen[varId]?.menge || 0;
+    const inp = el('bqv-' + varId.slice(0, 8));
+    if (inp) inp.value = alt > 0 ? alt : '';
+    // bestQtyLive (oninput) hat Chips/Kisten schon hochgerechnet – zurückdrehen
+    bestQtyLive(varId, prodId, proKiste, alt);
+    return;
+  }
   const menge = Math.max(0, parseInt(val) || 0);
   const pos   = bst.positionen[varId];
   const now   = new Date().toISOString();
@@ -4383,7 +4749,12 @@ async function oeffneNotizSheet() {
   // Bestehende Notizen dieser Instanz (offline-fähig laden)
   const r = await ocQuery('notizen_' + currentInstanzId, () => sb.from('markt_produkt_notiz')
     .select('*').eq('event_instanz_id', currentInstanzId).is('geloescht_am', null).order('erstellt_am', { ascending: false }));
-  const eigene = r.data || [];
+  // Bei mehreren Kutschen nur die Notizen der gewählten Kutsche zeigen
+  // (plus die markt-weiten ohne stand_id – z. B. Altdaten).
+  let eigene = r.data || [];
+  if (bst.staende.length > 1 && bst.aktStandId) {
+    eigene = eigene.filter(n => !n.stand_id || n.stand_id === bst.aktStandId);
+  }
   bst.eigeneNotizen = eigene;
 
   const chips = Object.entries(BEW).map(([k, b]) =>
@@ -4411,7 +4782,9 @@ async function oeffneNotizSheet() {
     ${eigene.map(n => notizEintragHtml(n)).join('')}
   </div>` : '';
 
-  oeffneSheet('Marktnotizen', 'Was läuft, was bleibt liegen, was fehlt?', eingabe + liste);
+  const kn = bst.staende.length > 1 ? aktKutscheName() : '';
+  oeffneSheet('Marktnotizen' + (kn ? ' · ' + kn : ''),
+    'Was läuft, was bleibt liegen, was fehlt?', eingabe + liste);
 }
 
 function notizEintragHtml(n) {
@@ -4471,6 +4844,7 @@ async function notizSpeichern() {
   const id = uuid();
   const row = {
     id, event_instanz_id: currentInstanzId,
+    stand_id: bst.aktStandId,   // null bei Märkten ohne Kutschen-Aufteilung
     produkt_id: prodId, freitext_name: freitext || null,
     bewertung: notizEntwurf.bewertung, notiz: text || null,
     erstellt_am: now, geaendert_am: now,
