@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.66</title>
+<title>Marktfahrer · v6.67</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -377,6 +377,9 @@ body.rolle-fahrer .admin-only { display: none !important; }
 .best-topbar-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--text2); white-space: nowrap; }
 .best-topbar-chip.gold { border-color: var(--gold); color: var(--gold); }
 .best-topbar-chip.warn { border-color: var(--amber2); color: var(--amber2); font-weight: 600; }
+.best-topbar-fzg { background: var(--surface); border: 1px solid var(--gold); border-radius: 20px; padding: 4px 10px; font-size: 12px; color: var(--gold); white-space: nowrap; font-family: inherit; cursor: pointer; -webkit-appearance: none; appearance: none; }
+.best-topbar-fzg.warn { border-color: var(--amber2); color: var(--amber2); font-weight: 600; }
+.best-topbar-fzg:disabled { opacity: .55; cursor: default; }
 .best-senden-btn { margin-left: auto; background: var(--gold); border: none; border-radius: 20px; padding: 7px 16px; font-size: 13px; font-weight: 700; color: var(--bg); cursor: pointer; white-space: nowrap; }
 .best-senden-btn:active { background: var(--gold2); }
 .best-kat-tabs { display: flex; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--border); background: var(--bg2); }
@@ -562,7 +565,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.66</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.67</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -679,7 +682,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.66</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.67</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -1011,7 +1014,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.66';
+const APP_VERSION = 'v6.67';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -3608,14 +3611,26 @@ const BEST_LAGER = [
   { id: 'a1b2c3d4-0002-0002-0002-000000000002', code: 'Nord', email: 'Bestellung-nord@beerenweine.eu' },
 ];
 const FAHRZEUGE = [
-  { id: 'solo',    label: 'Iveco Solo (30 Kisten)',       maxKisten: 30 },
-  { id: 'haenger', label: 'Mit Anhänger (100 Kisten)',    maxKisten: 100 },
+  { id: 'solo',      label: 'Iveco Solo (30 Kisten)',    kurz: 'Solo',      maxKisten: 30 },
+  { id: 'haenger',   label: 'Mit Anhänger (100 Kisten)', kurz: 'Anhänger',  maxKisten: 100 },
+  // Spedition: keine Kapazitätsgrenze → maxKisten null, Warnung greift nie.
+  { id: 'spedition', label: 'Spedition (unbegrenzt)',    kurz: 'Spedition', maxKisten: null },
 ];
+
+// Aktuelles Fahrzeug der Bestellung (Fallback: erstes = Solo).
+function bestFahrzeug() {
+  return FAHRZEUGE.find(f => f.id === bst.fahrzeug) || FAHRZEUGE[0];
+}
+// Überladen? Spedition (maxKisten null) ist nie überladen.
+function bestUeberladen(kisten) {
+  const max = bestFahrzeug().maxKisten;
+  return max != null && kisten > max;
+}
 // Palettenlogik: bei uns ist die Kistenzahl je Palette konstant, nicht das Gewicht.
 const KISTEN_PRO_PALETTE = 20;
 // Gewicht wird je Größe aus produkt_variante.gewicht_kg × pro_kiste berechnet
 // (siehe bestGewicht). KG_KISTE/PALETTE_KG (pauschal 30 kg / 750 kg) sind seit
-// v6.66 abgelöst und entfallen bewusst.
+// v6.67 abgelöst und entfallen bewusst.
 
 // Bestellung-State
 let bst = {
@@ -3647,7 +3662,7 @@ async function renderBestellungTab() {
     { data: varianten },
     { data: katPreise },
   ] = await Promise.all([
-    sb.from('bestellung').select('id, lager_id, status, versendet_am, abhol_datum')
+    sb.from('bestellung').select('id, lager_id, status, versendet_am, abhol_datum, fahrzeug')
       .eq('event_instanz_id', currentInstanzId).is('geloescht_am', null).order('erstellt_am', {ascending:false}),
     sb.from('kategorie').select('id, name, reihenfolge, preis_modus').order('reihenfolge'),
     sb.from('produkt').select('id, name, artikelnr, kategorie_id').eq('aktiv', true).order('name'),
@@ -3675,6 +3690,9 @@ async function renderBestellungTab() {
       .eq('bestellung_id', bst.bestellung.id).is('geloescht_am', null);
     (pos || []).forEach(p => { bst.positionen[p.variante_id] = { id: p.id, menge: p.menge }; });
     bst.lagerId = bst.bestellung.lager_id;
+    // Fahrzeug aus der DB übernehmen – sonst fiele es beim Neuladen auf 'solo'
+    // zurück und die Kapazitätswarnung wäre falsch (Bug bis v6.67).
+    bst.fahrzeug = bst.bestellung.fahrzeug || 'solo';
   }
   if (bst.aktKatIdx >= bst.kategorien.length) bst.aktKatIdx = 0;
   // Produkte mit vorhandenen Bestellmengen auto-aufklappen
@@ -3740,15 +3758,19 @@ function renderBestellungUI(wrap) {
     renderBestellungSetup(wrap); return;
   }
   const lager  = BEST_LAGER.find(l => l.id === bst.lagerId) || BEST_LAGER[0];
-  const fzg    = FAHRZEUGE.find(f => f.id === bst.fahrzeug) || FAHRZEUGE[0];
   const { kgGesamt, kistenBerechnet, paletten, umsatzCent } = bestGewicht();
-  const ueberladen = kistenBerechnet > fzg.maxKisten;
+  const ueberladen = bestUeberladen(kistenBerechnet);
   const versendet = bst.bestellung?.status === 'versendet';
+  const fzgSelOpt = FAHRZEUGE.map(f =>
+    `<option value="${f.id}" ${f.id === bst.fahrzeug ? 'selected' : ''}>${f.kurz}</option>`
+  ).join('');
 
   wrap.innerHTML = `
     <div class="best-topbar">
       <span class="best-topbar-chip">🏪 ${lager.code}</span>
       <span class="best-topbar-chip ${ueberladen ? 'warn' : 'gold'}" id="best-chip-kg">${ueberladen ? '⚠️' : '⚖'} ${kistenBerechnet} Kisten · ${paletten} Pal. · ${kgGesamt} kg</span>
+      <select class="best-topbar-fzg ${ueberladen ? 'warn' : ''}" id="best-chip-fzg" title="Fahrzeug"
+        onchange="bestFahrzeugSetzen(this.value)" ${versendet ? 'disabled' : ''}>${fzgSelOpt}</select>
       <span class="best-topbar-chip gold" id="best-chip-umsatz">💰 ${eur(umsatzCent)}</span>
       <button class="best-menu-btn" onclick="oeffneNotizSheet()" title="Marktnotizen">📝</button>
       <button class="best-menu-btn" onclick="oeffneBestMenue()" title="Mehr">⋯</button>
@@ -4009,7 +4031,7 @@ async function bestellungAnlegen() {
   const now = new Date().toISOString();
   const { data, error } = await sb.from('bestellung').insert({
     id: uuid(), event_instanz_id: currentInstanzId, lager_id: lagerId,
-    status: 'entwurf', erstellt_am: now, geaendert_am: now,
+    status: 'entwurf', fahrzeug: fzg, erstellt_am: now, geaendert_am: now,
     erstellt_von: currentUser.id, geaendert_von: currentUser.id,
   }).select().single();
   if (error) { toast('Fehler: ' + error.message, 'err'); return; }
@@ -4072,6 +4094,37 @@ async function saveAbholdatum(val) {
     await dbW(sb.from('bestellung').update({ abhol_datum: val || null, geaendert_am: new Date().toISOString() })
       .eq('id', bst.bestellung.id), 'Bestellung speichern');
   }
+}
+
+// Fahrzeug der Bestellung wechseln. Wird in der Topbar gewählt und sofort
+// gespeichert – bis v6.67 lebte das Fahrzeug nur im Browser-State und ging
+// beim Neuladen verloren (Spalte bestellung.fahrzeug seit v6.67).
+async function bestFahrzeugSetzen(val) {
+  if (marktReadonly()) return;
+  bst.fahrzeug = val;
+  bestChipsAktualisieren();
+  if (bst.bestellung?.id) {
+    await dbW(sb.from('bestellung').update({ fahrzeug: val, geaendert_am: new Date().toISOString() })
+      .eq('id', bst.bestellung.id), 'Fahrzeug speichern');
+  }
+}
+
+// Topbar-Chips (Kisten/Paletten/Gewicht, Warnzustand, Umsatz) neu zeichnen.
+// Gemeinsam genutzt von der Mengeneingabe und dem Fahrzeugwechsel, damit
+// beide Pfade nicht auseinanderlaufen.
+function bestChipsAktualisieren() {
+  const { kgGesamt, kistenBerechnet, paletten, umsatzCent } = bestGewicht();
+  const ueberladen = bestUeberladen(kistenBerechnet);
+  const kgEl = el('best-chip-kg');
+  const usEl = el('best-chip-umsatz');
+  const fzgEl = el('best-chip-fzg');
+  if (kgEl) {
+    kgEl.textContent = `${ueberladen ? '⚠️' : '⚖'} ${kistenBerechnet} Kisten · ${paletten} Pal. · ${kgGesamt} kg`;
+    kgEl.classList.toggle('warn', ueberladen);
+    kgEl.classList.toggle('gold', !ueberladen);
+  }
+  if (fzgEl) fzgEl.classList.toggle('warn', ueberladen);
+  if (usEl) usEl.textContent = `💰 ${eur(umsatzCent)}`;
 }
 
 function exportBestellungPDF() {
@@ -4242,16 +4295,7 @@ function bestQtyLive(varId, prodId, proKiste, val) {
   const inp = el('bqv-' + varId.slice(0,8));
   if (inp) inp.classList.toggle('aktiv', menge > 0);
   // Topbar
-  const { kgGesamt, kistenBerechnet, paletten, umsatzCent } = bestGewicht();
-  const fzg = FAHRZEUGE.find(f => f.id === bst.fahrzeug) || FAHRZEUGE[0];
-  const ueberladen = kistenBerechnet > fzg.maxKisten;
-  const kgEl = el('best-chip-kg'); const usEl = el('best-chip-umsatz');
-  if (kgEl) {
-    kgEl.textContent = `${ueberladen ? '⚠️' : '⚖'} ${kistenBerechnet} Kisten · ${paletten} Pal. · ${kgGesamt} kg`;
-    kgEl.classList.toggle('warn', ueberladen);
-    kgEl.classList.toggle('gold', !ueberladen);
-  }
-  if (usEl) usEl.textContent = `💰 ${eur(umsatzCent)}`;
+  bestChipsAktualisieren();
   // Tab-Badge
   const kat = bst.kategorien[bst.aktKatIdx];
   const tabBtn = el('best-kat-tabs')?.querySelectorAll('.best-kat-btn')[bst.aktKatIdx];
