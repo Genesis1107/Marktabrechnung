@@ -399,9 +399,16 @@ mark { background:var(--gold); color:var(--bg); padding:0 2px; border-radius:2px
       <div class="box-t">📦 Kisten, Paletten &amp; Fahrzeug</div>
       <p>Oben zeigt der goldene Merker laufend <strong>Kisten, Paletten und Gewicht</strong> deiner Bestellung. Eine <strong>Palette = 20 Kisten</strong>. Direkt daneben wählst du das <strong>Fahrzeug</strong>: Iveco Solo (bis 30 Kisten), mit Anhänger (bis 100) oder Spedition (unbegrenzt). Passt die Menge nicht ins gewählte Fahrzeug, werden Merker und Auswahl <strong>orange mit ⚠️</strong> &ndash; dann größeres Fahrzeug wählen oder Menge reduzieren. Die Fahrzeugwahl wird je Bestellung gespeichert.</p>
     </div>
+    <div class="box box-info">
+      <div class="box-t">📥 Restbestand zählen (nach dem Markt)</div>
+      <p>Über <strong>⋯ → Restbestand zählen</strong> hältst du fest, was am Ende noch in der Kiste steht. Die Liste zeigt genau die Sorten, die für diese Kutsche bestellt waren, mit der bestellten Menge daneben. Du trägst nur die <strong>Reststückzahl</strong> ein &ndash; rechts steht sofort, wie viel demnach verkauft wurde.</p>
+      <p><strong>Leer lassen heißt „nicht gezählt“, eine 0 heißt „ausverkauft“.</strong> Das ist ein Unterschied: Eine 0 rechnet die App als vollen Verkauf, ein leeres Feld lässt sie in Ruhe. Du kannst jederzeit aufhören &ndash; auch eine halbe Zählung hilft.</p>
+      <p>Im Folgejahr rechnet die Grundlage dann <strong>bestellt minus Rest</strong>: Aus 72 bestellt und 6 übrig werden 66 vorgeschlagen. Im Untertitel steht, woher die Zahl kommt und ob vollständig gezählt wurde.</p>
+      <p>Gezählt wird meist zwischen Marktende und Abbau &ndash; deshalb funktioniert <strong>diese eine Maske auch ohne Netz</strong>, sofern der Markt vorher <strong>vorgemerkt</strong> wurde (📥 im Planung-Bereich). Die Zahlen sind rein statistisch und haben mit der Kassenabrechnung nichts zu tun.</p>
+    </div>
     <div class="box box-warn">
-      <div class="box-t">⚠️ Nur online</div>
-      <p>Bestellungen brauchen Empfang. Ohne Netz zeigt der Bestell-Bereich einen Fehler statt Daten &ndash; das ist bewusst so. Mach Bestellungen mit stabilem Netz, nicht im Funkloch.</p>
+      <div class="box-t">⚠️ Bestellen braucht Netz</div>
+      <p>Das Erfassen von Bestellmengen braucht Empfang &ndash; ohne Netz zeigt der Bestell-Bereich einen Fehler statt Daten. Einzige Ausnahme ist die Restzählung oben, wenn der Markt vorgemerkt wurde. Mach Bestellungen also mit stabilem Netz, nicht im Funkloch.</p>
     </div>
   </section>
 
@@ -445,7 +452,7 @@ mark { background:var(--gold); color:var(--bg); padding:0 2px; border-radius:2px
     </div>
     <div class="box box-warn">
       <div class="box-t">⚠️ Nicht offline</div>
-      <p>Bestellungen und die Chronik brauchen Netz. Alles rund um die Kasse funktioniert offline &ndash; diese beiden nicht.</p>
+      <p>Bestellungen und die Chronik brauchen Netz. Alles rund um die Kasse funktioniert offline &ndash; diese beiden nicht. <strong>Ausnahme:</strong> die Restzählung nach dem Markt läuft auch ohne Empfang, wenn der Markt vorgemerkt wurde.</p>
     </div>
   </section>
 
@@ -470,7 +477,7 @@ mark { background:var(--gold); color:var(--bg); padding:0 2px; border-radius:2px
   <section class="sec" id="s13" data-rolle="alle">
     <h2><span class="num">13</span> Häufige Fragen</h2>
     <h3>Meine Daten sind weg / die Liste ist leer</h3>
-    <p>Prüfe zuerst das Netz und den Sync-Status oben. Im Funkloch zeigt die App gecachte Daten; Bereiche ohne Offline-Fähigkeit (Bestellung, Chronik) bleiben leer, bis wieder Netz da ist.</p>
+    <p>Prüfe zuerst das Netz und den Sync-Status oben. Im Funkloch zeigt die App gecachte Daten; Bereiche ohne Offline-Fähigkeit (Bestellung, Chronik) bleiben leer, bis wieder Netz da ist &ndash; die Restzählung ausgenommen, sofern der Markt vorgemerkt wurde.</p>
     <h3>Ich habe mich vertippt</h3>
     <p>Buchungen entfernst du über das ✕. Kassenzählungen überschreibst du, indem du sie neu speicherst &ndash; pro Kutsche und Tag gibt es genau eine Zählung.</p>
     <h3>Ich sehe einen Markt nicht</h3>
