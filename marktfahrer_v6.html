@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.71</title>
+<title>Marktfahrer · v6.72</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -598,7 +598,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.71</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.72</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -715,7 +715,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.71</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.72</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -980,6 +980,24 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <input type="text" id="cli-titel" placeholder="z. B. Münzgeld vorbereiten"
         onkeydown="if(event.key==='Enter') saveClItem()">
     </div>
+    <div class="field">
+      <label>Kategorie</label>
+      <select id="cli-kategorie">
+        <option value="">– ohne –</option>
+        <option value="lager">📦 Lager</option>
+        <option value="zuhause">🏠 Zu Hause</option>
+        <option value="markt">⛺ Markt</option>
+        <option value="todo">📋 Todo</option>
+      </select>
+    </div>
+    <div class="field" id="cli-geltung-feld" style="display:none;">
+      <label>Gilt für</label>
+      <select id="cli-geltung">
+        <option value="alle">Alle Märkte</option>
+        <option value="markt">Nur diesen Markt</option>
+      </select>
+      <p style="font-size:11px;color:var(--text3);margin-top:4px;" id="cli-geltung-hinweis"></p>
+    </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('modal-neues-cl-item')">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveClItem()">Speichern</button>
@@ -1047,7 +1065,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.71';
+const APP_VERSION = 'v6.72';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -6090,10 +6108,10 @@ async function renderAufgabenSection(instanz, aufgaben) {
       <span class="wf-section-title">📋 Aufgaben – ${STATUS_LABEL[phase] || phase}</span>
       <div class="wf-section-meta">
         <span class="wf-badge ${badgeCls}">${badgeTxt}</span>
-        <span class="wf-chevron open">›</span>
+        <span class="wf-chevron">›</span>
       </div>
     </div>
-    <div class="wf-body open">
+    <div class="wf-body">
       ${taskHtml || '<div style="padding:12px 14px;color:var(--text3);font-size:13px;">Keine Aufgaben angelegt.</div>'}
     </div>
   </div>
@@ -6101,19 +6119,26 @@ async function renderAufgabenSection(instanz, aufgaben) {
 }
 
 async function renderClSection(instanzId) {
-  const { data: items } = await ocQuery('cl_items_' + currentUser.id, () => sb.from('user_checkliste_item')
+  const { data: alleItems } = await ocQuery('cl_items_' + currentUser.id, () => sb.from('user_checkliste_item')
     .select('*').eq('user_id', currentUser.id).is('geloescht_am', null).order('reihenfolge'));
 
-  if (!items?.length) {
+  // Sichtbar sind marktübergreifende Einträge (event_instanz_id NULL) plus die
+  // an genau diesen Markt gebundenen. Gefiltert wird bewusst erst hier, damit
+  // der Offline-Cache (cl_items_<userId>) alle Einträge vorhält.
+  const items = (alleItems || []).filter(i => !i.event_instanz_id || i.event_instanz_id === instanzId);
+  // Nur wegen dieser Einträge klappt der Abschnitt beim Öffnen der Planung auf
+  const hatMarktEintraege = items.some(i => i.event_instanz_id === instanzId);
+
+  if (!items.length) {
     return `<div class="wf-section">
       <div class="wf-section-header" onclick="toggleWfSection(this)">
         <span class="wf-section-title">✅ Meine Checkliste</span>
         <div class="wf-section-meta">
           <span class="wf-badge wf-badge-grey">leer</span>
-          <span class="wf-chevron open">›</span>
+          <span class="wf-chevron">›</span>
         </div>
       </div>
-      <div class="wf-body open">
+      <div class="wf-body">
         <div style="padding:12px 14px;">
           <p style="font-size:13px;color:var(--text3);margin-bottom:10px;">Noch keine Einträge. Hier direkt hinzufügen oder in Einstellungen pflegen.</p>
           <button class="btn btn-sm btn-primary" onclick="openNeuesClItemModal()">+ Eintrag hinzufügen</button>
@@ -6131,30 +6156,53 @@ async function renderClSection(instanzId) {
   const done = items.filter(i => checkedIds.has(i.id)).length;
   const badgeCls = done === n ? 'wf-badge-ok' : done > 0 ? 'wf-badge-warn' : 'wf-badge-grey';
 
-  const taskHtml = items.map(i => {
-    const erd = checkedIds.has(i.id);
-    return `<div class="wf-task">
-      <div class="wf-checkbox ${erd ? 'done' : ''}" onclick="clItemToggle('${i.id}','${instanzId}',${!erd})">
-        ${erd ? '✓' : ''}
-      </div>
-      <div class="wf-task-body">
-        <div class="wf-task-titel ${erd ? 'done' : ''}">${esc(i.titel)}</div>
-      </div>
-      <button onclick="deleteClItemDirect('${i.id}')"
-        style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:2px 6px;flex-shrink:0;"
-        title="Löschen">✕</button>
-    </div>`;
-  }).join('');
+  const taskHtml = ((() => {
+    // Gruppen in fester Reihenfolge, "ohne Kategorie" ans Ende. Leere Gruppen
+    // fallen weg; hat kein Eintrag eine Kategorie, entfallen die Überschriften.
+    const reihen = [...CL_KATEGORIEN.map(c => c.key), ''];
+    const gruppen = reihen
+      .map(k => ({ key: k, eintraege: items.filter(i => (i.kategorie || '') === k) }))
+      .filter(g => g.eintraege.length);
+    const ohneKategorien = gruppen.length === 1 && gruppen[0].key === '';
 
+    return gruppen.map(g => {
+      const kopf = ohneKategorien ? '' :
+        `<div style="padding:8px 14px 2px;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);">
+          ${esc(CL_KAT_LABEL(g.key))}
+          <span style="opacity:.7;">· ${g.eintraege.filter(i => checkedIds.has(i.id)).length}/${g.eintraege.length}</span>
+        </div>`;
+      return kopf + g.eintraege.map(i => {
+        const erd = checkedIds.has(i.id);
+        // Marktspezifische Einträge sichtbar kennzeichnen – sonst wäre nicht
+        // erkennbar, warum ein Eintrag bei anderen Märkten fehlt.
+        const marktMarke = i.event_instanz_id
+          ? ' <span style="font-size:10px;color:var(--gold);" title="Nur dieser Markt">📍</span>' : '';
+        return `<div class="wf-task">
+          <div class="wf-checkbox ${erd ? 'done' : ''}" onclick="clItemToggle('${i.id}','${instanzId}',${!erd})">
+            ${erd ? '✓' : ''}
+          </div>
+          <div class="wf-task-body">
+            <div class="wf-task-titel ${erd ? 'done' : ''}">${esc(i.titel)}${marktMarke}</div>
+          </div>
+          <button onclick="deleteClItemDirect('${i.id}')"
+            style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:2px 6px;flex-shrink:0;"
+            title="Löschen">✕</button>
+        </div>`;
+      }).join('');
+    }).join('');
+  })());
+
+  // Zugeklappt starten – außer es gibt Einträge, die nur für diesen Markt gelten.
+  const auf = hatMarktEintraege ? ' open' : '';
   return `<div class="wf-section">
     <div class="wf-section-header" onclick="toggleWfSection(this)">
       <span class="wf-section-title">✅ Meine Checkliste</span>
       <div class="wf-section-meta">
         <span class="wf-badge ${badgeCls}">${done} / ${n}</span>
-        <span class="wf-chevron open">›</span>
+        <span class="wf-chevron${auf}">›</span>
       </div>
     </div>
-    <div class="wf-body open">
+    <div class="wf-body${auf}">
       ${taskHtml}
       <div style="padding:8px 14px;border-top:1px solid var(--border);">
         <button class="btn btn-sm" onclick="openNeuesClItemModal()">+ Hinzufügen</button>
@@ -6245,29 +6293,75 @@ async function deleteClItemDirect(id) {
 async function loadClItemList() {
   const wrap = el('cl-item-list');
   if (!wrap) return;
+  // Marktname mitladen: sonst stünde in den Einstellungen nur eine nackte UUID
   const { data } = await sb.from('user_checkliste_item')
-    .select('*').eq('user_id', currentUser.id).is('geloescht_am', null).order('reihenfolge');
+    .select('*, event_instanz(name, saison_jahr, event_template(name))')
+    .eq('user_id', currentUser.id).is('geloescht_am', null).order('reihenfolge');
   if (!data?.length) {
     wrap.innerHTML = '<p style="color:var(--text3);font-size:13px;">Noch keine Einträge.</p>';
     return;
   }
-  wrap.innerHTML = data.map(i => `
+  wrap.innerHTML = data.map(i => {
+    const inst = i.event_instanz;
+    // Ist die Instanz per RLS nicht (mehr) lesbar, liefert der Join NULL. Der
+    // Eintrag muss trotzdem als marktgebunden erkennbar bleiben, sonst wirkt er
+    // wie ein marktübergreifender, der grundlos nirgends auftaucht.
+    const marktName = inst
+      ? (inst.name || inst.event_template?.name || 'Markt') + (inst.saison_jahr ? ' ' + inst.saison_jahr : '')
+      : (i.event_instanz_id ? 'Anderer Markt' : null);
+    const marken = [
+      i.kategorie ? `<span style="font-size:11px;color:var(--text3);">${esc(CL_KAT_LABEL(i.kategorie))}</span>` : '',
+      marktName ? `<span style="font-size:11px;color:var(--gold);">📍 ${esc(marktName)}</span>` : '',
+    ].filter(Boolean).join(' · ');
+    return `
     <div class="card" style="cursor:default;margin-bottom:8px;">
       <div class="card-row">
-        <span style="font-size:14px;color:var(--text);">${esc(i.titel)}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:14px;color:var(--text);">${esc(i.titel)}</div>
+          ${marken ? `<div style="margin-top:2px;">${marken}</div>` : ''}
+        </div>
         <button class="btn btn-sm btn-danger" onclick="deleteClItem('${i.id}')">✕</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
+
+// Feste Kategorien der persönlichen Checkliste (v6.72). Reihenfolge = Anzeige-
+// reihenfolge im Planung-Tab; Einträge ohne Kategorie laufen unter '' am Ende.
+const CL_KATEGORIEN = [
+  { key: 'lager',   label: '📦 Lager' },
+  { key: 'zuhause', label: '🏠 Zu Hause' },
+  { key: 'markt',   label: '⛺ Markt' },
+  { key: 'todo',    label: '📋 Todo' },
+];
+const CL_KAT_LABEL = k => CL_KATEGORIEN.find(c => c.key === k)?.label || 'Ohne Kategorie';
 
 function openNeuesClItemModal() {
   el('cli-titel').value = '';
+  el('cli-kategorie').value = '';
+  el('cli-geltung').value = 'alle';
+  // Die Markt-Auswahl gibt es nur, wenn gerade ein Markt offen ist. Aus den
+  // Einstellungen heraus ist der Eintrag zwangsläufig marktübergreifend.
+  const feld = el('cli-geltung-feld');
+  if (currentInstanzId && currentInstanz) {
+    feld.style.display = '';
+    const jahr = currentInstanz.saison_jahr ? ' ' + currentInstanz.saison_jahr : '';
+    const name = currentInstanz.name || currentInstanz.event_template?.name || 'diesen Markt';
+    el('cli-geltung-hinweis').textContent = 'Nur dieser Markt = ' + name + jahr + ' (gilt nicht für andere Jahre).';
+  } else {
+    feld.style.display = 'none';
+  }
   openModal('modal-neues-cl-item');
 }
 
 async function saveClItem() {
   const titel = el('cli-titel').value.trim();
   if (!titel) { toast('Titel fehlt', 'err'); return; }
+  const kategorie = el('cli-kategorie').value || null;
+  // Marktbindung nur, wenn das Feld sichtbar ist UND "nur dieser Markt" gewählt wurde
+  const nurDieserMarkt = el('cli-geltung-feld').style.display !== 'none'
+    && el('cli-geltung').value === 'markt';
+  const instanzBindung = nurDieserMarkt ? currentInstanzId : null;
   const now = new Date().toISOString();
   const { data: existing } = await sb.from('user_checkliste_item')
     .select('reihenfolge').eq('user_id', currentUser.id).is('geloescht_am', null)
@@ -6275,13 +6369,14 @@ async function saveClItem() {
   const reihenfolge = existing?.length ? (existing[0].reihenfolge + 1) : 0;
   await dbW(sb.from('user_checkliste_item').insert({
     id: uuid(), user_id: currentUser.id, titel, reihenfolge,
+    kategorie, event_instanz_id: instanzBindung,
     erstellt_am: now, geaendert_am: now,
   }), 'Checkliste speichern');
   closeModal('modal-neues-cl-item');
   toast('✓ Eintrag hinzugefügt', 'ok');
   loadClItemList();
   // Planung-Tab aktualisieren falls gerade ein Markt offen
-  if (currentInstanzId) renderPlanungTab();
+  if (currentInstanzId) renderPlanungTab(true);
 }
 
 async function deleteClItem(id) {
