@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.70</title>
+<title>Marktfahrer · v6.71</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -598,7 +598,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.70</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.71</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -715,7 +715,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.70</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.71</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -1047,7 +1047,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.70';
+const APP_VERSION = 'v6.71';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -2624,9 +2624,15 @@ function showMarktTab(tab) {
 }
 
 // ── PLANUNG TAB ───────────────────────────────────────────────
-async function renderPlanungTab() {
+// scrollHalten = true: Ansicht bleibt an Ort und Stelle (Haken setzen, Kutsche
+// anlegen, Fahrer zuordnen). Dann KEIN Spinner – sonst kollabiert #screen-wrap
+// auf Spinner-Höhe, der Browser klemmt scrollTop auf 0 und die Position ist weg.
+// Beim normalen Betreten des Tabs (scrollHalten = false) bleibt alles wie bisher.
+async function renderPlanungTab(scrollHalten = false) {
   const wrap = el('tab-content-planung');
-  wrap.innerHTML = '<div class="spinner"></div>';
+  const sw = el('screen-wrap');
+  const scrollVorher = scrollHalten ? (sw?.scrollTop || 0) : 0;
+  if (!scrollHalten) wrap.innerHTML = '<div class="spinner"></div>';
   const inst = currentInstanz;
   if (!inst) return;
 
@@ -2825,6 +2831,16 @@ async function renderPlanungTab() {
       </div>
     </div>
   `;
+
+  // Position zurücksetzen, nachdem der Browser das neue Layout berechnet hat.
+  // Deckelung auf die neue Höhe: Wird der Inhalt kürzer (z. B. Kutsche
+  // gelöscht), gäbe es sonst einen Sprung ins Leere.
+  if (scrollHalten && sw) {
+    requestAnimationFrame(() => {
+      const max = Math.max(0, sw.scrollHeight - sw.clientHeight);
+      sw.scrollTop = Math.min(scrollVorher, max);
+    });
+  }
 }
 
 // Kompletten Markt (Instanz + alle Kind-Daten) per Soft-Delete entfernen.
@@ -2969,7 +2985,7 @@ async function standFahrerZuordnen(standId, marktfahrerId) {
   standZuordnungen.push(row);
   toast('✓ Zugeordnet', 'ok');
   schliesseSheet();
-  renderPlanungTab();
+  renderPlanungTab(true);
 }
 
 async function standFahrerEntfernen(zuordnungId, standId) {
@@ -2980,7 +2996,7 @@ async function standFahrerEntfernen(zuordnungId, standId) {
   standZuordnungen = standZuordnungen.filter(z => z.id !== zuordnungId);
   toast('Entfernt');
   schliesseSheet();
-  renderPlanungTab();
+  renderPlanungTab(true);
 }
 
 async function saveInstanzStatus() {
@@ -3122,14 +3138,14 @@ async function saveNeuerStand() {
   if (error) { toast('Fehler: ' + error.message, 'err'); return; }
   closeModal('modal-neuer-stand');
   toast('Kutsche angelegt', 'ok');
-  renderPlanungTab();
+  renderPlanungTab(true);
 }
 
 async function deleteStand(standId) {
   if (!(await confirmMed('Diese Kutsche wird aus dem Markt entfernt.', {titel:'Kutsche löschen', ja:'Löschen', gefahr:true}))) return;
   await dbW(sb.from('stand').update({ geloescht_am: new Date().toISOString() }).eq('id', standId), 'Kutsche speichern');
   toast('Kutsche gelöscht');
-  renderPlanungTab();
+  renderPlanungTab(true);
 }
 
 // ── KASSE TAB ─────────────────────────────────────────────────
@@ -5831,7 +5847,7 @@ async function fahrerBestaetigen(zuordnungId) {
   await dbW(sb.from('event_marktfahrer').update({ status: 'bestaetigt' }).eq('id', zuordnungId), 'Zuordnung speichern');
   toast('✓ Fahrer bestätigt', 'ok');
   openFahrerZuordnenModal();
-  renderPlanungTab();
+  renderPlanungTab(true);
 }
 
 async function fahrerZuordnen(marktfahrerId) {
@@ -5845,14 +5861,14 @@ async function fahrerZuordnen(marktfahrerId) {
   if (error) { toast('Fehler: ' + error.message, 'err'); return; }
   toast('✓ Fahrer zugeordnet', 'ok');
   openFahrerZuordnenModal(); // Modal aktualisieren
-  renderPlanungTab();
+  renderPlanungTab(true);
 }
 
 async function fahrerEntfernen(zuordnungId) {
   await dbW(sb.from('event_marktfahrer').update({ geloescht_am: new Date().toISOString() }).eq('id', zuordnungId), 'Zuordnung speichern');
   toast('Fahrer entfernt');
   openFahrerZuordnenModal();
-  renderPlanungTab();
+  renderPlanungTab(true);
 }
 
 // ── WORKFLOW / AUFGABEN ───────────────────────────────────────
@@ -6169,7 +6185,7 @@ async function aufgabeToggle(aufgabeId, erledigt, shortId, isSkaldenmet) {
     update.skaldenmet_feige_stueck = parseStk(el('skaldf-' + shortId)?.value);
   }
   await dbW(sb.from('markt_aufgabe').update(update).eq('id', aufgabeId), 'Aufgabe speichern');
-  renderPlanungTab();
+  renderPlanungTab(true);
 }
 
 // Fahrer speichern die gezählten Skaldenmet-Stückzahlen, ohne die Aufgabe
@@ -6185,7 +6201,7 @@ async function skaldenmetSpeichern(aufgabeId, shortId) {
     geaendert_am: new Date().toISOString(),
   }).eq('id', aufgabeId), 'Skaldenmet speichern');
   toast('✓ Stückzahl gespeichert', 'ok');
-  renderPlanungTab();
+  renderPlanungTab(true);
 }
 
 async function clItemToggle(itemId, instanzId, erledigt) {
@@ -6199,7 +6215,7 @@ async function clItemToggle(itemId, instanzId, erledigt) {
     await dbW(sb.from('user_checkliste_check')
       .update({ erledigt_am: null }).eq('item_id', itemId).eq('event_instanz_id', instanzId), 'Checkliste speichern');
   }
-  renderPlanungTab();
+  renderPlanungTab(true);
 }
 
 async function phasenwechsel(instanzId, neuePhase) {
@@ -6222,7 +6238,7 @@ async function deleteClItemDirect(id) {
   if (!(await confirmMed('Der Eintrag wird aus der persönlichen Checkliste entfernt.\n(Gilt für alle Märkte)', {titel:'Eintrag löschen', ja:'Löschen', gefahr:true}))) return;
   await dbW(sb.from('user_checkliste_item').update({ geloescht_am: new Date().toISOString() }).eq('id', id), 'Checkliste speichern');
   toast('Gelöscht');
-  renderPlanungTab(); // Abschnitt neu laden
+  renderPlanungTab(true); // Abschnitt neu laden
 }
 
 // ── PERSÖNLICHE CHECKLISTE (Einstellungen) ────────────────────
