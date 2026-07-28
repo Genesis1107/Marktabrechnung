@@ -233,6 +233,12 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
   background: #fff; color: #1a1410;
   font-family: Georgia, 'Times New Roman', 'Liberation Serif', serif;
   margin: 0 0 10px; box-shadow: 0 2px 12px rgba(0,0,0,.45);
+  /* Pflicht: Die Seite ist breiter als der iPhone-Viewport. Ohne diese Zeile
+     vergrößert Mobile-Safari die Schrift eigenmächtig (Text-Autosizing) –
+     die Vorschau wirkt voll, der Ausdruck bleibt halb leer, und die
+     Auto-Fit-Messung misst die aufgeblasene statt der echten Darstellung. */
+  -webkit-text-size-adjust: none; text-size-adjust: none;
+  print-color-adjust: exact; -webkit-print-color-adjust: exact;
 }
 .sl-inhalt { font-size: var(--fs); line-height: 1.28; }
 .sl-kopf { text-align: center; border-bottom: 2.5pt double #8b3a1e; padding-bottom: .45em; margin-bottom: .75em; }
@@ -431,7 +437,7 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
 
 <script>
 'use strict';
-const PK_VERSION = 'v1.4';
+const PK_VERSION = 'v1.5';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
@@ -964,7 +970,7 @@ const SL_TITEL = {
 };
 const SL_UNTERTITEL = 'Beerenweine · mit Leidenschaft & Begeisterung';
 const SL_MIN_PT = 6.5;      // darunter wird es auf Papier unlesbar
-const SL_MAX_PT = 13.0;
+const SL_MAX_PT = 18.0;
 const SL_KOMFORT_PT = 9.5;  // ab hier bleibt es einspaltig wie in der Vorlage
 
 let flyerSprachenAuswahl = [];
@@ -1061,7 +1067,8 @@ function slPasseEin(seite) {
   liste.classList.toggle('zwei', spalten === 2);
   const passt = pt !== null;
   seite.style.setProperty('--fs', (passt ? pt : SL_MIN_PT).toFixed(2) + 'pt');
-  return { spalten: spalten, pt: passt ? pt : SL_MIN_PT, passt: passt };
+  const fuellung = Math.round(inhalt.offsetHeight / zielPx * 100);
+  return { spalten: spalten, pt: passt ? pt : SL_MIN_PT, passt: passt, fuellung: fuellung };
 }
 /* Bildschirm-Vorschau auf Gerätebreite herunterrechnen; im Druck greift transform:none */
 function slSkalieren() {
@@ -1111,7 +1118,7 @@ function slSeiteHtml(blatt, sprache, produkte) {
       `</div>`;
   }
 
-  const html = `<div class="sl-seite" data-sprache="${esc(code)}">
+  const html = `<div class="sl-seite" lang="${esc(code === 'koe' ? 'de' : code)}" data-sprache="${esc(code)}">
     <div class="sl-inhalt">
       <div class="sl-kopf">
         <div class="sl-titel">${esc(slTitel(blatt.id, code))}</div>
@@ -1171,7 +1178,9 @@ async function erzeugeSortenlisten() {
   seiten.forEach((seite, i) => {
     const fit = slPasseEin(seite);
     const d = slSeitenDaten[i];
-    berichte.push(`${d.sprache.name}: ${d.anzahl} Sorten · ${fit.spalten} Spalte${fit.spalten > 1 ? 'n' : ''} · ${fit.pt.toFixed(1).replace('.', ',')} pt` +
+    berichte.push(`${d.sprache.name}: ${d.anzahl} Sorten · ${fit.spalten} Spalte${fit.spalten > 1 ? 'n' : ''} · ` +
+      `${fit.pt.toFixed(1).replace('.', ',')} pt · Seite zu ${fit.fuellung} % gefüllt` +
+      (fit.pt >= SL_MAX_PT - 0.1 ? ' (Obergrenze erreicht)' : '') +
       (fit.passt ? '' : ' ⚠️ passt nicht auf eine Seite'));
   });
   slSkalieren();
