@@ -240,6 +240,11 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
   -webkit-text-size-adjust: none; text-size-adjust: none;
   print-color-adjust: exact; -webkit-print-color-adjust: exact;
 }
+.sl-seite.rahmen { border: 2pt double #8b3a1e; padding: 5mm; }
+.sl-kopfzeile { display: flex; align-items: center; gap: .6em; margin-bottom: .2em; min-height: 1.6em; }
+.sl-preise { flex: 1; font-size: .95em; color: #6b5a40; letter-spacing: .01em; }
+.sl-flagge { flex: none; line-height: 0; }
+.sl-flagge svg { height: 2.1em; width: auto; display: block; border: .4pt solid #6b5a40; }
 .sl-inhalt { font-size: var(--fs); line-height: 1.28; }
 .sl-kopf { text-align: center; border-bottom: 2.5pt double #8b3a1e; padding-bottom: .45em; margin-bottom: .75em; }
 .sl-titel { font-size: 2.3em; line-height: 1.05; font-weight: 700; color: #8b3a1e; letter-spacing: .03em; }
@@ -399,6 +404,12 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
         <label><button class="btn btn-sm" onclick="togglePlanAnzeige()"><span id="sl-plan-pfeil">&#9656;</span> Blattplan &mdash; welche Kategorie auf welche Seite</button></label>
         <div id="sl-plan-box" class="hidden" style="margin-top:8px;"></div>
       </div>
+      <div class="field">
+        <label>Darstellung</label>
+        <label style="display:block;margin-bottom:4px;"><input type="checkbox" id="sl-opt-flagge" style="width:auto;" onchange="slOptSetzen('flagge', this.checked)"> Landesflagge im Kopf</label>
+        <label style="display:block;margin-bottom:4px;"><input type="checkbox" id="sl-opt-preise" style="width:auto;" onchange="slOptSetzen('preise', this.checked)"> Preiszeile (aus den bestellten Größen)</label>
+        <label style="display:block;margin-bottom:4px;"><input type="checkbox" id="sl-opt-rahmen" style="width:auto;" onchange="slOptSetzen('rahmen', this.checked)"> Zierrahmen</label>
+      </div>
       <p class="hint" style="margin-bottom:10px;">
         Gedruckt wird nur, was in der gewählten Bestellung vorkommt; leere Blätter entfallen.
         Schriftgröße und Spaltenzahl bestimmt die App selbst, damit jedes Blatt auf <b>eine</b> Seite passt.
@@ -441,7 +452,7 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
 
 <script>
 'use strict';
-const PK_VERSION = 'v1.6';
+const PK_VERSION = 'v1.7';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
@@ -994,6 +1005,88 @@ const SL_MIN_PT = 6.5;
 const SL_MAX_PT = 18.0;
 const SL_KOMFORT_PT = 9.5;  // ab hier bleibt es einspaltig wie in der Vorlage
 const SL_PLAN_KEY = 'pk_sortenliste_plan_v1';
+const SL_OPT_KEY = 'pk_sortenliste_opt_v1';
+
+/* Flaggen als Inline-SVG: keine Dateien, kein CDN, druckt zuverlässig.
+   Emoji-Flaggen wären einfacher, fehlen aber unter Windows und drucken unsauber.
+   Kölsch: Stadtfarben Weiß/Rot ohne Wappen – das Kölner Wappen ist zu fein für 2 em. */
+let slFlaggenNr = 0;
+function slFlagge(code) {
+  const b = '<svg viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">';
+  const e = '</svg>';
+  if (code === 'de') return b + '<rect width="60" height="13.34" y="0" fill="#000"/><rect width="60" height="13.33" y="13.34" fill="#DD0000"/><rect width="60" height="13.33" y="26.67" fill="#FFCE00"/>' + e;
+  if (code === 'fr') return b + '<rect width="20" height="40" x="0" fill="#002395"/><rect width="20" height="40" x="20" fill="#fff"/><rect width="20" height="40" x="40" fill="#ED2939"/>' + e;
+  if (code === 'nl') return b + '<rect width="60" height="13.34" y="0" fill="#AE1C28"/><rect width="60" height="13.33" y="13.34" fill="#fff"/><rect width="60" height="13.33" y="26.67" fill="#21468B"/>' + e;
+  if (code === 'es') return b + '<rect width="60" height="10" y="0" fill="#AA151B"/><rect width="60" height="20" y="10" fill="#F1BF00"/><rect width="60" height="10" y="30" fill="#AA151B"/>' + e;
+  if (code === 'koe') return b + '<rect width="60" height="20" y="0" fill="#fff"/><rect width="60" height="20" y="20" fill="#DA121A"/>' + e;
+  if (code === 'en') {
+    const id = 'uj' + (++slFlaggenNr);
+    return '<svg viewBox="0 0 60 30" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+      '<clipPath id="' + id + '"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath>' +
+      '<rect width="60" height="30" fill="#012169"/>' +
+      '<path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/>' +
+      '<path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#' + id + ')" stroke="#C8102E" stroke-width="4"/>' +
+      '<path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/>' +
+      '<path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/></svg>';
+  }
+  return '';
+}
+
+/* Preis einer bestellten Variante: einheitliche Kategorien über kategorie_preis,
+   gesonderte über den Variantenpreis. */
+function slPreisCent(produkt, groesse) {
+  const kat = cache.kategorien.find(k => k.id === produkt.kategorie_id);
+  if (kat && kat.preis_modus === 'einheitlich') {
+    const kp = cache.katPreise.find(x => x.kategorie_id === kat.id && x.groesse === groesse);
+    return kp ? kp.preis_cent : null;
+  }
+  const v = cache.varianten.find(x => x.produkt_id === produkt.id && x.groesse === groesse);
+  return (v && v.preis_cent != null) ? v.preis_cent : null;
+}
+function slEuro(cent) {
+  return (cent % 100 === 0)
+    ? (cent / 100) + ',– €'
+    : (cent / 100).toLocaleString('de-DE', { minimumFractionDigits: 2 }) + ' €';
+}
+function slGroesseZahl(g) {
+  const m = String(g).replace(',', '.').match(/[\d.]+/);
+  return m ? parseFloat(m[0]) : 99;
+}
+/* Preiszeile eines Blattes: nur die Größen, die auf dem Blatt wirklich bestellt sind.
+   Mehrere Preise für dieselbe Größe (z. B. Met neben starken Spezialitäten) → „ab". */
+function slPreisZeile(gruppen, groessenJeProdukt) {
+  const proGroesse = new Map();
+  for (const gr of gruppen) {
+    for (const prod of gr.produkte) {
+      for (const g of (groessenJeProdukt.get(prod.id) || [])) {
+        const cent = slPreisCent(prod, g);
+        if (cent == null) continue;
+        if (!proGroesse.has(g)) proGroesse.set(g, new Set());
+        proGroesse.get(g).add(cent);
+      }
+    }
+  }
+  return [...proGroesse.entries()]
+    .sort((a, b) => slGroesseZahl(a[0]) - slGroesseZahl(b[0]) || a[0].localeCompare(b[0], 'de'))
+    .map(([g, preise]) => {
+      const min = Math.min(...preise);
+      return esc(g) + ' l ' + (preise.size > 1 ? 'ab ' : '') + slEuro(min);
+    }).join(' &nbsp;·&nbsp; ');
+}
+
+/* Darstellungsoptionen */
+const SL_OPT_STANDARD = { flagge: true, preise: true, rahmen: true };
+let slOpt = null;
+function slOptLaden() {
+  let o = null;
+  try { o = JSON.parse(localStorage.getItem(SL_OPT_KEY) || 'null'); } catch (e) { o = null; }
+  slOpt = Object.assign({}, SL_OPT_STANDARD, (o && typeof o === 'object') ? o : {});
+}
+function slOptSetzen(feld, an) {
+  if (!slOpt) slOptLaden();
+  slOpt[feld] = !!an;
+  try { localStorage.setItem(SL_OPT_KEY, JSON.stringify(slOpt)); } catch (e) { /* Privatmodus */ }
+}
 
 let flyerSprachenAuswahl = [];
 let slPlan = null;
@@ -1054,6 +1147,10 @@ function renderBlattplan() {
 async function initFlyer() {
   el('flyer-status').textContent = '';
   if (!slPlan) slPlanLaden();
+  if (!slOpt) slOptLaden();
+  el('sl-opt-flagge').checked = slOpt.flagge;
+  el('sl-opt-preise').checked = slOpt.preise;
+  el('sl-opt-rahmen').checked = slOpt.rahmen;
   renderBlattplan();
   el('sl-plan-box').classList.toggle('hidden', !slPlanOffen);
   el('sl-plan-pfeil').textContent = slPlanOffen ? '▾' : '▸';
@@ -1160,7 +1257,7 @@ function slSchliessen() {
 }
 
 /* ── Seitenaufbau ───────────────────────────────────────────── */
-function slSeiteHtml(blattId, sprache, gruppen) {
+function slSeiteHtml(blattId, sprache, gruppen, groessenJeProdukt) {
   const code = sprache.code;
   const mehrereKats = gruppen.length > 1;
   let fehlend = 0, anzahl = 0, liste = '';
@@ -1186,8 +1283,15 @@ function slSeiteHtml(blattId, sprache, gruppen) {
     }
   }
 
-  const html = `<div class="sl-seite" lang="${esc(slSortKey(code))}" data-sprache="${esc(code)}">
+  const preisZeile = slOpt.preise ? slPreisZeile(gruppen, groessenJeProdukt) : '';
+  const flaggeSvg = slOpt.flagge ? slFlagge(code) : '';
+  const kopfzeile = (preisZeile || flaggeSvg)
+    ? `<div class="sl-kopfzeile"><div class="sl-preise">${preisZeile}</div><div class="sl-flagge">${flaggeSvg}</div></div>`
+    : '';
+
+  const html = `<div class="sl-seite${slOpt.rahmen ? ' rahmen' : ''}" lang="${esc(slSortKey(code))}" data-sprache="${esc(code)}">
     <div class="sl-inhalt">
+      ${kopfzeile}
       <div class="sl-kopf">
         <div class="sl-titel">${esc(slTitel(blattId, code))}</div>
         <div class="sl-sub">${esc(SL_UNTERTITEL)}</div>
@@ -1205,15 +1309,22 @@ async function erzeugeSortenlisten() {
   const sprachen = aktiveSprachen().filter(s => flyerSprachenAuswahl.includes(s.code));
   if (!sprachen.length) { toast('Bitte mindestens eine Sprache wählen'); return; }
   if (!slPlan) slPlanLaden();
+  if (!slOpt) slOptLaden();
 
   el('flyer-status').textContent = 'Lade Bestellpositionen…';
   const { data: pos, error } = await sb.from('bestellposition')
-    .select('menge, variante:variante_id(produkt_id)')
+    .select('menge, variante:variante_id(produkt_id, groesse)')
     .eq('bestellung_id', bestId)
     .is('geloescht_am', null);
   if (error) { console.error(error); toast('⚠️ Positionen laden fehlgeschlagen'); el('flyer-status').textContent = ''; return; }
 
-  const produktIds = [...new Set((pos || []).filter(x => x.variante && Number(x.menge) > 0).map(x => x.variante.produkt_id))];
+  const bestellPos = (pos || []).filter(x => x.variante && Number(x.menge) > 0);
+  const produktIds = [...new Set(bestellPos.map(x => x.variante.produkt_id))];
+  const groessenJeProdukt = new Map();
+  for (const x of bestellPos) {
+    if (!groessenJeProdukt.has(x.variante.produkt_id)) groessenJeProdukt.set(x.variante.produkt_id, new Set());
+    groessenJeProdukt.get(x.variante.produkt_id).add(x.variante.groesse);
+  }
   const bestellt = produktIds.map(id => cache.produkte.find(p => p.id === id)).filter(Boolean);
   if (!bestellt.length) { el('flyer-status').textContent = 'Diese Bestellung enthält keine Produkte.'; return; }
 
@@ -1236,7 +1347,7 @@ async function erzeugeSortenlisten() {
   slSeitenDaten = [];
   for (const sp of sprachen) {
     for (const bl of blaetter) {
-      const r = slSeiteHtml(bl.id, sp, bl.gruppen);
+      const r = slSeiteHtml(bl.id, sp, bl.gruppen, groessenJeProdukt);
       slSeitenDaten.push({ sprache: sp, blattId: bl.id, html: r.html, anzahl: r.anzahl, fehlend: r.fehlend });
     }
   }
