@@ -395,10 +395,14 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
         <label>Sprachen &mdash; je Sprache ein Blatt</label>
         <div class="chips" id="flyer-sprachen" style="padding-top:2px;"></div>
       </div>
+      <div class="field">
+        <label><button class="btn btn-sm" onclick="togglePlanAnzeige()"><span id="sl-plan-pfeil">&#9656;</span> Blattplan &mdash; welche Kategorie auf welche Seite</button></label>
+        <div id="sl-plan-box" class="hidden" style="margin-top:8px;"></div>
+      </div>
       <p class="hint" style="margin-bottom:10px;">
-        <b>Schritt 1:</b> gedruckt wird das Blatt <b>Fruchtweine</b> (Kategorie Wein) &mdash; und zwar nur,
-        was in der gewählten Bestellung vorkommt. Schriftgröße und Spaltenzahl bestimmt die App selbst,
-        damit die Kategorie auf <b>eine</b> Seite passt. Sortiert wird alphabetisch nach dem übersetzten Namen.
+        Gedruckt wird nur, was in der gewählten Bestellung vorkommt; leere Blätter entfallen.
+        Schriftgröße und Spaltenzahl bestimmt die App selbst, damit jedes Blatt auf <b>eine</b> Seite passt.
+        Sortiert wird je Kategorie alphabetisch nach dem übersetzten Namen.
       </p>
       <button class="btn btn-primary btn-full" onclick="erzeugeSortenlisten()">Vorschau erzeugen</button>
       <div id="flyer-status" class="hint" style="margin-top:10px;"></div>
@@ -437,7 +441,7 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
 
 <script>
 'use strict';
-const PK_VERSION = 'v1.5';
+const PK_VERSION = 'v1.6';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
@@ -952,14 +956,17 @@ function openWikiZelle(pid, code) {
 
 /* ── FLYER ──────────────────────────────────────────────────── */
 /* ── SORTENLISTEN (A4-Druck) ────────────────────────────────── */
-/* Blattplan: welche Kategorien teilen sich eine Seite. Reihenfolge = Druckreihenfolge.
-   Schritt 1 druckt ausschließlich Blatt 1; die übrigen folgen in Schritt 2 samt Blattplan-UI. */
-const SL_BLAETTER = [
-  { id: 'fruchtwein', kategorien: ['Wein'] },
-  { id: 'honigwein',  kategorien: ['Met', 'Hochprozentiges', 'Lizenzprodukte', 'Rittermet'] },
-  { id: 'schnaps',    kategorien: ['Schnaps/Likör'] },
-  { id: 'ginrum',     kategorien: ['Gin/Rum', 'Absinth', 'Secco', 'Alkoholfreies'] }
-];
+/* Ein „Blatt" ist eine DIN-A4-Seite. Welche Kategorien darauf zusammenkommen,
+   steht im Blattplan – änderbar im UI, gespeichert in localStorage.
+   Die Reihenfolge der Kategorien innerhalb eines Blattes ist die Reihenfolge
+   in dieser Liste; umgehängte Kategorien landen am Ende ihres neuen Blattes. */
+const SL_BLATT_IDS = ['fruchtwein', 'honigwein', 'schnaps', 'ginrum'];
+const SL_PLAN_STANDARD = {
+  fruchtwein: ['Wein'],
+  honigwein:  ['Met', 'Hochprozentiges', 'Lizenzprodukte', 'Rittermet'],
+  schnaps:    ['Schnaps/Likör'],
+  ginrum:     ['Gin/Rum', 'Absinth', 'Secco', 'Alkoholfreies']
+};
 /* Blatt-Titel je Sprache. Fehlt ein Eintrag, greift der deutsche Titel
    (bewusst so für Kölsch – dafür liegt keine belegte Übersetzung vor). */
 const SL_TITEL = {
@@ -968,19 +975,91 @@ const SL_TITEL = {
   schnaps:    { de: 'Schnaps & Likör', en: 'Spirits & Liqueurs', fr: 'Eaux-de-vie & Liqueurs', es: 'Aguardientes y Licores', nl: 'Sterke drank & Likeuren' },
   ginrum:     { de: 'Gin & Rum', en: 'Gin & Rum', fr: 'Gin & Rhum', es: 'Ginebra y Ron', nl: 'Gin & Rum' }
 };
+/* Zwischenüberschriften, wenn mehrere Kategorien auf einem Blatt stehen.
+   „Lizenzprodukte" ist ein interner Begriff und heißt auf dem Blatt „Editionen". */
+const SL_KAT_TITEL = {
+  'Wein':            { de: 'Fruchtweine', en: 'Fruit Wines', fr: 'Vins de Fruit', es: 'Vinos de Frutas', nl: 'Vruchtenwijnen' },
+  'Met':             { de: 'Met', en: 'Mead', fr: 'Hydromel', es: 'Hidromiel', nl: 'Mede' },
+  'Hochprozentiges': { de: 'Starke Spezialitäten', en: 'Strong Specialities', fr: 'Spécialités fortes', es: 'Especialidades fuertes', nl: 'Sterke specialiteiten' },
+  'Lizenzprodukte':  { de: 'Editionen', en: 'Editions', fr: 'Éditions', es: 'Ediciones', nl: 'Edities' },
+  'Rittermet':       { de: 'Rittermet' },
+  'Schnaps/Likör':   { de: 'Schnaps & Likör', en: 'Spirits & Liqueurs', fr: 'Eaux-de-vie & Liqueurs', es: 'Aguardientes y Licores', nl: 'Sterke drank & Likeuren' },
+  'Absinth':         { de: 'Absinth', en: 'Absinthe', fr: 'Absinthe', es: 'Absenta', nl: 'Absint' },
+  'Secco':           { de: 'Secco' },
+  'Gin/Rum':         { de: 'Gin & Rum', en: 'Gin & Rum', fr: 'Gin & Rhum', es: 'Ginebra y Ron', nl: 'Gin & Rum' },
+  'Alkoholfreies':   { de: 'Alkoholfrei', en: 'Non-Alcoholic', fr: 'Sans alcool', es: 'Sin alcohol', nl: 'Alcoholvrij' }
+};
 const SL_UNTERTITEL = 'Beerenweine · mit Leidenschaft & Begeisterung';
-const SL_MIN_PT = 6.5;      // darunter wird es auf Papier unlesbar
+const SL_MIN_PT = 6.5;
 const SL_MAX_PT = 18.0;
 const SL_KOMFORT_PT = 9.5;  // ab hier bleibt es einspaltig wie in der Vorlage
+const SL_PLAN_KEY = 'pk_sortenliste_plan_v1';
 
 let flyerSprachenAuswahl = [];
+let slPlan = null;
 let slSeitenDaten = [];
+let slPlanOffen = false;
+
+/* ── Blattplan laden/speichern ──────────────────────────────── */
+function slPlanLaden() {
+  let plan = null;
+  try { plan = JSON.parse(localStorage.getItem(SL_PLAN_KEY) || 'null'); } catch (e) { plan = null; }
+  if (!plan || typeof plan !== 'object') plan = JSON.parse(JSON.stringify(SL_PLAN_STANDARD));
+  SL_BLATT_IDS.forEach(id => { if (!Array.isArray(plan[id])) plan[id] = []; });
+  slPlan = plan;
+}
+function slPlanSpeichern() {
+  try { localStorage.setItem(SL_PLAN_KEY, JSON.stringify(slPlan)); } catch (e) { /* Privatmodus: egal */ }
+}
+function slPlanZuruecksetzen() {
+  slPlan = JSON.parse(JSON.stringify(SL_PLAN_STANDARD));
+  slPlanSpeichern();
+  renderBlattplan();
+  toast('Blattplan auf Standard zurückgesetzt');
+}
+function slBlattVon(katName) {
+  for (const id of SL_BLATT_IDS) if (slPlan[id].includes(katName)) return id;
+  return '';
+}
+function slKatUmhaengen(katName, zielId) {
+  SL_BLATT_IDS.forEach(id => { slPlan[id] = slPlan[id].filter(n => n !== katName); });
+  if (zielId) slPlan[zielId].push(katName);
+  slPlanSpeichern();
+  renderBlattplan();
+}
+function togglePlanAnzeige() {
+  slPlanOffen = !slPlanOffen;
+  el('sl-plan-box').classList.toggle('hidden', !slPlanOffen);
+  el('sl-plan-pfeil').textContent = slPlanOffen ? '▾' : '▸';
+}
+function renderBlattplan() {
+  const zeilen = cache.kategorien.map(k => {
+    const aktiv = slBlattVon(k.name);
+    const opts = ['<option value=""' + (aktiv ? '' : ' selected') + '>— nicht drucken —</option>']
+      .concat(SL_BLATT_IDS.map(id =>
+        `<option value="${id}"${aktiv === id ? ' selected' : ''}>${esc(slTitel(id, 'de'))}</option>`)).join('');
+    return `<div class="field" style="margin-bottom:6px;">
+      <label>${esc(k.name)}</label>
+      <select onchange="slKatUmhaengen('${esc(k.name).replace(/'/g, "\\'")}', this.value)">${opts}</select>
+    </div>`;
+  }).join('');
+  const uebersicht = SL_BLATT_IDS.map((id, i) =>
+    `<b>Blatt ${i + 1} · ${esc(slTitel(id, 'de'))}:</b> ${slPlan[id].length ? esc(slPlan[id].join(', ')) : '<i>leer</i>'}`
+  ).join('<br>');
+  el('sl-plan-box').innerHTML =
+    `<p class="hint" style="margin-bottom:10px;">${uebersicht}</p>` + zeilen +
+    `<button class="btn btn-full" onclick="slPlanZuruecksetzen()">Standard wiederherstellen</button>`;
+}
 
 async function initFlyer() {
   el('flyer-status').textContent = '';
-  const fremd = aktiveSprachen();
+  if (!slPlan) slPlanLaden();
+  renderBlattplan();
+  el('sl-plan-box').classList.toggle('hidden', !slPlanOffen);
+  el('sl-plan-pfeil').textContent = slPlanOffen ? '▾' : '▸';
+  const sprachen = aktiveSprachen();
   if (!flyerSprachenAuswahl.length) flyerSprachenAuswahl = ['de'];
-  el('flyer-sprachen').innerHTML = fremd.map(s =>
+  el('flyer-sprachen').innerHTML = sprachen.map(s =>
     `<button class="chip ${flyerSprachenAuswahl.includes(s.code) ? 'active' : ''}" onclick="toggleFlyerSprache('${esc(s.code)}')">${esc(s.name)}</button>`
   ).join('');
   const { data, error } = await sb.from('bestellung')
@@ -1008,6 +1087,10 @@ function slTitel(blattId, code) {
   const t = SL_TITEL[blattId] || {};
   return t[code] || t.de || '';
 }
+function slKatTitel(katName, code) {
+  const t = SL_KAT_TITEL[katName] || {};
+  return t[code] || t.de || katName;
+}
 function slAlkohol(wert, code) {
   if (wert === null || wert === undefined || wert === '') return '';
   const n = Number(wert);
@@ -1015,7 +1098,6 @@ function slAlkohol(wert, code) {
   const roh = String(n);
   return (code === 'en' ? roh : roh.replace('.', ',')) + ' % vol';
 }
-/* Name + Kurzbeschreibung in der Zielsprache, mit Rückfall auf Deutsch */
 function slText(pid, code) {
   const t = textVon(pid, code);
   const de = textVon(pid, 'de');
@@ -1025,18 +1107,10 @@ function slText(pid, code) {
     deName: (de && de.name) || null
   };
 }
+function slSortKey(code) { return code === 'koe' ? 'de' : code; }
+function slWarte() { return new Promise(r => requestAnimationFrame(() => r())); }
 
-/* ── Auto-Fit: mm→px, Schriftsuche, Spaltenentscheidung ─────── */
-function slMmZuPx(mm) {
-  const probe = document.createElement('div');
-  probe.style.cssText = 'position:absolute;visibility:hidden;width:1px;height:' + mm + 'mm';
-  document.body.appendChild(probe);
-  const px = probe.offsetHeight;
-  probe.remove();
-  return px;
-}
-/* Binäre Suche nach der größten Schrift, bei der der Inhalt noch passt.
-   Rückgabe null = passt selbst bei SL_MIN_PT nicht. */
+/* ── Auto-Fit ───────────────────────────────────────────────── */
 function slSuchGroesse(seite, inhalt, zielPx) {
   seite.style.setProperty('--fs', SL_MIN_PT.toFixed(2) + 'pt');
   if (inhalt.offsetHeight > zielPx) return null;
@@ -1070,7 +1144,6 @@ function slPasseEin(seite) {
   const fuellung = Math.round(inhalt.offsetHeight / zielPx * 100);
   return { spalten: spalten, pt: passt ? pt : SL_MIN_PT, passt: passt, fuellung: fuellung };
 }
-/* Bildschirm-Vorschau auf Gerätebreite herunterrechnen; im Druck greift transform:none */
 function slSkalieren() {
   const skala = el('sl-skala'), buehne = el('sl-buehne');
   if (!skala || !buehne || !skala.firstElementChild) return;
@@ -1087,48 +1160,43 @@ function slSchliessen() {
 }
 
 /* ── Seitenaufbau ───────────────────────────────────────────── */
-function slSeiteHtml(blatt, sprache, produkte) {
+function slSeiteHtml(blattId, sprache, gruppen) {
   const code = sprache.code;
-  const mehrereKats = blatt.kategorien.length > 1;
-  let fehlend = 0;
+  const mehrereKats = gruppen.length > 1;
+  let fehlend = 0, anzahl = 0, liste = '';
 
-  const eintraege = produkte.map(p => {
-    const t = slText(p.id, code);
-    const name = t.name || p.name;
-    if (!t.name || !t.kurz) fehlend++;
-    return { p: p, name: name, kurz: t.kurz, deName: t.deName || p.name };
-  }).sort((a, b) => a.name.localeCompare(b.name, code === 'koe' ? 'de' : code));
-
-  let liste = '';
-  let letzteKat = null;
-  for (const e of eintraege) {
-    if (mehrereKats) {
-      const kn = katName(e.p.kategorie_id);
-      if (kn !== letzteKat) { liste += `<div class="sl-katkopf">${esc(kn)}</div>`; letzteKat = kn; }
+  for (const gr of gruppen) {
+    const eintraege = gr.produkte.map(p => {
+      const t = slText(p.id, code);
+      if (!t.name || !t.kurz) fehlend++;
+      return { p: p, name: t.name || p.name, kurz: t.kurz, deName: t.deName || p.name };
+    }).sort((x, y) => x.name.localeCompare(y.name, slSortKey(code)));
+    anzahl += eintraege.length;
+    if (mehrereKats) liste += `<div class="sl-katkopf">${esc(slKatTitel(gr.kat, code))}</div>`;
+    for (const e of eintraege) {
+      const alk = slAlkohol(e.p.alkohol_vol, code);
+      liste += `<div class="sl-eintrag">` +
+        `<div><span class="sl-name">${esc(e.name)}</span>` +
+        (alk ? `<span class="sl-alk"> – ${esc(alk)}</span>` : '') +
+        (code === 'de' ? '' : ` <span class="sl-de">(${esc(e.deName)})</span>`) +
+        (e.p.vegan ? `<span class="sl-v">V</span>` : '') +
+        `</div>` +
+        (e.kurz ? `<div class="sl-text">${esc(e.kurz)}</div>` : '') +
+        `</div>`;
     }
-    const alk = slAlkohol(e.p.alkohol_vol, code);
-    const deTeil = code === 'de' ? '' : ` <span class="sl-de">(${esc(e.deName)})</span>`;
-    liste += `<div class="sl-eintrag">` +
-      `<div><span class="sl-name">${esc(e.name)}</span>` +
-      (alk ? `<span class="sl-alk"> – ${esc(alk)}</span>` : '') +
-      deTeil +
-      (e.p.vegan ? `<span class="sl-v">V</span>` : '') +
-      `</div>` +
-      (e.kurz ? `<div class="sl-text">${esc(e.kurz)}</div>` : '') +
-      `</div>`;
   }
 
-  const html = `<div class="sl-seite" lang="${esc(code === 'koe' ? 'de' : code)}" data-sprache="${esc(code)}">
+  const html = `<div class="sl-seite" lang="${esc(slSortKey(code))}" data-sprache="${esc(code)}">
     <div class="sl-inhalt">
       <div class="sl-kopf">
-        <div class="sl-titel">${esc(slTitel(blatt.id, code))}</div>
+        <div class="sl-titel">${esc(slTitel(blattId, code))}</div>
         <div class="sl-sub">${esc(SL_UNTERTITEL)}</div>
       </div>
       <div class="sl-liste">${liste}</div>
       <div class="sl-fuss"><span class="sl-legende">V</span> = Vegan &nbsp;·&nbsp; www.beerenweine.eu</div>
     </div>
   </div>`;
-  return { html: html, anzahl: eintraege.length, fehlend: fehlend };
+  return { html: html, anzahl: anzahl, fehlend: fehlend };
 }
 
 async function erzeugeSortenlisten() {
@@ -1136,6 +1204,7 @@ async function erzeugeSortenlisten() {
   if (!bestId) { toast('Bitte Bestellung wählen'); return; }
   const sprachen = aktiveSprachen().filter(s => flyerSprachenAuswahl.includes(s.code));
   if (!sprachen.length) { toast('Bitte mindestens eine Sprache wählen'); return; }
+  if (!slPlan) slPlanLaden();
 
   el('flyer-status').textContent = 'Lade Bestellpositionen…';
   const { data: pos, error } = await sb.from('bestellposition')
@@ -1145,28 +1214,39 @@ async function erzeugeSortenlisten() {
   if (error) { console.error(error); toast('⚠️ Positionen laden fehlgeschlagen'); el('flyer-status').textContent = ''; return; }
 
   const produktIds = [...new Set((pos || []).filter(x => x.variante && Number(x.menge) > 0).map(x => x.variante.produkt_id))];
-  const blatt = SL_BLAETTER[0];
-  const katIds = cache.kategorien.filter(k => blatt.kategorien.includes(k.name)).map(k => k.id);
-  const produkte = produktIds
-    .map(id => cache.produkte.find(p => p.id === id))
-    .filter(p => p && katIds.includes(p.kategorie_id));
+  const bestellt = produktIds.map(id => cache.produkte.find(p => p.id === id)).filter(Boolean);
+  if (!bestellt.length) { el('flyer-status').textContent = 'Diese Bestellung enthält keine Produkte.'; return; }
 
-  if (!produkte.length) {
-    el('flyer-status').textContent = 'In dieser Bestellung sind keine Produkte der Kategorie „Wein“ enthalten.';
-    return;
+  // Blätter aus dem Plan füllen; leere Blätter fallen weg
+  const blaetter = [];
+  for (const id of SL_BLATT_IDS) {
+    const gruppen = [];
+    for (const kn of slPlan[id]) {
+      const kat = cache.kategorien.find(k => k.name === kn);
+      if (!kat) continue;
+      const prod = bestellt.filter(p => p.kategorie_id === kat.id);
+      if (prod.length) gruppen.push({ kat: kn, produkte: prod });
+    }
+    if (gruppen.length) blaetter.push({ id: id, gruppen: gruppen });
   }
+  const ohneBlatt = bestellt.filter(p => !slBlattVon(katName(p.kategorie_id))).length;
+  if (!blaetter.length) { el('flyer-status').textContent = 'Kein Blatt enthält Produkte dieser Bestellung – Blattplan prüfen.'; return; }
 
-  slSeitenDaten = sprachen.map(s => {
-    const r = slSeiteHtml(blatt, s, produkte);
-    return { sprache: s, html: r.html, anzahl: r.anzahl, fehlend: r.fehlend };
-  });
+  // Seiten je Sprache, Sprachsätze bleiben zusammen
+  slSeitenDaten = [];
+  for (const sp of sprachen) {
+    for (const bl of blaetter) {
+      const r = slSeiteHtml(bl.id, sp, bl.gruppen);
+      slSeitenDaten.push({ sprache: sp, blattId: bl.id, html: r.html, anzahl: r.anzahl, fehlend: r.fehlend });
+    }
+  }
 
   const druck = el('flyer-print');
   druck.innerHTML =
     `<div class="sl-leiste">` +
       `<button onclick="slSchliessen()">✕ Schließen</button>` +
       `<button class="prim" onclick="window.print()">🖨 Drucken / PDF</button>` +
-      `<div class="sl-info" id="sl-info"></div>` +
+      `<div class="sl-info" id="sl-info">Setze Seiten…</div>` +
     `</div>` +
     `<div id="sl-buehne"><div id="sl-skala">` + slSeitenDaten.map(d => d.html).join('') + `</div></div>`;
   druck.classList.add('offen');
@@ -1175,19 +1255,25 @@ async function erzeugeSortenlisten() {
   // Auto-Fit erst nach dem Sichtbarmachen – vorher liefert der Browser keine Maße
   const seiten = druck.querySelectorAll('.sl-seite');
   const berichte = [];
-  seiten.forEach((seite, i) => {
-    const fit = slPasseEin(seite);
+  let warnungen = 0;
+  for (let i = 0; i < seiten.length; i++) {
+    el('sl-info').textContent = `Setze Seite ${i + 1} von ${seiten.length}…`;
+    await slWarte();
+    const fit = slPasseEin(seiten[i]);
     const d = slSeitenDaten[i];
-    berichte.push(`${d.sprache.name}: ${d.anzahl} Sorten · ${fit.spalten} Spalte${fit.spalten > 1 ? 'n' : ''} · ` +
-      `${fit.pt.toFixed(1).replace('.', ',')} pt · Seite zu ${fit.fuellung} % gefüllt` +
-      (fit.pt >= SL_MAX_PT - 0.1 ? ' (Obergrenze erreicht)' : '') +
+    if (!fit.passt) warnungen++;
+    berichte.push(`${d.sprache.name} · ${slTitel(d.blattId, 'de')}: ${d.anzahl} Sorten, ` +
+      `${fit.spalten} Spalte${fit.spalten > 1 ? 'n' : ''}, ${fit.pt.toFixed(1).replace('.', ',')} pt, ${fit.fuellung} % gefüllt` +
+      (fit.pt >= SL_MAX_PT - 0.1 ? ' (Obergrenze)' : '') +
       (fit.passt ? '' : ' ⚠️ passt nicht auf eine Seite'));
-  });
+  }
   slSkalieren();
 
-  const fehlendGesamt = slSeitenDaten.reduce((a, d) => a + d.fehlend, 0);
-  el('sl-info').textContent = berichte.join(' · ');
-  el('flyer-status').innerHTML = esc(berichte.join(' — ')) +
+  const fehlendGesamt = slSeitenDaten.reduce((sum, d) => sum + d.fehlend, 0);
+  el('sl-info').textContent = `${seiten.length} Seite${seiten.length > 1 ? 'n' : ''}` +
+    (warnungen ? ` · ${warnungen} zu voll` : '') + (fehlendGesamt ? ` · ${fehlendGesamt} Textlücken` : '');
+  el('flyer-status').innerHTML = berichte.map(t => esc(t)).join('<br>') +
+    (ohneBlatt ? `<br>ℹ️ ${ohneBlatt} bestellte Produkte stehen auf keinem Blatt (Blattplan).` : '') +
     (fehlendGesamt ? `<br>⚠️ ${fehlendGesamt} fehlende Übersetzung(en) – im Wiki ergänzen.` : '<br>Alle Übersetzungen vorhanden.');
 }
 
