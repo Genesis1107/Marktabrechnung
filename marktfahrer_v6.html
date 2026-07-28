@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.72</title>
+<title>Marktfahrer · v6.73</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -598,7 +598,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.72</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.73</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -715,7 +715,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.72</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.73</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -1037,8 +1037,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
   <div class="modal-box">
     <div class="modal-title">🔑 Login anlegen</div>
     <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">
-      Zugang für <strong id="fl-name">—</strong>. Der Fahrer meldet sich damit in der App an
-      und sieht nur die eigenen Märkte.
+      Zugang für <strong id="fl-name">—</strong>. Was er oder sie sehen darf, steuert die Rolle.
     </p>
     <div class="field">
       <label>E-Mail *</label>
@@ -1047,6 +1046,17 @@ body.rolle-fahrer .admin-only { display: none !important; }
     <div class="field">
       <label>Passwort * (mind. 8 Zeichen)</label>
       <input type="text" id="fl-passwort" placeholder="Passwort festlegen" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Rolle *</label>
+      <select id="fl-rolle" onchange="flRolleHinweis()">
+        <option value="marktfahrer">Marktfahrer – nur eigene Märkte</option>
+        <option value="marktleiter">Marktleiter – alles außer Verwaltung</option>
+        <option value="lager">Lager – Bestellungen</option>
+        <option value="buchhaltung">Buchhaltung – nur lesen</option>
+        <option value="admin">Admin – Vollzugriff</option>
+      </select>
+      <p style="font-size:11px;color:var(--text3);margin-top:4px;" id="fl-rolle-hinweis"></p>
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('modal-fahrer-login')">Abbrechen</button>
@@ -1065,7 +1075,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.72';
+const APP_VERSION = 'v6.73';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -5720,25 +5730,58 @@ async function loadMarktfahrerListe() {
     wrap.innerHTML = '<p style="color:var(--text3);font-size:14px;">Noch keine Marktfahrer angelegt.</p>';
     return;
   }
-  wrap.innerHTML = allMarktfahrer.map(mf => `
+  // Rollen dazuladen: sonst steht bei jedem Login nur "verknüpft" und man sieht
+  // nicht, wer Admin ist. user_rolle ist für Admins per RLS lesbar.
+  const uids = allMarktfahrer.filter(m => m.user_id).map(m => m.user_id);
+  const rolleMap = {};
+  if (uids.length) {
+    const { data: rr } = await sb.from('user_rolle').select('user_id, rolle').in('user_id', uids);
+    (rr || []).forEach(r => { rolleMap[r.user_id] = r.rolle; });
+  }
+  const ROLLE_LABEL = { admin: '👑 Admin', marktleiter: 'Marktleiter', marktfahrer: 'Marktfahrer',
+                        lager: 'Lager', buchhaltung: 'Buchhaltung' };
+  wrap.innerHTML = allMarktfahrer.map(mf => {
+    const rolle = mf.user_id ? rolleMap[mf.user_id] : null;
+    const rolleTxt = rolle
+      ? `<div class="card-sub" style="color:${rolle === 'admin' ? 'var(--gold)' : 'var(--green2)'};">✓ Login · ${ROLLE_LABEL[rolle] || rolle}</div>`
+      : (mf.user_id ? '<div class="card-sub" style="color:var(--green2);">✓ Login verknüpft</div>' : '');
+    return `
     <div class="card" style="cursor:default;margin-bottom:8px;">
       <div class="card-row">
         <div>
           <div class="card-title">${esc(mf.name)}</div>
           ${mf.telefon ? `<div class="card-sub">📞 ${mf.telefon}</div>` : ''}
-          ${mf.user_id ? '<div class="card-sub" style="color:var(--green2);">✓ Login verknüpft</div>' : ''}
+          ${rolleTxt}
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
           ${!mf.user_id ? `<button class="btn btn-sm" onclick="openFahrerLoginModal('${mf.id}')">🔑 Login anlegen</button>` : ''}
           <button class="btn btn-sm btn-danger" onclick="deleteMarktfahrer('${mf.id}')">✕</button>
         </div>
       </div>
-    </div>`
-  ).join('');
+    </div>`;
+  }).join('');
 }
 
 // ── FAHRER-LOGIN ANLEGEN (via Edge Function 'fahrer-anlegen') ─
 let _loginMfId = null;
+
+// Kurzer Klartext zur gewählten Rolle. Admin bekommt eine deutliche Warnung –
+// die Rolle ist dem eigenen Konto gleichgestellt und lässt sich in der App
+// nicht wieder herabstufen.
+const FL_ROLLEN_TEXT = {
+  marktfahrer: 'Sieht nur zugeteilte Märkte, schreibt Kasse, Bestellungen und Stunden.',
+  marktleiter: 'Liest und schreibt alles außer der Verwaltung.',
+  lager:       'Liest Bestellungen und ändert deren Status.',
+  buchhaltung: 'Darf ausschließlich lesen.',
+  admin:       '⚠️ Vollzugriff auf alle Märkte, Kassendaten und Löschfunktionen – wie dein eigenes Konto. Kann selbst Logins anlegen.',
+};
+
+function flRolleHinweis() {
+  const r = el('fl-rolle').value;
+  const p = el('fl-rolle-hinweis');
+  p.textContent = FL_ROLLEN_TEXT[r] || '';
+  p.style.color = r === 'admin' ? 'var(--red2)' : 'var(--text3)';
+}
 
 function openFahrerLoginModal(mfId) {
   const mf = allMarktfahrer.find(m => m.id === mfId);
@@ -5747,15 +5790,26 @@ function openFahrerLoginModal(mfId) {
   el('fl-name').textContent = mf.name;
   el('fl-email').value = '';
   el('fl-passwort').value = '';
+  el('fl-rolle').value = 'marktfahrer';
+  flRolleHinweis();
   openModal('modal-fahrer-login');
 }
 
 async function saveFahrerLogin() {
   const email    = el('fl-email').value.trim();
   const passwort = el('fl-passwort').value;
+  const rolle    = el('fl-rolle').value;
   if (!_loginMfId) return;
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('Bitte gültige E-Mail angeben', 'err'); return; }
   if (passwort.length < 8) { toast('Passwort muss mindestens 8 Zeichen haben', 'err'); return; }
+
+  // Admin ist nicht folgenlos und in der App nicht zurücknehmbar – einmal nachfragen.
+  const mfName = el('fl-name').textContent;
+  if (rolle === 'admin' && !confirm(
+      `${mfName} als Admin anlegen?\n\nDamit erhält ${mfName} Vollzugriff auf alle Märkte, `
+      + `Kassendaten und Löschfunktionen – dieselben Rechte wie du – und kann selbst Logins anlegen.`)) {
+    return;
+  }
 
   const btn = el('fl-submit');
   btn.disabled = true; btn.textContent = 'Wird angelegt…';
@@ -5764,7 +5818,7 @@ async function saveFahrerLogin() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { toast('Sitzung abgelaufen – bitte neu anmelden', 'err'); return; }
     const { data, error } = await sb.functions.invoke('fahrer-anlegen', {
-      body: { marktfahrer_id: _loginMfId, email, passwort },
+      body: { marktfahrer_id: _loginMfId, email, passwort, rolle },
       headers: { Authorization: 'Bearer ' + session.access_token },
     });
     if (error) {
@@ -5774,7 +5828,7 @@ async function saveFahrerLogin() {
       toast('Fehler: ' + msg, 'err');
       return;
     }
-    toast(`✓ Login für ${data?.name || 'Fahrer'} angelegt`, 'ok');
+    toast(`✓ Login für ${data?.name || 'Fahrer'} angelegt (${data?.rolle || rolle})`, 'ok');
     closeModal('modal-fahrer-login');
     _loginMfId = null;
     loadMarktfahrerListe();
@@ -6326,7 +6380,7 @@ async function loadClItemList() {
   }).join('');
 }
 
-// Feste Kategorien der persönlichen Checkliste (v6.72). Reihenfolge = Anzeige-
+// Feste Kategorien der persönlichen Checkliste (v6.73). Reihenfolge = Anzeige-
 // reihenfolge im Planung-Tab; Einträge ohne Kategorie laufen unter '' am Ende.
 const CL_KATEGORIEN = [
   { key: 'lager',   label: '📦 Lager' },
