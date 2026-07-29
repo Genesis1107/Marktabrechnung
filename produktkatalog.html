@@ -416,6 +416,7 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
         Sortiert wird je Kategorie alphabetisch nach dem übersetzten Namen.
       </p>
       <button class="btn btn-primary btn-full" onclick="erzeugeSortenlisten()">Vorschau erzeugen</button>
+      <button class="btn btn-full" style="margin-top:8px;" onclick="exportiereSortenlisten()">📄 Export für Publisher (ZIP)</button>
       <div id="flyer-status" class="hint" style="margin-top:10px;"></div>
     </div>
 
@@ -452,7 +453,7 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
 
 <script>
 'use strict';
-const PK_VERSION = 'v1.7';
+const PK_VERSION = 'v1.8';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
@@ -1257,57 +1258,266 @@ function slSchliessen() {
 }
 
 /* ── Seitenaufbau ───────────────────────────────────────────── */
-function slSeiteHtml(blattId, sprache, gruppen, groessenJeProdukt) {
+/* Neutrales Blattmodell – Grundlage für Bildschirmvorschau UND DOCX-Export,
+   damit beide garantiert denselben Inhalt zeigen. */
+function slDeTeil(name) {
+  // Innere Klammern würden eine zweite Klammerebene erzeugen
+  // ("(Honig Chili (Gewürz scharf))") – sie werden zum Komma.
+  return String(name).replace(/\s*\(([^)]*)\)/g, ', $1');
+}
+function slBlattModell(blattId, sprache, gruppen, groessenJeProdukt) {
   const code = sprache.code;
-  const mehrereKats = gruppen.length > 1;
-  let fehlend = 0, anzahl = 0, liste = '';
-
-  for (const gr of gruppen) {
+  let fehlend = 0, anzahl = 0;
+  const grp = gruppen.map(gr => {
     const eintraege = gr.produkte.map(p => {
       const t = slText(p.id, code);
       if (!t.name || !t.kurz) fehlend++;
-      return { p: p, name: t.name || p.name, kurz: t.kurz, deName: t.deName || p.name };
+      return {
+        name: t.name || p.name,
+        deName: slDeTeil(t.deName || p.name),
+        alk: slAlkohol(p.alkohol_vol, code),
+        vegan: !!p.vegan,
+        zeilen: String(t.kurz || '').split('\n').filter(z => z !== '')
+      };
     }).sort((x, y) => x.name.localeCompare(y.name, slSortKey(code)));
     anzahl += eintraege.length;
-    if (mehrereKats) liste += `<div class="sl-katkopf">${esc(slKatTitel(gr.kat, code))}</div>`;
-    for (const e of eintraege) {
-      const alk = slAlkohol(e.p.alkohol_vol, code);
+    return { kat: slKatTitel(gr.kat, code), eintraege: eintraege };
+  });
+  return {
+    blattId: blattId, code: code, sprache: sprache,
+    titel: slTitel(blattId, code),
+    untertitel: SL_UNTERTITEL,
+    preise: slPreisZeile(gruppen, groessenJeProdukt),
+    katKoepfe: gruppen.length > 1,
+    gruppen: grp, anzahl: anzahl, fehlend: fehlend
+  };
+}
+
+function slSeiteHtml(modell) {
+  let liste = '';
+  for (const gr of modell.gruppen) {
+    if (modell.katKoepfe) liste += `<div class="sl-katkopf">${esc(gr.kat)}</div>`;
+    for (const e of gr.eintraege) {
       liste += `<div class="sl-eintrag">` +
         `<div><span class="sl-name">${esc(e.name)}</span>` +
-        (alk ? `<span class="sl-alk"> – ${esc(alk)}</span>` : '') +
-        (code === 'de' ? '' : ` <span class="sl-de">(${esc(e.deName)})</span>`) +
-        (e.p.vegan ? `<span class="sl-v">V</span>` : '') +
+        (e.alk ? `<span class="sl-alk"> – ${esc(e.alk)}</span>` : '') +
+        (modell.code === 'de' ? '' : ` <span class="sl-de">(${esc(e.deName)})</span>`) +
+        (e.vegan ? `<span class="sl-v">V</span>` : '') +
         `</div>` +
-        (e.kurz ? `<div class="sl-text">${esc(e.kurz)}</div>` : '') +
+        (e.zeilen.length ? `<div class="sl-text">${e.zeilen.map(esc).join('<br>')}</div>` : '') +
         `</div>`;
     }
   }
-
-  const preisZeile = slOpt.preise ? slPreisZeile(gruppen, groessenJeProdukt) : '';
-  const flaggeSvg = slOpt.flagge ? slFlagge(code) : '';
+  const preisZeile = slOpt.preise ? modell.preise : '';
+  const flaggeSvg = slOpt.flagge ? slFlagge(modell.code) : '';
   const kopfzeile = (preisZeile || flaggeSvg)
     ? `<div class="sl-kopfzeile"><div class="sl-preise">${preisZeile}</div><div class="sl-flagge">${flaggeSvg}</div></div>`
     : '';
-
-  const html = `<div class="sl-seite${slOpt.rahmen ? ' rahmen' : ''}" lang="${esc(slSortKey(code))}" data-sprache="${esc(code)}">
+  return `<div class="sl-seite${slOpt.rahmen ? ' rahmen' : ''}" lang="${esc(slSortKey(modell.code))}" data-sprache="${esc(modell.code)}">
     <div class="sl-inhalt">
       ${kopfzeile}
       <div class="sl-kopf">
-        <div class="sl-titel">${esc(slTitel(blattId, code))}</div>
-        <div class="sl-sub">${esc(SL_UNTERTITEL)}</div>
+        <div class="sl-titel">${esc(modell.titel)}</div>
+        <div class="sl-sub">${esc(modell.untertitel)}</div>
       </div>
       <div class="sl-liste">${liste}</div>
       <div class="sl-fuss"><span class="sl-legende">V</span> = Vegan &nbsp;·&nbsp; www.beerenweine.eu</div>
     </div>
   </div>`;
-  return { html: html, anzahl: anzahl, fehlend: fehlend };
 }
 
-async function erzeugeSortenlisten() {
+/* ════════════════════════════════════════════════════════════════
+   DOCX-EXPORT für Affinity Publisher
+   Eine DOCX ist ein ZIP mit XML-Dateien. Beides wird hier ohne
+   Fremdbibliothek erzeugt (Speichermethode „store", unkomprimiert).
+   Publisher liest die Stildefinitionen NICHT – es übernimmt nur die
+   Stilnamen samt Zuweisung sowie direkte Zeichenauszeichnung. Die
+   Definitionen bleiben trotzdem enthalten (für Word & Co.), die Optik
+   im Layout kommt über „Stile importieren" aus Andys Stilquelle.
+   ════════════════════════════════════════════════════════════════ */
+
+const SL_ZIER = 'Royal Signage';
+const SL_BROT = 'Georgia';
+const SL_ROSTROT = '8B3A1E';
+const SL_WALD = '2D5016';
+
+/* Größen in half-points, Abstände in twips (1 pt = 20 twips) */
+const SL_STILE = [
+  { id: 'BW_Titel',        font: SL_ZIER, sz: 48, jc: 'center', after: 0 },
+  { id: 'BW_Untertitel',   font: SL_BROT, sz: 24, jc: 'center', after: 40 },
+  { id: 'BW_Kategorie',    font: SL_ZIER, sz: 36, jc: 'center', before: 160, after: 0, keepNext: true },
+  { id: 'BW_Sorte',        font: SL_ZIER, sz: 24, before: 100, after: 0, keepNext: true },
+  { id: 'BW_Beschreibung', font: SL_BROT, sz: 24, after: 120, line: 240 },
+  { id: 'BW_Fuss',         font: SL_BROT, sz: 20, jc: 'right', before: 40 },
+];
+
+let slCrcTab = null;
+function slCrc32(u8) {
+  if (!slCrcTab) {
+    slCrcTab = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      slCrcTab[i] = c >>> 0;
+    }
+  }
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < u8.length; i++) c = slCrcTab[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+/* Baut ein ZIP aus [{name, daten:Uint8Array}]. Nur ASCII-Dateinamen,
+   damit die Dateien-App auf dem iPad keine Zeichensalat-Namen zeigt. */
+function slZip(dateien) {
+  const enc = new TextEncoder();
+  const teile = [], zentral = [];
+  let versatz = 0;
+  for (const d of dateien) {
+    const name = enc.encode(d.name);
+    const crc = slCrc32(d.daten), len = d.daten.length;
+    const lh = new Uint8Array(30 + name.length);
+    const v = new DataView(lh.buffer);
+    v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0, true);
+    v.setUint16(8, 0, true); v.setUint16(10, 0, true); v.setUint16(12, 0, true);
+    v.setUint32(14, crc, true); v.setUint32(18, len, true); v.setUint32(22, len, true);
+    v.setUint16(26, name.length, true); v.setUint16(28, 0, true);
+    lh.set(name, 30);
+    teile.push(lh, d.daten);
+
+    const cd = new Uint8Array(46 + name.length);
+    const c = new DataView(cd.buffer);
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true);
+    c.setUint16(8, 0, true); c.setUint16(10, 0, true); c.setUint16(12, 0, true); c.setUint16(14, 0, true);
+    c.setUint32(16, crc, true); c.setUint32(20, len, true); c.setUint32(24, len, true);
+    c.setUint16(28, name.length, true); c.setUint16(30, 0, true); c.setUint16(32, 0, true);
+    c.setUint16(34, 0, true); c.setUint16(36, 0, true); c.setUint32(38, 0, true);
+    c.setUint32(42, versatz, true);
+    cd.set(name, 46);
+    zentral.push(cd);
+    versatz += lh.length + len;
+  }
+  let zGroesse = 0;
+  for (const z of zentral) zGroesse += z.length;
+  const eocd = new Uint8Array(22);
+  const e = new DataView(eocd.buffer);
+  e.setUint32(0, 0x06054b50, true); e.setUint16(4, 0, true); e.setUint16(6, 0, true);
+  e.setUint16(8, dateien.length, true); e.setUint16(10, dateien.length, true);
+  e.setUint32(12, zGroesse, true); e.setUint32(16, versatz, true); e.setUint16(20, 0, true);
+
+  let gesamt = versatz + zGroesse + 22, pos = 0;
+  const aus = new Uint8Array(gesamt);
+  for (const t of teile) { aus.set(t, pos); pos += t.length; }
+  for (const z of zentral) { aus.set(z, pos); pos += z.length; }
+  aus.set(eocd, pos);
+  return aus;
+}
+
+function slXml(t) {
+  return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function slRun(text, opt) {
+  opt = opt || {};
+  let rPr = '';
+  if (opt.farbe) rPr += `<w:color w:val="${opt.farbe}"/>`;
+  if (opt.sz) rPr += `<w:sz w:val="${opt.sz}"/><w:szCs w:val="${opt.sz}"/>`;
+  if (opt.hoch) rPr += '<w:vertAlign w:val="superscript"/>';
+  return '<w:r>' + (rPr ? `<w:rPr>${rPr}</w:rPr>` : '') +
+    (opt.umbruch ? '<w:br/>' : '') +
+    `<w:t xml:space="preserve">${slXml(text)}</w:t></w:r>`;
+}
+function slAbsatz(stil, runs) {
+  return `<w:p><w:pPr><w:pStyle w:val="${stil}"/></w:pPr>${runs.join('')}</w:p>`;
+}
+function slStylesXml() {
+  const stile = SL_STILE.map(st => {
+    let pPr = '';
+    if (st.keepNext) pPr += '<w:keepNext/>';
+    const sp = [];
+    if (st.before != null) sp.push(`w:before="${st.before}"`);
+    if (st.after != null) sp.push(`w:after="${st.after}"`);
+    if (st.line != null) sp.push(`w:line="${st.line}" w:lineRule="exact"`);
+    if (sp.length) pPr += `<w:spacing ${sp.join(' ')}/>`;
+    if (st.jc) pPr += `<w:jc w:val="${st.jc}"/>`;
+    return `<w:style w:type="paragraph" w:styleId="${st.id}"><w:name w:val="${st.id}"/>` +
+      '<w:basedOn w:val="Normal"/><w:qFormat/>' +
+      (pPr ? `<w:pPr>${pPr}</w:pPr>` : '') +
+      `<w:rPr><w:rFonts w:ascii="${st.font}" w:hAnsi="${st.font}" w:cs="${st.font}"/>` +
+      `<w:sz w:val="${st.sz}"/><w:szCs w:val="${st.sz}"/></w:rPr></w:style>`;
+  }).join('');
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+    '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>' +
+    stile + '</w:styles>';
+}
+/* Erzeugt die fertige DOCX aus einem Blattmodell */
+function slDocx(modell) {
+  const enc = new TextEncoder();
+  const p = [];
+  p.push(slAbsatz('BW_Titel', [slRun(modell.titel)]));
+  if (modell.preise) p.push(slAbsatz('BW_Untertitel', [slRun(modell.preise.replace(/&nbsp;/g, ' '))]));
+  for (const gr of modell.gruppen) {
+    if (modell.katKoepfe) p.push(slAbsatz('BW_Kategorie', [slRun(gr.kat)]));
+    for (const e of gr.eintraege) {
+      const runs = [slRun(e.name)];
+      if (e.alk) runs.push(slRun(' – ' + e.alk));
+      if (modell.code !== 'de') runs.push(slRun(' (' + e.deName + ')', { farbe: SL_ROSTROT }));
+      if (e.vegan) runs.push(slRun(' V', { farbe: SL_WALD, sz: 14, hoch: true }));
+      p.push(slAbsatz('BW_Sorte', runs));
+      if (e.zeilen.length) {
+        p.push(slAbsatz('BW_Beschreibung',
+          e.zeilen.map((z, i) => slRun(z, i ? { umbruch: true } : {}))));
+      }
+    }
+  }
+  p.push(slAbsatz('BW_Fuss', [slRun('V = Vegan  ·  www.beerenweine.eu')]));
+
+  const doc = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
+    p.join('') +
+    '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>' +
+    '<w:pgMar w:top="851" w:right="851" w:bottom="851" w:left="851"/></w:sectPr>' +
+    '</w:body></w:document>';
+
+  const ct = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+    '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' +
+    '</Types>';
+  const rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>' +
+    '</Relationships>';
+  const drels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+    '</Relationships>';
+
+  return slZip([
+    { name: '[Content_Types].xml', daten: enc.encode(ct) },
+    { name: '_rels/.rels', daten: enc.encode(rels) },
+    { name: 'word/_rels/document.xml.rels', daten: enc.encode(drels) },
+    { name: 'word/document.xml', daten: enc.encode(doc) },
+    { name: 'word/styles.xml', daten: enc.encode(slStylesXml()) },
+  ]);
+}
+
+/* Dateinamen auf ASCII bringen – Umlaute in ZIP-Einträgen zeigt die
+   Dateien-App auf dem iPad sonst als Zeichensalat. */
+function slDateiname(t) {
+  return String(t)
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+    .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue').replace(/ß/g, 'ss')
+    .replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60) || 'Liste';
+}
+
+/* Sammelt Bestellung + Blattplan zu Blattmodellen – von Vorschau und Export genutzt */
+async function slDatenLaden() {
   const bestId = el('flyer-bestellung').value;
-  if (!bestId) { toast('Bitte Bestellung wählen'); return; }
+  if (!bestId) { toast('Bitte Bestellung wählen'); return null; }
   const sprachen = aktiveSprachen().filter(s => flyerSprachenAuswahl.includes(s.code));
-  if (!sprachen.length) { toast('Bitte mindestens eine Sprache wählen'); return; }
+  if (!sprachen.length) { toast('Bitte mindestens eine Sprache wählen'); return null; }
   if (!slPlan) slPlanLaden();
   if (!slOpt) slOptLaden();
 
@@ -1316,7 +1526,7 @@ async function erzeugeSortenlisten() {
     .select('menge, variante:variante_id(produkt_id, groesse)')
     .eq('bestellung_id', bestId)
     .is('geloescht_am', null);
-  if (error) { console.error(error); toast('⚠️ Positionen laden fehlgeschlagen'); el('flyer-status').textContent = ''; return; }
+  if (error) { console.error(error); toast('⚠️ Positionen laden fehlgeschlagen'); el('flyer-status').textContent = ''; return null; }
 
   const bestellPos = (pos || []).filter(x => x.variante && Number(x.menge) > 0);
   const produktIds = [...new Set(bestellPos.map(x => x.variante.produkt_id))];
@@ -1326,9 +1536,8 @@ async function erzeugeSortenlisten() {
     groessenJeProdukt.get(x.variante.produkt_id).add(x.variante.groesse);
   }
   const bestellt = produktIds.map(id => cache.produkte.find(p => p.id === id)).filter(Boolean);
-  if (!bestellt.length) { el('flyer-status').textContent = 'Diese Bestellung enthält keine Produkte.'; return; }
+  if (!bestellt.length) { el('flyer-status').textContent = 'Diese Bestellung enthält keine Produkte.'; return null; }
 
-  // Blätter aus dem Plan füllen; leere Blätter fallen weg
   const blaetter = [];
   for (const id of SL_BLATT_IDS) {
     const gruppen = [];
@@ -1340,17 +1549,21 @@ async function erzeugeSortenlisten() {
     }
     if (gruppen.length) blaetter.push({ id: id, gruppen: gruppen });
   }
-  const ohneBlatt = bestellt.filter(p => !slBlattVon(katName(p.kategorie_id))).length;
-  if (!blaetter.length) { el('flyer-status').textContent = 'Kein Blatt enthält Produkte dieser Bestellung – Blattplan prüfen.'; return; }
+  if (!blaetter.length) { el('flyer-status').textContent = 'Kein Blatt enthält Produkte dieser Bestellung – Blattplan prüfen.'; return null; }
 
-  // Seiten je Sprache, Sprachsätze bleiben zusammen
-  slSeitenDaten = [];
+  const modelle = [];
   for (const sp of sprachen) {
-    for (const bl of blaetter) {
-      const r = slSeiteHtml(bl.id, sp, bl.gruppen, groessenJeProdukt);
-      slSeitenDaten.push({ sprache: sp, blattId: bl.id, html: r.html, anzahl: r.anzahl, fehlend: r.fehlend });
-    }
+    for (const bl of blaetter) modelle.push(slBlattModell(bl.id, sp, bl.gruppen, groessenJeProdukt));
   }
+  const markt = (el('flyer-bestellung').selectedOptions[0] || {}).text || 'Bestellung';
+  const ohneBlatt = bestellt.filter(p => !slBlattVon(katName(p.kategorie_id))).length;
+  return { modelle: modelle, markt: markt.split(' · ')[0], ohneBlatt: ohneBlatt };
+}
+
+async function erzeugeSortenlisten() {
+  const daten = await slDatenLaden();
+  if (!daten) return;
+  slSeitenDaten = daten.modelle;
 
   const druck = el('flyer-print');
   druck.innerHTML =
@@ -1359,11 +1572,10 @@ async function erzeugeSortenlisten() {
       `<button class="prim" onclick="window.print()">🖨 Drucken / PDF</button>` +
       `<div class="sl-info" id="sl-info">Setze Seiten…</div>` +
     `</div>` +
-    `<div id="sl-buehne"><div id="sl-skala">` + slSeitenDaten.map(d => d.html).join('') + `</div></div>`;
+    `<div id="sl-buehne"><div id="sl-skala">` + daten.modelle.map(slSeiteHtml).join('') + `</div></div>`;
   druck.classList.add('offen');
   document.body.style.overflow = 'hidden';
 
-  // Auto-Fit erst nach dem Sichtbarmachen – vorher liefert der Browser keine Maße
   const seiten = druck.querySelectorAll('.sl-seite');
   const berichte = [];
   let warnungen = 0;
@@ -1371,7 +1583,7 @@ async function erzeugeSortenlisten() {
     el('sl-info').textContent = `Setze Seite ${i + 1} von ${seiten.length}…`;
     await slWarte();
     const fit = slPasseEin(seiten[i]);
-    const d = slSeitenDaten[i];
+    const d = daten.modelle[i];
     if (!fit.passt) warnungen++;
     berichte.push(`${d.sprache.name} · ${slTitel(d.blattId, 'de')}: ${d.anzahl} Sorten, ` +
       `${fit.spalten} Spalte${fit.spalten > 1 ? 'n' : ''}, ${fit.pt.toFixed(1).replace('.', ',')} pt, ${fit.fuellung} % gefüllt` +
@@ -1380,12 +1592,44 @@ async function erzeugeSortenlisten() {
   }
   slSkalieren();
 
-  const fehlendGesamt = slSeitenDaten.reduce((sum, d) => sum + d.fehlend, 0);
+  const fehlendGesamt = daten.modelle.reduce((sum, d) => sum + d.fehlend, 0);
   el('sl-info').textContent = `${seiten.length} Seite${seiten.length > 1 ? 'n' : ''}` +
     (warnungen ? ` · ${warnungen} zu voll` : '') + (fehlendGesamt ? ` · ${fehlendGesamt} Textlücken` : '');
   el('flyer-status').innerHTML = berichte.map(t => esc(t)).join('<br>') +
-    (ohneBlatt ? `<br>ℹ️ ${ohneBlatt} bestellte Produkte stehen auf keinem Blatt (Blattplan).` : '') +
+    (daten.ohneBlatt ? `<br>ℹ️ ${daten.ohneBlatt} bestellte Produkte stehen auf keinem Blatt (Blattplan).` : '') +
     (fehlendGesamt ? `<br>⚠️ ${fehlendGesamt} fehlende Übersetzung(en) – im Wiki ergänzen.` : '<br>Alle Übersetzungen vorhanden.');
+}
+
+/* Alle Blätter als DOCX in einem ZIP – zum Platzieren in Affinity Publisher */
+async function exportiereSortenlisten() {
+  const daten = await slDatenLaden();
+  if (!daten) return;
+  el('flyer-status').textContent = 'Erzeuge Dateien…';
+  await slWarte();
+
+  const dateien = [];
+  for (const m of daten.modelle) {
+    dateien.push({
+      name: 'Sortenliste_' + slDateiname(slTitel(m.blattId, 'de')) + '_' + m.code.toUpperCase() + '.docx',
+      daten: slDocx(m)
+    });
+  }
+  const zip = slZip(dateien);
+  const name = 'Sortenlisten_' + slDateiname(daten.markt) + '_' +
+    new Date().toISOString().slice(0, 10) + '.zip';
+
+  const url = URL.createObjectURL(new Blob([zip], { type: 'application/zip' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 8000);
+
+  const fehlend = daten.modelle.reduce((s, d) => s + d.fehlend, 0);
+  el('flyer-status').innerHTML =
+    esc(`${dateien.length} Datei(en) in ${name}`) + '<br>' +
+    esc(dateien.map(d => d.name).join(' · ')) +
+    (fehlend ? `<br>⚠️ ${fehlend} fehlende Übersetzung(en) – im Wiki ergänzen.` : '');
+  toast('📄 ' + dateien.length + ' Datei(en) exportiert');
 }
 
 window.addEventListener('resize', slSkalieren);
