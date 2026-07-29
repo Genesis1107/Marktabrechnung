@@ -236,7 +236,7 @@ h3 { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px
 .status-abgelehnt    { background: #2a1a1a; color: var(--red2); }
 
 /* ── TOAST ──────────────────────────────────────────────────── */
-#toast { position: fixed; bottom: calc(70px + var(--safe-bot)); left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface2); border: 1px solid var(--border2); border-radius: 24px; padding: 9px 20px; font-size: 13px; color: var(--text); opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; z-index: 999; white-space: nowrap; max-width: 90vw; text-align: center; }
+#toast { position: fixed; bottom: calc(70px + var(--safe-bot)); left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface2); border: 1px solid var(--border2); border-radius: 24px; padding: 9px 20px; font-size: 13px; color: var(--text); opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; z-index: 999; white-space: normal; overflow-wrap: anywhere; line-height: 1.35; max-width: min(90vw, 420px); text-align: center; }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 #toast.err { border-color: var(--red2); color: var(--red2); }
 #toast.ok  { border-color: var(--green2); color: var(--green2); }
@@ -598,7 +598,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.75</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.76</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -723,7 +723,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.75</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.76</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -1108,7 +1108,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.75';
+const APP_VERSION = 'v6.76';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
