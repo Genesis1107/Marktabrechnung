@@ -1065,6 +1065,31 @@ body.rolle-fahrer .admin-only { display: none !important; }
   </div>
 </div>
 
+<div id="modal-rolle-aendern" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">🎚️ Rolle ändern</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">
+      Rechte von <strong id="rw-name">—</strong>. Bisher: <strong id="rw-aktuell">—</strong>.
+      Die Änderung greift, sobald die Person die App neu lädt.
+    </p>
+    <div class="field">
+      <label>Neue Rolle *</label>
+      <select id="rw-rolle" onchange="rwRolleHinweis()">
+        <option value="marktfahrer">Marktfahrer – nur eigene Märkte</option>
+        <option value="marktleiter">Marktleiter – alles außer Verwaltung</option>
+        <option value="lager">Lager – Bestellungen</option>
+        <option value="buchhaltung">Buchhaltung – nur lesen</option>
+        <option value="admin">Admin – Vollzugriff</option>
+      </select>
+      <p style="font-size:11px;color:var(--text3);margin-top:4px;" id="rw-rolle-hinweis"></p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-rolle-aendern')">Abbrechen</button>
+      <button class="btn btn-primary" id="rw-submit" onclick="saveRolleAendern()">Übernehmen</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -1075,7 +1100,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.73';
+const APP_VERSION = 'v6.74';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -5719,6 +5744,10 @@ ${contentHtml}
 
 // ── MARKTFAHRER-VERWALTUNG ────────────────────────────────────
 let allMarktfahrer = []; // Cache
+let mfRolleMap = {};     // user_id -> rolle, für den Rollenwechsel-Dialog
+
+const ROLLE_LABEL = { admin: '👑 Admin', marktleiter: 'Marktleiter', marktfahrer: 'Marktfahrer',
+                      lager: 'Lager', buchhaltung: 'Buchhaltung' };
 
 async function loadMarktfahrerListe() {
   const wrap = el('marktfahrer-list');
@@ -5733,28 +5762,31 @@ async function loadMarktfahrerListe() {
   // Rollen dazuladen: sonst steht bei jedem Login nur "verknüpft" und man sieht
   // nicht, wer Admin ist. user_rolle ist für Admins per RLS lesbar.
   const uids = allMarktfahrer.filter(m => m.user_id).map(m => m.user_id);
-  const rolleMap = {};
+  mfRolleMap = {};
   if (uids.length) {
     const { data: rr } = await sb.from('user_rolle').select('user_id, rolle').in('user_id', uids);
-    (rr || []).forEach(r => { rolleMap[r.user_id] = r.rolle; });
+    (rr || []).forEach(r => { mfRolleMap[r.user_id] = r.rolle; });
   }
-  const ROLLE_LABEL = { admin: '👑 Admin', marktleiter: 'Marktleiter', marktfahrer: 'Marktfahrer',
-                        lager: 'Lager', buchhaltung: 'Buchhaltung' };
+  const rolleMap = mfRolleMap;
   wrap.innerHTML = allMarktfahrer.map(mf => {
     const rolle = mf.user_id ? rolleMap[mf.user_id] : null;
     const rolleTxt = rolle
       ? `<div class="card-sub" style="color:${rolle === 'admin' ? 'var(--gold)' : 'var(--green2)'};">✓ Login · ${ROLLE_LABEL[rolle] || rolle}</div>`
       : (mf.user_id ? '<div class="card-sub" style="color:var(--green2);">✓ Login verknüpft</div>' : '');
+    // Rollenwechsel nur für fremde Konten: das eigene herabzustufen würde
+    // den Admin aussperren, ohne Weg zurück (Rollen ändert nur ein Admin).
+    const eigenes = mf.user_id && mf.user_id === currentUser.id;
     return `
     <div class="card" style="cursor:default;margin-bottom:8px;">
       <div class="card-row">
         <div>
-          <div class="card-title">${esc(mf.name)}</div>
+          <div class="card-title">${esc(mf.name)}${eigenes ? ' <span style="font-size:11px;color:var(--text3);">(du)</span>' : ''}</div>
           ${mf.telefon ? `<div class="card-sub">📞 ${mf.telefon}</div>` : ''}
           ${rolleTxt}
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
           ${!mf.user_id ? `<button class="btn btn-sm" onclick="openFahrerLoginModal('${mf.id}')">🔑 Login anlegen</button>` : ''}
+          ${mf.user_id && !eigenes ? `<button class="btn btn-sm" onclick="openRolleModal('${mf.id}')">🎚️ Rolle</button>` : ''}
           <button class="btn btn-sm btn-danger" onclick="deleteMarktfahrer('${mf.id}')">✕</button>
         </div>
       </div>
@@ -5834,6 +5866,88 @@ async function saveFahrerLogin() {
     loadMarktfahrerListe();
   } finally {
     btn.disabled = false; btn.textContent = 'Anlegen';
+  }
+}
+
+// ── ROLLE ÄNDERN (v6.74) ──────────────────────────────────────
+// Nur Admins, nur fremde Konten. Die Policy 'admin_alles' auf user_rolle
+// erlaubt UPDATE bereits – es braucht keine Edge Function.
+let _rolleMfId = null;
+
+function rwRolleHinweis() {
+  const r = el('rw-rolle').value;
+  const p = el('rw-rolle-hinweis');
+  p.textContent = FL_ROLLEN_TEXT[r] || '';
+  p.style.color = r === 'admin' ? 'var(--red2)' : 'var(--text3)';
+}
+
+function openRolleModal(mfId) {
+  const mf = allMarktfahrer.find(m => m.id === mfId);
+  if (!mf || !mf.user_id) return;
+  if (mf.user_id === currentUser.id) { toast('Die eigene Rolle lässt sich hier nicht ändern', 'err'); return; }
+  _rolleMfId = mfId;
+  const akt = mfRolleMap[mf.user_id] || null;
+  el('rw-name').textContent    = mf.name;
+  el('rw-aktuell').textContent = akt ? (ROLLE_LABEL[akt] || akt) : 'keine Rolle hinterlegt';
+  el('rw-rolle').value = akt || 'marktfahrer';
+  rwRolleHinweis();
+  openModal('modal-rolle-aendern');
+}
+
+async function saveRolleAendern() {
+  if (!_rolleMfId) return;
+  const mf = allMarktfahrer.find(m => m.id === _rolleMfId);
+  if (!mf || !mf.user_id) { toast('Marktfahrer nicht gefunden', 'err'); return; }
+  const neu = el('rw-rolle').value;
+  const alt = mfRolleMap[mf.user_id] || null;
+  if (neu === alt) { closeModal('modal-rolle-aendern'); return; }
+
+  // Letzten Admin schützen: wer sich selbst nicht hochstufen kann, käme sonst
+  // nie wieder an die Verwaltung. Serverseitig ist das nicht abgesichert.
+  if (alt === 'admin' && neu !== 'admin') {
+    const { count, error: cErr } = await sb.from('user_rolle')
+      .select('user_id', { count: 'exact', head: true }).eq('rolle', 'admin');
+    if (cErr) { toast('Prüfung fehlgeschlagen: ' + cErr.message, 'err'); return; }
+    if ((count ?? 0) <= 1) {
+      toast('Das ist der letzte Admin – erst einen weiteren ernennen', 'err');
+      return;
+    }
+  }
+
+  if (neu === 'admin' && !(await confirmMed(
+      `${mf.name} erhält Vollzugriff auf alle Märkte, Kassendaten und Löschfunktionen `
+      + `– dieselben Rechte wie du – und kann selbst Logins anlegen und Rollen ändern.`,
+      { titel: 'Zum Admin ernennen?', ja: 'Ernennen', gefahr: true }))) {
+    return;
+  }
+  if (alt === 'admin' && neu !== 'admin' && !(await confirmMed(
+      `${mf.name} verliert damit den Zugang zur Verwaltung. Nur ein Admin kann die Rolle zurückgeben.`,
+      { titel: 'Adminrechte entziehen?', ja: 'Entziehen', gefahr: true }))) {
+    return;
+  }
+
+  const btn = el('rw-submit');
+  btn.disabled = true; btn.textContent = 'Wird geändert…';
+  try {
+    const now = new Date().toISOString();
+    // Unique liegt auf (user_id, rolle), nicht auf user_id – ein Insert würde
+    // eine zweite Rolle anlegen, von der die App nur eine liest. Darum UPDATE.
+    const { data, error } = await sb.from('user_rolle')
+      .update({ rolle: neu, geaendert_am: now, geaendert_von: currentUser.id })
+      .eq('user_id', mf.user_id).select('user_id');
+    if (error) { toast('Fehler: ' + error.message, 'err'); return; }
+    // Leeres Ergebnis ohne Fehler = RLS hat still gefiltert oder es gab keine Zeile.
+    if (!data || !data.length) {
+      toast('Keine Rolle geändert – fehlt der Eintrag oder die Berechtigung?', 'err');
+      return;
+    }
+    mfRolleMap[mf.user_id] = neu;
+    toast(`✓ ${mf.name} ist jetzt ${ROLLE_LABEL[neu] || neu}`, 'ok');
+    closeModal('modal-rolle-aendern');
+    _rolleMfId = null;
+    loadMarktfahrerListe();
+  } finally {
+    btn.disabled = false; btn.textContent = 'Übernehmen';
   }
 }
 
@@ -6854,7 +6968,7 @@ async function deleteStunden(id) {
 [
   'doLogin', 'saveKassenzaehlung', 'saveBuchung', 'doMarktabschluss',
   'saveNeuerStand', 'saveNeuerMarkt', 'saveNeuesJahr', 'saveStunden',
-  'saveNeuerMarktfahrer', 'saveClItem', 'phasenwechsel',
+  'saveNeuerMarktfahrer', 'saveClItem', 'phasenwechsel', 'saveRolleAendern',
   'deleteStand', 'deleteKassenzaehlung', 'deleteMarktfahrer',
   'deleteStunden', 'deleteClItem', 'deleteClItemDirect', 'fahrerEntfernen',
   'deleteBuchung',
