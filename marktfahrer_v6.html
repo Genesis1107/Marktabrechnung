@@ -598,7 +598,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.73</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.75</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -702,6 +702,14 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <div id="marktfahrer-list"><div class="spinner"></div></div>
       </div>
       <div class="section admin-only">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <h2 style="margin:0;">🗑️ Papierkorb</h2>
+          <button class="btn btn-sm" id="pk-toggle" onclick="togglePapierkorb()">Anzeigen</button>
+        </div>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:10px;">Gelöschtes der letzten 30 Tage – Märkte, Kutschen, Kassenzählungen, Buchungen, Bestellungen und Restzählungen lassen sich zurückholen. Wird eine Kutsche wiederhergestellt, kommen ihre Zählungen und Buchungen von selbst mit.</p>
+        <div id="pk-liste" style="display:none;"></div>
+      </div>
+      <div class="section admin-only">
         <h2>Weitere Module</h2>
         <button class="btn btn-full" onclick="window.location.href='produktkatalog.html'">🍷 Produktverwaltung öffnen</button>
         <div style="height:8px;"></div>
@@ -715,7 +723,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.73</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.75</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -1100,7 +1108,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.74';
+const APP_VERSION = 'v6.75';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -5794,6 +5802,168 @@ async function loadMarktfahrerListe() {
   }).join('');
 }
 
+// ── PAPIERKORB (v6.75) ────────────────────────────────────────
+// Soft-Delete ist überall Standard, es fehlte nur der Weg zurück. Admin-Werkzeug,
+// online: die Policy 'admin_alles' (ist_admin(), ohne instanz_offen) erlaubt das
+// Zurücksetzen auch bei abgeschlossenen Märkten.
+const PK_TAGE = 30;
+let pkOffen = false;
+let pkEintraege = [];
+
+const PK_TYPEN = {
+  event_instanz:     { icon: '🏰', label: 'Markt' },
+  stand:             { icon: '🛒', label: 'Kutsche' },
+  kassenzaehlung:    { icon: '💰', label: 'Kassenzählung' },
+  buchung:           { icon: '📝', label: 'Buchung' },
+  bestellung:        { icon: '📦', label: 'Bestellung' },
+  markt_restbestand: { icon: '📥', label: 'Restzählung' },
+};
+
+function togglePapierkorb() {
+  pkOffen = !pkOffen;
+  el('pk-toggle').textContent = pkOffen ? 'Verbergen' : 'Anzeigen';
+  el('pk-liste').style.display = pkOffen ? '' : 'none';
+  if (pkOffen) ladePapierkorb();
+}
+
+async function ladePapierkorb() {
+  const wrap = el('pk-liste');
+  wrap.innerHTML = '<div class="spinner"></div>';
+  if (!navigator.onLine) {
+    wrap.innerHTML = '<p style="color:var(--text3);font-size:13px;">Der Papierkorb braucht eine Verbindung.</p>';
+    return;
+  }
+  const seit = new Date(Date.now() - PK_TAGE * 86400000).toISOString();
+  const hole = (t, sel) => sb.from(t).select(sel).not('geloescht_am', 'is', null)
+    .gte('geloescht_am', seit).order('geloescht_am', { ascending: false });
+
+  const [inst, stands, zaehl, buch, best, rest, alleInst] = await Promise.all([
+    hole('event_instanz', 'id, name, saison_jahr, geloescht_am'),
+    hole('stand', 'id, event_instanz_id, bezeichnung, geloescht_am'),
+    hole('kassenzaehlung', '*'),
+    hole('buchung', '*'),
+    hole('bestellung', 'id, event_instanz_id, stand_id, status, abhol_datum, geloescht_am'),
+    hole('markt_restbestand', '*'),
+    // Marktnamen für die Gruppierung – auch gelöschte, sonst stünde dort nur eine UUID
+    sb.from('event_instanz').select('id, name, saison_jahr'),
+  ]);
+  const ersterFehler = [inst, stands, zaehl, buch, best, rest, alleInst].find(r => r.error);
+  if (ersterFehler) {
+    wrap.innerHTML = `<p style="color:var(--red2);font-size:13px;">Konnte nicht laden: ${esc(ersterFehler.error.message)}</p>`;
+    return;
+  }
+
+  const instName = {};
+  (alleInst.data || []).forEach(i => { instName[i.id] = `${i.name} ${i.saison_jahr}`; });
+  const standName = {};
+  (stands.data || []).forEach(s => { standName[s.id] = s.bezeichnung; });
+
+  pkEintraege = [];
+  const add = (tabelle, ids, instanzId, text, zeit, zeile) =>
+    pkEintraege.push({ tabelle, ids, instanzId, text, zeit, zeile });
+
+  (inst.data  || []).forEach(r => add('event_instanz', [r.id], null,
+    `${r.name} ${r.saison_jahr}`, r.geloescht_am, r));
+  (stands.data || []).forEach(r => add('stand', [r.id], r.event_instanz_id,
+    r.bezeichnung || 'ohne Namen', r.geloescht_am, r));
+  (zaehl.data || []).forEach(r => add('kassenzaehlung', [r.id], r.event_instanz_id,
+    `${dateFmt(r.datum)} · ${eur(r.ist_bestand_cent || 0)}`, r.geloescht_am, r));
+  (buch.data  || []).forEach(r => add('buchung', [r.id], r.event_instanz_id,
+    `${dateFmt(r.datum)} · ${esc(r.bezeichnung || r.kategorie || r.typ || '—')} · ${eur(r.betrag_cent || 0)}`,
+    r.geloescht_am, r));
+  (best.data  || []).forEach(r => add('bestellung', [r.id], r.event_instanz_id,
+    `${r.status || 'offen'}${r.abhol_datum ? ' · Abholung ' + dateFmt(r.abhol_datum) : ''}`, r.geloescht_am, r));
+
+  // Restzählungen entstehen zeilenweise je Variante – einzeln wären sie unlesbar.
+  // Darum je Kutsche und Löschzeitpunkt (auf die Minute) zu einer Sammelzeile bündeln.
+  const restGrp = {};
+  (rest.data || []).forEach(r => {
+    const k = (r.stand_id || '-') + '|' + String(r.geloescht_am).slice(0, 16);
+    (restGrp[k] = restGrp[k] || []).push(r);
+  });
+  Object.values(restGrp).forEach(g => add('markt_restbestand', g.map(r => r.id),
+    g[0].event_instanz_id, `${g.length} Position${g.length === 1 ? '' : 'en'}`, g[0].geloescht_am, g[0]));
+
+  if (!pkEintraege.length) {
+    wrap.innerHTML = `<p style="color:var(--text3);font-size:13px;">Nichts gelöscht in den letzten ${PK_TAGE} Tagen.</p>`;
+    return;
+  }
+  pkEintraege.sort((a, b) => String(b.zeit).localeCompare(String(a.zeit)));
+
+  // Nach Markt gruppieren; gelöschte Märkte selbst stehen oben ohne Gruppe.
+  const gruppen = {};
+  pkEintraege.forEach((e, i) => {
+    const g = e.tabelle === 'event_instanz' ? '__markt__'
+            : (e.instanzId ? (instName[e.instanzId] || 'Unbekannter Markt') : 'Ohne Markt');
+    (gruppen[g] = gruppen[g] || []).push(i);
+  });
+  const reihenfolge = Object.keys(gruppen).sort((a, b) =>
+    a === '__markt__' ? -1 : b === '__markt__' ? 1 : a.localeCompare(b));
+
+  wrap.innerHTML = reihenfolge.map(g => {
+    const kopf = g === '__markt__' ? '🏰 Gelöschte Märkte' : esc(g);
+    return `
+      <div style="margin-bottom:14px;">
+        <div style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">
+          ${kopf} <span style="opacity:.7;">(${gruppen[g].length})</span>
+        </div>
+        ${gruppen[g].map(i => {
+          const e = pkEintraege[i];
+          const t = PK_TYPEN[e.tabelle] || { icon: '•', label: e.tabelle };
+          const wann = new Date(e.zeit).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+          const kutsche = e.zeile.stand_id && standName[e.zeile.stand_id]
+            ? ' · ' + esc(standName[e.zeile.stand_id]) : '';
+          return `
+          <div class="card" style="cursor:default;margin-bottom:6px;">
+            <div class="card-row">
+              <div style="min-width:0;">
+                <div class="card-title" style="font-size:14px;">${t.icon} ${esc(t.label)}${kutsche}</div>
+                <div class="card-sub">${e.text}</div>
+                <div class="card-sub" style="color:var(--text3);">gelöscht am ${wann}</div>
+              </div>
+              <button class="btn btn-sm" onclick="pkWiederherstellen(${i})">↩︎ Zurück</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }).join('');
+}
+
+async function pkWiederherstellen(idx) {
+  const e = pkEintraege[idx];
+  if (!e) return;
+  const t = PK_TYPEN[e.tabelle] || { label: e.tabelle };
+  if (!(await confirmMed(`${t.label}: ${e.text}`,
+      { titel: 'Wiederherstellen?', ja: 'Zurückholen' }))) return;
+
+  let fehler = null;
+  for (const id of e.ids) {
+    // Offline-pflichtige Tabellen laufen über dbSchreib (Outbox + Echo),
+    // der Rest direkt – beides mit Fehlerprüfung.
+    if (['kassenzaehlung', 'buchung'].includes(e.tabelle)) {
+      const voll = { ...e.zeile, id, geloescht_am: null };
+      const res = await dbSchreib(e.tabelle, voll, 'update');
+      if (res.error) { fehler = res.error; break; }
+      ocEcho(e.tabelle, voll);
+    } else {
+      const { error } = await sb.from(e.tabelle)
+        .update({ geloescht_am: null }).eq('id', id);
+      if (error) { fehler = error; break; }
+    }
+  }
+  if (fehler) {
+    // 23505 = Unique-Verletzung: es gibt den Namen inzwischen ein zweites Mal.
+    // Genau der Stolperstein beim Umbenennen von Kutschen.
+    const msg = fehler.code === '23505'
+      ? `Es gibt bereits einen Eintrag mit diesem Namen – erst dort umbenennen, dann erneut versuchen.`
+      : 'Fehler: ' + (fehler.message || 'unbekannt');
+    toast(msg, 'err');
+    return;
+  }
+  toast(`✓ ${t.label} wiederhergestellt`, 'ok');
+  ladePapierkorb();
+}
+
 // ── FAHRER-LOGIN ANLEGEN (via Edge Function 'fahrer-anlegen') ─
 let _loginMfId = null;
 
@@ -6969,6 +7139,7 @@ async function deleteStunden(id) {
   'doLogin', 'saveKassenzaehlung', 'saveBuchung', 'doMarktabschluss',
   'saveNeuerStand', 'saveNeuerMarkt', 'saveNeuesJahr', 'saveStunden',
   'saveNeuerMarktfahrer', 'saveClItem', 'phasenwechsel', 'saveRolleAendern',
+  'pkWiederherstellen',
   'deleteStand', 'deleteKassenzaehlung', 'deleteMarktfahrer',
   'deleteStunden', 'deleteClItem', 'deleteClItemDirect', 'fahrerEntfernen',
   'deleteBuchung',
