@@ -65,6 +65,10 @@ body {
 body.rolle-fahrer .admin-only,
 body.rolle-fahrer [data-rolle="admin"],
 body.rolle-fahrer .toc li[data-rolle="admin"] { display: none !important; }
+/* Gegenrichtung (v6.81): Nur-für-Fahrer-Kästen sind in der Admin-Ansicht
+   ausgeblendet – sonst läse der Admin dort Regeln, die für ihn nicht gelten.
+   Im Fahrer-Umschalter erscheinen sie wieder. */
+body:not(.rolle-fahrer) [data-rolle="fahrer"] { display: none !important; }
 .ansicht-bar { text-align: center; margin: 4px 0 10px; font-size: 13px; color: var(--text3); }
 .ansicht-bar button {
   background: var(--surface); border: 1px solid var(--border2); color: var(--gold2);
@@ -295,6 +299,11 @@ mark { background:var(--gold); color:var(--bg); padding:0 2px; border-radius:2px
   <section class="sec" id="s3" data-rolle="alle">
     <h2><span class="num">03</span> Der Märkte-Tab</h2>
     <p>Hier beginnt alles. Ganz oben zeigt die Karte <strong>„Nächster Markt"</strong> deinen kommenden Einsatz samt Countdown („Start in 11 Tagen"). Darunter wählst du das <strong>Saison-Jahr</strong>, und die Märkte sind nach Lebensphase gruppiert:</p>
+    <div class="box box-info" data-rolle="fahrer">
+      <div class="box-t">📅 Welche Jahre du siehst</div>
+      <p>In der Märkte-Übersicht siehst du das <strong>laufende Jahr und die kommenden Saisons</strong> &ndash; alles, was ansteht oder geplant wird. Zurückliegende Jahrgänge blendet die Liste aus, damit die Übersicht schlank bleibt.</p>
+      <p>Die <strong>Chronik</strong> eines Marktes zeigt dir weiterhin alle Jahre: Umsatzentwicklung, beste Tage, Vergleich zum Vorjahr. Die Historie ist also nicht weg, sie steht nur dort, wo sie hingehört.</p>
+    </div>
     <ul>
       <li><strong>Bestätigt</strong> &ndash; zugesagt, aber noch nicht in Vorbereitung.</li>
       <li><strong>Vorbereitung</strong> &ndash; Bestellung, Planung, Personal laufen.</li>

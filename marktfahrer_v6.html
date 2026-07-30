@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.80</title>
+<title>Marktfahrer · v6.81</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -614,7 +614,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.80</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.81</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -746,7 +746,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.80</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.81</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -1182,7 +1182,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.80';
+const APP_VERSION = 'v6.81';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -2347,6 +2347,7 @@ async function loadMaerkte() {
   maerkteOffline = offline ? ts : null; // renderMaerkte zeigt dann das Offline-Banner
   alleMaerkte = data || [];
   const jahre = verfuegbareJahre();
+  if (nurAktuelleJahre() && maerkteJahr < new Date().getFullYear()) maerkteJahr = new Date().getFullYear();
   if (!jahre.includes(maerkteJahr)) {
     const jetzt = new Date().getFullYear();
     maerkteJahr = jahre.includes(jetzt) ? jetzt : (jahre[0] || jetzt);
@@ -2358,8 +2359,19 @@ async function loadMaerkte() {
   renderAufgabenKasten().catch(e => { if (!istNetzfehler(e)) throw e; });
 }
 
+// Für Marktfahrer nur laufendes Jahr + Zukunft (v6.81). Zurückliegende Jahrgänge
+// fremder Märkte blähen die Übersicht auf, ohne für den Fahrer Nutzen zu haben.
+// Das ist ein ANZEIGE-Filter: Die alten Jahrgänge bleiben per RLS lesbar, weil
+// die Chronik sie braucht. Wer die API direkt anspricht, sieht sie weiterhin.
+function nurAktuelleJahre() { return userRolle === 'marktfahrer'; }
+
 function verfuegbareJahre() {
-  return [...new Set(alleMaerkte.map(m => m.saison_jahr).filter(Boolean))].sort((a, b) => b - a);
+  let jahre = [...new Set(alleMaerkte.map(m => m.saison_jahr).filter(Boolean))];
+  if (nurAktuelleJahre()) {
+    const jetzt = new Date().getFullYear();
+    jahre = jahre.filter(j => j >= jetzt);
+  }
+  return jahre.sort((a, b) => b - a);
 }
 
 function renderMaerkteJahrTabs(jahre) {
@@ -2393,8 +2405,11 @@ function renderMaerkte() {
   const q = (el('markt-search').value || '').toLowerCase().trim();
   const suche = !!q;
 
-  // Nach gewähltem Jahr filtern (bei aktiver Suche zusätzlich nach Text)
-  let liste = alleMaerkte.filter(m => m.saison_jahr === maerkteJahr);
+  // Nach gewähltem Jahr filtern (bei aktiver Suche zusätzlich nach Text).
+  // Für Fahrer zusätzlich alles vor dem laufenden Jahr ausblenden – greift auch,
+  // wenn maerkteJahr aus einer früheren Sitzung noch auf einem alten Wert steht.
+  const jahrGrenze = nurAktuelleJahre() ? new Date().getFullYear() : -Infinity;
+  let liste = alleMaerkte.filter(m => m.saison_jahr === maerkteJahr && m.saison_jahr >= jahrGrenze);
   if (suche) liste = liste.filter(m =>
     (m.name || m.event_template?.name || '').toLowerCase().includes(q) ||
     (m.event_template?.ort || '').toLowerCase().includes(q)
