@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.77</title>
+<title>Marktfahrer · v6.78</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -614,7 +614,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.77</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.78</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -670,13 +670,20 @@ body.rolle-fahrer .admin-only { display: none !important; }
 
     <!-- STUNDEN -->
     <div id="screen-stunden" class="screen">
-      <div style="padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="padding:14px 16px 0;display:flex;gap:8px;">
+        <select id="stunden-saison-select" onchange="stundenSaisonGewaehlt()"
+          style="width:110px;flex-shrink:0;background:var(--bg3);border:1px solid var(--border);border-radius:20px;color:var(--text);padding:8px 12px;font-size:14px;outline:none;-webkit-appearance:none;appearance:none;"></select>
+        <input type="search" id="stunden-suche" placeholder="🔍 Markt suchen…" oninput="stundenSucheGeaendert()"
+          style="flex:1;min-width:0;background:var(--bg3);border:1px solid var(--border);border-radius:20px;color:var(--text);padding:8px 14px;font-size:14px;outline:none;-webkit-appearance:none;appearance:none;">
+      </div>
+      <div style="padding:8px 16px 8px;display:flex;align-items:center;justify-content:space-between;">
         <select id="stunden-markt-select" onchange="stundenMarktGewaehlt()"
           style="flex:1;min-width:0;background:var(--bg3);border:1px solid var(--border);border-radius:20px;color:var(--text);padding:8px 14px;font-size:14px;outline:none;-webkit-appearance:none;appearance:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
           <option value="">— Markt wählen —</option>
         </select>
         <button class="btn btn-primary btn-sm" style="margin-left:10px;white-space:nowrap;" onclick="openNeueStundenModal()" id="btn-stunden-add" disabled>+ Stunden</button>
       </div>
+      <div id="stunden-treffer" style="padding:0 16px 6px;font-size:11px;color:var(--text3);"></div>
       <div id="stunden-content" style="padding:0 16px 16px;">
         <p style="color:var(--text3);font-size:14px;padding-top:16px;">Bitte zuerst einen Markt wählen.</p>
       </div>
@@ -739,7 +746,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.77</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.78</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -980,6 +987,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
     <div class="field">
       <label>Marktfahrer *</label>
       <select id="std-fahrer"></select>
+      <p id="std-hinweis" style="display:none;font-size:11px;color:var(--amber2);margin-top:4px;"></p>
     </div>
     <div class="field">
       <label>Tag</label>
@@ -1129,7 +1137,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.77';
+const APP_VERSION = 'v6.78';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -7185,35 +7193,90 @@ function saisonJahrWechseln(jahr) {
 // ── STUNDEN-ERFASSUNG ─────────────────────────────────────────
 let stundenInstanzId = null;
 
+// Markt-Auswahl im Stunden-Tab (v6.78): Saison + Suchfeld statt einer auf 30
+// Einträge gekappten Liste. Die alte Kappung sortierte nach start_datum
+// absteigend – sobald die Folgesaison angelegt war, verschwanden alle
+// zurückliegenden Märkte aus der Auswahl, auch die mit erfassten Stunden.
+let stundenInstanzen = [];   // alle Instanzen (Cache-Stand)
+let stundenSaison    = null; // gewähltes Jahr
+let stundenSuche     = '';   // Filtertext
+
 async function ladeStundenMarktSelector() {
   const { data } = await ocQuery('stunden_selector', () => sb.from('event_instanz')
     .select('id, name, saison_jahr, status, start_datum, end_datum, start_datum_2, end_datum_2, event_template(name)')
     .is('geloescht_am', null)
     .order('start_datum', { ascending: false }));
-  const instanzen = (data || []).slice(0, 30);
+  stundenInstanzen = data || [];
 
   // Sinnvoller Standard statt leerer Auswahl: eindeutig heute laufender
-  // aktiver Markt, sonst der zuletzt geöffnete Markt (falls in der Liste).
+  // aktiver Markt, sonst der zuletzt geöffnete Markt.
   if (!stundenInstanzId) {
     const heute = isoToday();
-    const laufend = instanzen.filter(i =>
+    const laufend = stundenInstanzen.filter(i =>
       i.status === 'aktiv' && marktTage(i).includes(heute));
     if (laufend.length === 1) {
       stundenInstanzId = laufend[0].id;
-    } else if (currentInstanzId && instanzen.some(i => i.id === currentInstanzId)) {
+    } else if (currentInstanzId && stundenInstanzen.some(i => i.id === currentInstanzId)) {
       stundenInstanzId = currentInstanzId;
     }
   }
 
+  // Saison vorbelegen: die des gewählten Marktes, sonst das laufende Jahr,
+  // sonst die jüngste vorhandene.
+  const jahre = [...new Set(stundenInstanzen.map(i => i.saison_jahr).filter(Boolean))]
+    .sort((a, b) => b - a);
+  if (!stundenSaison) {
+    const gewaehlt = stundenInstanzen.find(i => i.id === stundenInstanzId);
+    stundenSaison = gewaehlt?.saison_jahr
+      || (jahre.includes(new Date().getFullYear()) ? new Date().getFullYear() : jahre[0])
+      || null;
+  }
+  const saisonSel = el('stunden-saison-select');
+  saisonSel.innerHTML = jahre.map(j =>
+    `<option value="${j}" ${j === stundenSaison ? 'selected' : ''}>${j}</option>`).join('');
+
+  renderStundenMarktListe();
+  if (stundenInstanzId) stundenMarktGewaehlt();
+}
+
+// Füllt das Markt-Select aus Saison + Suchbegriff. Der gewählte Markt bleibt
+// immer in der Liste – sonst würde die Auswahl beim Tippen aus dem Select
+// fallen und der Tab stünde plötzlich leer da.
+function renderStundenMarktListe() {
   const sel = el('stunden-markt-select');
+  if (!sel) return;
+  const suche = stundenSuche.trim().toLowerCase();
+  const treffer = stundenInstanzen.filter(i => {
+    if (i.id === stundenInstanzId) return true;
+    if (stundenSaison && i.saison_jahr !== stundenSaison) return false;
+    if (!suche) return true;
+    const name = (i.name || i.event_template?.name || '').toLowerCase();
+    return name.includes(suche);
+  });
+
   sel.innerHTML = '<option value="">— Markt wählen —</option>' +
-    instanzen.map(i => {
+    treffer.map(i => {
       const name = i.name || i.event_template?.name || '(Kein Name)';
       const dat  = i.start_datum ? ' · ' + dateFmt(i.start_datum) : '';
       const selected = i.id === stundenInstanzId ? 'selected' : '';
       return `<option value="${i.id}" ${selected}>${name}${dat} (${i.saison_jahr})</option>`;
     }).join('');
-  if (stundenInstanzId) stundenMarktGewaehlt();
+
+  const hinweis = el('stunden-treffer');
+  if (hinweis) {
+    hinweis.textContent = suche
+      ? `${treffer.length} Treffer` : `${treffer.length} Märkte in ${stundenSaison || '–'}`;
+  }
+}
+
+function stundenSaisonGewaehlt() {
+  stundenSaison = parseInt(el('stunden-saison-select').value, 10) || null;
+  renderStundenMarktListe();
+}
+
+function stundenSucheGeaendert() {
+  stundenSuche = el('stunden-suche').value || '';
+  renderStundenMarktListe();
 }
 
 async function stundenMarktGewaehlt() {
@@ -7281,11 +7344,17 @@ async function renderStundenContent() {
 async function openNeueStundenModal() {
   if (!stundenInstanzId) return;
 
-  // Fahrer für diese Instanz laden
-  const zugeordnet = await loadFahrerFuerInstanz(stundenInstanzId);
+  // Fahrer für diese Instanz laden. Ohne Zuordnung wurde bisher abgewiesen –
+  // damit waren Altmärkte ohne event_marktfahrer-Einträge für die Nacherfassung
+  // gesperrt. Jetzt: Rückfall auf alle aktiven Marktfahrer (v6.78).
+  let zugeordnet = await loadFahrerFuerInstanz(stundenInstanzId);
+  let ausAllen = false;
   if (!zugeordnet.length) {
-    toast('Zuerst Fahrer im Planung-Tab zuordnen', 'err');
-    return;
+    const { data: mfs } = await sb.from('marktfahrer').select('id, name')
+      .is('geloescht_am', null).eq('aktiv', true).order('name');
+    if (!mfs?.length) { toast('Keine Marktfahrer angelegt', 'err'); return; }
+    zugeordnet = mfs.map(m => ({ marktfahrer: m }));
+    ausAllen = true;
   }
 
   // Instanz-Daten für Tage (offline: aus Cache oder Märkte-Liste)
@@ -7322,6 +7391,13 @@ async function openNeueStundenModal() {
 
   el('std-stunden').value = '';
   el('std-notiz').value = '';
+  const hw = el('std-hinweis');
+  if (hw) {
+    hw.style.display = ausAllen ? '' : 'none';
+    hw.textContent = ausAllen
+      ? 'Für diesen Markt sind keine Fahrer zugeordnet – hier stehen alle aktiven Marktfahrer.'
+      : '';
+  }
   openModal('modal-neue-stunden');
 }
 
