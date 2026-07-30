@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.73</title>
+<title>Marktfahrer · v6.77</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -357,6 +357,22 @@ body.rolle-fahrer .admin-only { display: none !important; }
 .wf-skaldenmet { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .wf-skaldenmet input { width: 80px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 6px; color: var(--text); padding: 4px 8px; font-size: 13px; }
 .wf-skaldenmet label { font-size: 11px; color: var(--text3); min-width: 116px; }
+/* Meine Aufgaben (v6.77) – linker Rahmenstreifen als Ampel, theme-sicher
+   (kein color-mix, feste rgba-Werte wie bei den wf-Badges) */
+.fa-kopf { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.fa-zeile { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-left: 3px solid var(--border2); border-bottom: 1px solid var(--border); background: var(--bg3); border-radius: 0 6px 6px 0; margin-bottom: 4px; }
+.fa-zeile:last-child { border-bottom: none; margin-bottom: 0; }
+.fa-wartet   { border-left-color: var(--border2); opacity: .7; }
+.fa-offen    { border-left-color: var(--amber2); }
+.fa-rot      { border-left-color: var(--red2); background: rgba(231,76,60,.08); }
+.fa-erledigt { border-left-color: var(--green2); }
+.fa-box { width: 22px; height: 22px; border: 2px solid var(--border2); border-radius: 5px; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all .15s; }
+.fa-box.done { background: var(--green); border-color: var(--green2); }
+.fa-body { flex: 1; min-width: 0; }
+.fa-titel { font-size: 13px; color: var(--text); line-height: 1.3; }
+.fa-titel.done { text-decoration: line-through; color: var(--text3); }
+.fa-status { font-size: 10px; color: var(--text3); margin-top: 2px; }
+.fa-rot .fa-status { color: var(--red2); font-weight: 700; }
 /* Phasenwechsel-Button */
 .wf-phase-btn { width: calc(100% - 28px); margin: 10px 14px; padding: 12px; border-radius: var(--radius); border: none; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity .2s; }
 .wf-phase-btn.ready { background: var(--gold); color: var(--bg); }
@@ -598,7 +614,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.76</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.77</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -723,7 +739,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.76</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.77</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -971,7 +987,12 @@ body.rolle-fahrer .admin-only { display: none !important; }
     </div>
     <div class="field">
       <label>Stunden *</label>
-      <input type="number" id="std-stunden" placeholder="8.0" step="0.5" min="0" max="24" onfocus="clearZero(this)">
+      <input type="number" id="std-stunden" placeholder="8.0" step="0.25" min="0" max="48" onfocus="clearZero(this)">
+      <p style="font-size:11px;color:var(--text3);margin-top:4px;">Der Tag vor Marktbeginn ist ein Sammeleintrag (Vorbereitung, Anfahrt, Aufbau) – dort sind mehr als 24 Stunden möglich.</p>
+    </div>
+    <div class="field">
+      <label>Notiz</label>
+      <input type="text" id="std-notiz" placeholder="z. B. Name der Aushilfe" maxlength="120">
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('modal-neue-stunden')">Abbrechen</button>
@@ -1108,7 +1129,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.76';
+const APP_VERSION = 'v6.77';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1529,8 +1550,8 @@ async function vormerkLaden(instanzId, phase) {
 
   // Stunden + Fahrer (beide Filtervarianten – das Stunden-Modal braucht
   // die bestätigten, der Planung-Tab beide) + Aufgaben + Checkliste
-  const [rst, rf1, rf0, ra, rcl] = await Promise.all([
-    sb.from('stunde').select('id, datum, stunden, marktfahrer:marktfahrer_id(id, name)')
+  const [rst, rf1, rf0, ra, rcl, rfa] = await Promise.all([
+    sb.from('stunde').select('id, datum, stunden, notiz, marktfahrer:marktfahrer_id(id, name)')
       .eq('event_instanz_id', instanzId).is('geloescht_am', null).order('datum'),
     sb.from('event_marktfahrer').select('id, status, marktfahrer:marktfahrer_id(id, name)')
       .eq('event_instanz_id', instanzId).is('geloescht_am', null).eq('status', 'bestaetigt'),
@@ -1540,13 +1561,18 @@ async function vormerkLaden(instanzId, phase) {
       .eq('event_instanz_id', instanzId).eq('phase', status).order('reihenfolge'),
     sb.from('user_checkliste_item').select('*')
       .eq('user_id', currentUser.id).is('geloescht_am', null).order('reihenfolge'),
+    // Meine Aufgaben (v6.77): phasenunabhängig, eigener Schlüssel – sonst wäre
+    // der Block trotz Vormerkung ohne Netz leer.
+    sb.from('markt_aufgabe').select('*')
+      .eq('event_instanz_id', instanzId).in('schluessel', FAHRER_SCHLUESSEL),
   ]);
-  for (const r of [rst, rf1, rf0, ra, rcl]) if (r.error) throw r.error;
+  for (const r of [rst, rf1, rf0, ra, rcl, rfa]) if (r.error) throw r.error;
   ocSet('stunden_' + instanzId, rst.data || []);
   ocSet(`fahrer_${instanzId}_1`, rf1.data || []);
   ocSet(`fahrer_${instanzId}_0`, rf0.data || []);
   ocSet(`aufgaben_${instanzId}_${status}`, ra.data || []);
   ocSet('cl_items_' + currentUser.id, rcl.data || []);
+  ocSet('fahraufgaben_' + instanzId, rfa.data || []);
 
   // Marktnotizen dieser Instanz (offline erfassbar am Stand)
   const rn = await sb.from('markt_produkt_notiz')
@@ -1959,7 +1985,7 @@ const QS_SCHRITTE = [
   {
     icon: '🧭',
     titel: 'Die vier Bereiche',
-    text: 'Unten wechselst du zwischen <strong>Märkte</strong> (deine Einsätze), <strong>Saison</strong> (Zahlen des Jahres), <strong>Stunden</strong> (Arbeitszeit) und <strong>Einstellungen</strong>.\n\nÖffnest du einen Markt, findest du oben die Reiter <strong>Planung · Kasse · Bestellung · Chronik</strong>.',
+    text: 'Unten wechselst du zwischen <strong>Märkte</strong> (deine Einsätze), <strong>Saison</strong> (Zahlen des Jahres), <strong>Stunden</strong> (Arbeitszeit) und <strong>Einstellungen</strong>.\n\nÖffnest du einen Markt, findest du oben die Reiter <strong>Planung · Kasse · Bestellung · Chronik</strong>.\n\nGanz oben in der <strong>Planung</strong> steht <strong>🛒 Meine Aufgaben</strong> – die drei Dinge, die du selbst erledigst, mit Ampel und Frist.',
   },
   {
     icon: '💰',
@@ -2699,7 +2725,7 @@ async function renderPlanungTab(scrollHalten = false) {
 
   // Alle vier Teile einzeln absichern: ohne Netz liefert jeder seinen
   // Cache-Stand; ein leerer Teil darf den ganzen Tab nicht verhindern.
-  const [staendeRes, zugeordneteFahrer, aufgaben, clSection, zuoRes] = await Promise.all([
+  const [staendeRes, zugeordneteFahrer, aufgaben, clSection, zuoRes, faRes] = await Promise.all([
     ocQuery('staende_' + currentInstanzId, () => sb.from('stand').select('*')
       .eq('event_instanz_id', currentInstanzId)
       .is('geloescht_am', null).order('bezeichnung')),
@@ -2713,6 +2739,8 @@ async function renderPlanungTab(scrollHalten = false) {
       .select('id, stand_id, marktfahrer_id, stand!inner(event_instanz_id)')
       .eq('stand.event_instanz_id', currentInstanzId)
       .is('geloescht_am', null)),
+    // Meine Aufgaben (v6.77): phasenunabhängig, deshalb eigene Abfrage.
+    ladeFahrerAufgaben(currentInstanzId).catch(e => { if (istNetzfehler(e)) return []; throw e; }),
   ]);
   const staende = staendeRes.data || [];
   standZuordnungen = zuoRes?.data || [];
@@ -2736,6 +2764,9 @@ async function renderPlanungTab(scrollHalten = false) {
           <button class="btn btn-sm admin-only" onclick="fahrerEntfernen('${z.id}')">✕</button>
         </div>`).join('')
     : '<p style="color:var(--text3);font-size:13px;">Noch keine Fahrer zugeordnet.</p>';
+
+  // Meine Aufgaben (v6.77): sichtbar für Admin und Fahrer.
+  const meineAufgabenHtml = await renderFahrerAufgabenSection(inst, faRes);
 
   // Aufgaben-Section (lazy: wenn keine angelegt, anlegen — nur Admin darf anlegen)
   let aufgabenHtml = '';
@@ -2850,6 +2881,7 @@ async function renderPlanungTab(scrollHalten = false) {
       </div>
     </div>
     <div class="section">
+      ${meineAufgabenHtml}
       ${aufgabenHtml}
       ${clSection}
     </div>
@@ -2982,6 +3014,7 @@ function renderStandCard(s) {
     ${fahrerZeile}
     <div style="display:flex;gap:8px;margin-top:10px;">
       <button class="btn btn-sm admin-only" onclick="openStandFahrerModal('${s.id}')">👤 Fahrer</button>
+      <button class="btn btn-sm admin-only" onclick="renameStand('${s.id}', '${esc(s.bezeichnung)}')">✏️ Umbenennen</button>
       <button class="btn btn-sm admin-only" onclick="deleteStand('${s.id}')">Löschen</button>
     </div>
   </div>`;
@@ -3202,8 +3235,79 @@ async function saveNeuerStand() {
   renderPlanungTab(true);
 }
 
+// Kutsche umbenennen (v6.77). Der sichere Weg gegenüber Löschen + Neuanlegen:
+// alle Kassen-, Bestell- und Zuordnungsdaten hängen an der Stand-ID und bleiben
+// dadurch erhalten. Achtung: Der partielle Unique-Index
+// (event_instanz_id, bezeichnung) WHERE geloescht_am IS NULL kann blocken.
+async function renameStand(standId, alterName) {
+  const neu = await promptMed('Neuer Name dieser Kutsche:',
+    { titel: 'Kutsche umbenennen', wert: alterName, ja: 'Umbenennen' });
+  if (neu === null) return;
+  const name = String(neu).trim();
+  if (!name || name === alterName) return;
+
+  const now = new Date().toISOString();
+  const { error } = await sb.from('stand')
+    .update({ bezeichnung: name, geaendert_am: now, geaendert_von: currentUser.id })
+    .eq('id', standId);
+  if (error) {
+    const doppelt = /duplicate|unique/i.test(error.message || '');
+    toast(doppelt
+      ? 'Es gibt in diesem Markt schon eine Kutsche mit diesem Namen.'
+      : 'Fehler: ' + error.message, 'err');
+    return;
+  }
+  // Das Vorjahres-Matching der Bestellungen läuft über stand.bezeichnung –
+  // deshalb der Hinweis, das Vorjahr mitzupflegen (Befund Bückeburg 29.07.2026).
+  toast('✓ Umbenannt. Prüfe bei Bedarf den Vorjahres-Markt.', 'ok');
+  renderPlanungTab(true);
+}
+
 async function deleteStand(standId) {
-  if (!(await confirmMed('Diese Kutsche wird aus dem Markt entfernt.', {titel:'Kutsche löschen', ja:'Löschen', gefahr:true}))) return;
+  // Warnung mit Datenzählern (v6.77). Anlass: Bückeburg MPS 2026 – eine Kutsche
+  // wurde gelöscht und namensgleich neu angelegt; Kassenzählungen, Buchungen und
+  // Bestellungen blieben an der alten ID hängen und waren schlagartig unsichtbar.
+  // Richtig ist Umbenennen an Ort und Stelle.
+  let zaehler = null;
+  if (!netzSchwach()) {
+    try {
+      const [rz, rb, rbe, rr, rzu] = await Promise.all([
+        sb.from('kassenzaehlung').select('id', { count: 'exact', head: true }).eq('stand_id', standId).is('geloescht_am', null),
+        sb.from('buchung').select('id', { count: 'exact', head: true }).eq('stand_id', standId).is('geloescht_am', null),
+        sb.from('bestellung').select('id', { count: 'exact', head: true }).eq('stand_id', standId).is('geloescht_am', null),
+        sb.from('markt_restbestand').select('id', { count: 'exact', head: true }).eq('stand_id', standId).is('geloescht_am', null),
+        sb.from('stand_zuordnung').select('id', { count: 'exact', head: true }).eq('stand_id', standId).is('geloescht_am', null),
+      ]);
+      zaehler = {
+        zaehlungen: rz.count || 0, buchungen: rb.count || 0, bestellungen: rbe.count || 0,
+        rest: rr.count || 0, fahrer: rzu.count || 0,
+      };
+    } catch (e) {
+      if (!istNetzfehler(e)) throw e;   // echter Serverfehler darf nicht stumm bleiben
+    }
+  }
+
+  let text = 'Diese Kutsche wird aus dem Markt entfernt.';
+  let gefahr = true;
+  if (zaehler) {
+    const teile = [];
+    if (zaehler.zaehlungen)   teile.push(`${zaehler.zaehlungen} Kassenzählung${zaehler.zaehlungen === 1 ? '' : 'en'}`);
+    if (zaehler.buchungen)    teile.push(`${zaehler.buchungen} Buchung${zaehler.buchungen === 1 ? '' : 'en'}`);
+    if (zaehler.bestellungen) teile.push(`${zaehler.bestellungen} Bestellung${zaehler.bestellungen === 1 ? '' : 'en'}`);
+    if (zaehler.rest)         teile.push(`${zaehler.rest} Restzählung${zaehler.rest === 1 ? '' : 'en'}`);
+    if (zaehler.fahrer)       teile.push(`${zaehler.fahrer} Fahrer-Zuordnung${zaehler.fahrer === 1 ? '' : 'en'}`);
+    if (teile.length) {
+      text = `An dieser Kutsche hängen ${teile.join(', ')}.\n\n`
+           + 'Beim Löschen verschwinden diese Daten aus allen Ansichten – auch wenn du gleich '
+           + 'eine Kutsche mit demselben Namen anlegst. Sie hängen dann weiter an der alten Kutsche.\n\n'
+           + 'Willst du sie nur anders nennen? Dann brich hier ab und benutze ✏️ Umbenennen.';
+    }
+  } else {
+    text = 'Diese Kutsche wird aus dem Markt entfernt.\n\n'
+         + 'Ohne Verbindung kann ich nicht prüfen, ob Kassen- oder Bestelldaten daran hängen.';
+  }
+
+  if (!(await confirmMed(text, { titel: 'Kutsche löschen', ja: 'Trotzdem löschen', gefahr }))) return;
   await dbW(sb.from('stand').update({ geloescht_am: new Date().toISOString() }).eq('id', standId), 'Kutsche speichern');
   toast('Kutsche gelöscht');
   renderPlanungTab(true);
@@ -6229,6 +6333,122 @@ async function fahrerEntfernen(zuordnungId) {
 
 // ── WORKFLOW / AUFGABEN ───────────────────────────────────────
 
+// ── MEINE AUFGABEN (v6.77) ────────────────────────────────────
+// Die drei Aufgaben, die ein Marktfahrer über den ganzen Marktverlauf selbst
+// erledigt. Sie stecken in AUFGABEN_VORLAGEN in DREI verschiedenen Phasen
+// (vorbereitung / aktiv / abgeschlossen). Der Phasen-Aufgabenblock zeigt aber
+// immer nur die aktuelle Phase – ein Fahrer sah deshalb nie alle drei, und die
+// Skaldenmet-Meldung erst, wenn der Markt längst vorbei war. Dieser Block ist
+// von der Phase entkoppelt und zeigt alle drei dauerhaft.
+const FAHRER_SCHLUESSEL = ['warenbestellung', 'kassenzaehlung_taeglich', 'skaldenmet'];
+
+// faelligAb / fristAb liefern Tagesgrenzen relativ zu Start bzw. Ende des
+// Marktes. null = keine Frist.
+const FAHRER_AUFGABEN = [
+  { schluessel: 'warenbestellung',        icon: '📦', kurz: 'Warenbestellung',
+    phase: 'vorbereitung',  faellig: 'vor_start', fristTage: -28,
+    hinweis: 'Bestellung im Bestellung-Tab zusammenstellen und versenden' },
+  { schluessel: 'kassenzaehlung_taeglich', icon: '💰', kurz: 'Tageszählung',
+    phase: 'aktiv',         faellig: 'ab_start',  fristTage: 1,
+    hinweis: 'Jeden Markttag die Kasse zählen' },
+  { schluessel: 'skaldenmet',              icon: '🍯', kurz: 'Skaldenmet',
+    phase: 'aktiv',         faellig: 'ab_ende',   fristTage: 3,
+    hinweis: 'Verkaufte Stückzahlen eintragen' },
+];
+
+// Zustand einer Fahrer-Aufgabe: wartet | offen | rot | erledigt
+function fahrerAufgabeStatus(def, aufgabe, inst) {
+  if (aufgabe?.erledigt) return { stufe: 'erledigt', text: 'erledigt' };
+  if (!inst?.start_datum) return { stufe: 'wartet', text: 'noch kein Datum' };
+  const heute = new Date(); heute.setHours(0, 0, 0, 0);
+  const start = new Date(inst.start_datum + 'T00:00:00');
+  const ende  = new Date((inst.end_datum || inst.start_datum) + 'T00:00:00');
+  const tage  = (a, b) => Math.round((a - b) / 86400000);
+
+  if (def.faellig === 'vor_start') {
+    const bisStart = tage(start, heute);
+    if (bisStart <= Math.abs(def.fristTage)) {
+      return bisStart >= 0
+        ? { stufe: 'rot', text: `Markt beginnt in ${bisStart} Tag${bisStart === 1 ? '' : 'en'}` }
+        : { stufe: 'rot', text: 'Markt läuft bereits' };
+    }
+    return { stufe: 'offen', text: `${bisStart} Tage bis Marktbeginn` };
+  }
+  if (def.faellig === 'ab_start') {
+    if (heute < start) return { stufe: 'wartet', text: `ab ${dateFmt(inst.start_datum)}` };
+    const nachEnde = tage(heute, ende);
+    if (nachEnde >= def.fristTage) return { stufe: 'rot', text: 'Markt ist vorbei' };
+    return { stufe: 'offen', text: 'läuft' };
+  }
+  // ab_ende
+  if (heute <= ende) return { stufe: 'wartet', text: `ab ${dateFmt(inst.end_datum || inst.start_datum)}` };
+  const nachEnde = tage(heute, ende);
+  if (nachEnde >= def.fristTage) {
+    return { stufe: 'rot', text: `seit ${nachEnde} Tagen fällig` };
+  }
+  return { stufe: 'offen', text: 'fällig' };
+}
+
+// Lädt die drei Aufgaben quer über alle Phasen (eigener Cache-Schlüssel,
+// weil ladeAufgaben() phasengebunden ist).
+async function ladeFahrerAufgaben(instanzId) {
+  const { data } = await ocQuery('fahraufgaben_' + instanzId, () => sb.from('markt_aufgabe')
+    .select('*').eq('event_instanz_id', instanzId)
+    .in('schluessel', FAHRER_SCHLUESSEL));
+  return data || [];
+}
+
+async function renderFahrerAufgabenSection(inst, aufgaben) {
+  const nachSchluessel = {};
+  (aufgaben || []).forEach(a => { nachSchluessel[a.schluessel] = a; });
+
+  let offen = 0, rot = 0;
+  const zeilen = FAHRER_AUFGABEN.map(def => {
+    const a  = nachSchluessel[def.schluessel];
+    const st = fahrerAufgabeStatus(def, a, inst);
+    if (st.stufe === 'rot') rot++;
+    else if (st.stufe === 'offen') offen++;
+
+    // Skaldenmet wird hier NICHT abgehakt: aufgabeToggle() liest die Stückzahl-
+    // Felder (skald-/skaldf-) mit, die nur im Phasenblock existieren – von hier
+    // aus würde es die gemeldeten Stückzahlen auf null setzen. Deshalb nur
+    // anzeigen und auf den Aufgabenblock verweisen.
+    const nurAnzeige = def.schluessel === 'skaldenmet';
+    const darf = a && !a.erledigt && !nurAnzeige && st.stufe !== 'wartet';
+    const klick = darf
+      ? ` onclick="aufgabeToggle('${a.id}', true, '${a.id.slice(0,8)}', false)"`
+      : '';
+
+    const fehlt = !a;
+    return `<div class="fa-zeile fa-${st.stufe}">
+      <div class="fa-box${st.stufe === 'erledigt' ? ' done' : ''}"${klick}
+           ${darf ? '' : 'style="cursor:default;opacity:.55;"'}
+           title="${fehlt ? 'Wird angelegt, sobald der Markt diese Phase erreicht' : esc(def.hinweis)}">
+        ${st.stufe === 'erledigt' ? '✓' : ''}
+      </div>
+      <div class="fa-body">
+        <div class="fa-titel${st.stufe === 'erledigt' ? ' done' : ''}">${def.icon} ${esc(def.kurz)}</div>
+        <div class="fa-status">${fehlt ? 'noch nicht freigegeben'
+          : nurAnzeige && st.stufe !== 'erledigt' ? esc(st.text) + ' · Stückzahlen unter 📋 Aufgaben melden'
+          : esc(st.text)}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const badge = rot ? `<span class="wf-badge wf-badge-warn">${rot} überfällig</span>`
+    : offen ? `<span class="wf-badge wf-badge-grey">${offen} offen</span>`
+    : '<span class="wf-badge wf-badge-ok">alles erledigt</span>';
+
+  return `
+    <div class="section" style="margin-top:14px;">
+      <div class="fa-kopf">
+        <h3 style="margin:0;font-size:15px;">🛒 Meine Aufgaben</h3>
+        ${badge}
+      </div>
+      ${zeilen}
+    </div>`;
+}
+
 const AUFGABEN_VORLAGEN = {
   interessent: [
     { titel: 'Bewerbung beim Veranstalter absenden', pflicht: true, extern: false },
@@ -6250,13 +6470,16 @@ const AUFGABEN_VORLAGEN = {
     { titel: 'Markteinteilung / Fahrer in App zugeordnet', pflicht: true, extern: false },
     { titel: 'Nextcloud: Markt für Marktfahrer freigegeben', pflicht: true, extern: true },
     { titel: 'Personalplanung in Marktfahrerkalender übertragen', pflicht: true, extern: true },
-    { titel: 'Warenbestellung aufgegeben (PDF versendet)', pflicht: true, extern: false },
+    { titel: 'Warenbestellung aufgegeben (PDF versendet)', pflicht: true, extern: false, schluessel: 'warenbestellung' },
   ],
   aktiv: [
-    { titel: 'Tägliche Kassenzählung durchgeführt', pflicht: false, extern: false },
+    { titel: 'Tägliche Kassenzählung durchgeführt', pflicht: false, extern: false, schluessel: 'kassenzaehlung_taeglich' },
+    // Steht bewusst in 'aktiv', nicht in 'abgeschlossen' (v6.77): der Fahrer muss
+    // melden können, bevor der Markt abgeschlossen wird – und abgeschlossen wird
+    // erst, wenn die Kassenzählungen vollständig sind.
+    { titel: 'Skaldenmet-Umsatz gemeldet', pflicht: false, extern: false, skaldenmet: true, schluessel: 'skaldenmet' },
   ],
   abgeschlossen: [
-    { titel: 'Skaldenmet-Umsatz gemeldet', pflicht: true, extern: false, skaldenmet: true },
     { titel: 'Abrechnungen in Nextcloud hochgeladen', pflicht: true, extern: true },
     { titel: 'Kassen- und Marktabschluss durchgeführt', pflicht: true, extern: false },
     { titel: 'Hinweise für nächstes Jahr notiert', pflicht: false, extern: false },
@@ -6286,6 +6509,9 @@ async function aufgabenAnlegen(instanzId, phase) {
     id: uuid(), event_instanz_id: instanzId,
     phase, titel: v.titel, pflicht: v.pflicht,
     extern: v.extern, reihenfolge: i,
+    // Stabiler Schlüssel (v6.77): das Fahrerrecht in der RLS-Policy und die
+    // Auto-Abhakung hängen daran. Ohne ihn liefen beide still ins Leere.
+    schluessel: v.schluessel || null,
     erstellt_am: now, geaendert_am: now,
   }));
   for (let i = 0; i < rows.length; i += 10) {
@@ -6384,7 +6610,7 @@ async function renderAufgabenSection(instanz, aufgaben) {
   const badgeTxt = n ? `${erledigt} / ${n}` : '–';
 
   const taskHtml = aufgaben.map(a => {
-    const isSkaldenmet = a.titel.toLowerCase().includes('skaldenmet');
+    const isSkaldenmet = a.schluessel === 'skaldenmet' || (!a.schluessel && a.titel.toLowerCase().includes('skaldenmet'));
     const sid = a.id.slice(0,8);
     let skHtml = '';
     if (isSkaldenmet && !a.erledigt) {
@@ -6412,8 +6638,11 @@ async function renderAufgabenSection(instanz, aufgaben) {
 
     // Abhaken: Admin alles; Fahrer nur die Warenbestellung (Skaldenmet-
     // Haken = Meldung erfolgt, bleibt Admin – Fahrer trägt nur Stückzahlen ein)
+    // Fahrerrecht am Schlüssel, nicht am Titel (v6.77) – deckungsgleich mit der
+    // RLS-Policy fahrer_update_eigene_aufgaben. Der Skaldenmet-Haken bleibt
+    // Admin-Sache, der Fahrer trägt dort nur Stückzahlen ein.
     const darfHaken = istAdmin() ||
-      (!isSkaldenmet && a.titel.toLowerCase().includes('warenbestellung'));
+      (!isSkaldenmet && FAHRER_SCHLUESSEL.includes(a.schluessel));
     return `<div class="wf-task">
       <div class="wf-checkbox ${a.erledigt ? 'done' : ''} ${a.extern ? 'extern' : ''}"
         ${darfHaken ? `onclick="aufgabeToggle('${a.id}', ${!a.erledigt}, '${a.id.slice(0,8)}', ${isSkaldenmet})"` : 'style="cursor:default;opacity:.7;"'}
@@ -6421,7 +6650,7 @@ async function renderAufgabenSection(instanz, aufgaben) {
         ${a.erledigt ? '✓' : ''}
       </div>
       <div class="wf-task-body">
-        <div class="wf-task-titel ${a.erledigt ? 'done' : ''}">${esc(a.titel)}${a.pflicht ? '' : ' <span style="color:var(--text3);font-size:10px;">(optional)</span>'}</div>
+        <div class="wf-task-titel ${a.erledigt ? 'done' : ''}">${esc(a.titel)}${a.pflicht || isSkaldenmet ? '' : ' <span style="color:var(--text3);font-size:10px;">(optional)</span>'}</div>
         ${a.extern ? '<span class="wf-task-extern">🔗 Extern erledigen, dann hier abhaken</span>' : ''}
         ${skHtml}
       </div>
@@ -7004,7 +7233,7 @@ async function renderStundenContent() {
   wrap.innerHTML = '<div class="spinner" style="margin-top:16px;"></div>';
 
   const { data: eintraege, offline, ts } = await ocQuery('stunden_' + stundenInstanzId, () => sb.from('stunde')
-    .select('id, datum, stunden, marktfahrer:marktfahrer_id(id, name)')
+    .select('id, datum, stunden, notiz, marktfahrer:marktfahrer_id(id, name)')
     .eq('event_instanz_id', stundenInstanzId)
     .is('geloescht_am', null)
     .order('datum'));
@@ -7040,7 +7269,7 @@ async function renderStundenContent() {
         </div>
         ${data.eintraege.map(e => `
           <div class="std-eintrag">
-            <span class="std-eintrag-datum">${WD[new Date(e.datum+'T12:00:00').getDay()]}, ${dateFmt(e.datum)}</span>
+            <span class="std-eintrag-datum">${WD[new Date(e.datum+'T12:00:00').getDay()]}, ${dateFmt(e.datum)}${e.notiz ? ` <span style="color:var(--text3);font-size:11px;">· ${esc(e.notiz)}</span>` : ''}</span>
             <div style="display:flex;align-items:center;gap:12px;">
               <span class="std-eintrag-h">${parseFloat(e.stunden).toFixed(1)} h</span>
               <button class="btn btn-sm" style="padding:4px 8px;" onclick="deleteStunden('${e.id}')">✕</button>
@@ -7092,6 +7321,7 @@ async function openNeueStundenModal() {
   }
 
   el('std-stunden').value = '';
+  el('std-notiz').value = '';
   openModal('modal-neue-stunden');
 }
 
@@ -7099,6 +7329,7 @@ async function saveStunden() {
   const marktfahrerId = el('std-fahrer').value;
   const datum         = el('std-datum').value;
   const stunden       = parseFloat(el('std-stunden').value);
+  const notiz         = el('std-notiz').value.trim();
   if (!marktfahrerId || !datum || !stunden || stunden <= 0) {
     toast('Alle Felder ausfüllen', 'err'); return;
   }
@@ -7108,6 +7339,7 @@ async function saveStunden() {
     marktfahrer_id: marktfahrerId,
     event_instanz_id: stundenInstanzId,
     datum, stunden,
+    notiz: notiz || null,
     erstellt_am: now, geaendert_am: now,
     erstellt_von: currentUser.id, geaendert_von: currentUser.id,
   };
