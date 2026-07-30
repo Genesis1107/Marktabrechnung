@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.79</title>
+<title>Marktfahrer · v6.80</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -614,7 +614,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.79</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.80</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -746,7 +746,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.79</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.80</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -981,6 +981,51 @@ body.rolle-fahrer .admin-only { display: none !important; }
   </div>
 </div>
 
+<!-- Erstanmeldung: eigenes Passwort setzen (v6.80).
+     Kein Abbrechen – nur setzen oder abmelden, sonst wäre der Zwang wirkungslos. -->
+<div id="modal-pw-reset" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">🔑 Passwort zurücksetzen</div>
+    <p style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:14px;">
+      Für <strong id="pwr-name"></strong> wird ein Einmal-Passwort gesetzt.
+      Gib es persönlich weiter – beim nächsten Anmelden muss ein eigenes vergeben werden.
+    </p>
+    <div class="field">
+      <label>Einmal-Passwort *</label>
+      <input type="text" id="pwr-pw" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <p style="font-size:11px;color:var(--text3);margin-top:4px;">Vorschlag ohne verwechselbare Zeichen – überschreibbar.</p>
+    </div>
+    <p id="pwr-fehler" style="display:none;color:var(--red2);font-size:12px;margin-bottom:12px;"></p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-pw-reset')">Abbrechen</button>
+      <button class="btn btn-primary" id="btn-pwr-speichern" onclick="pwResetSpeichern()">Zurücksetzen</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-passwort-setzen" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">🔑 Eigenes Passwort vergeben</div>
+    <p style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:14px;">
+      Du bist mit einem Einmal-Passwort angemeldet. Vergib jetzt ein eigenes –
+      danach kennt es niemand außer dir.
+    </p>
+    <div class="field">
+      <label>Neues Passwort *</label>
+      <input type="password" id="pw-neu" autocomplete="new-password" placeholder="mindestens 8 Zeichen">
+    </div>
+    <div class="field">
+      <label>Wiederholen *</label>
+      <input type="password" id="pw-neu2" autocomplete="new-password" placeholder="noch einmal">
+    </div>
+    <p id="pw-fehler" style="display:none;color:var(--red2);font-size:12px;margin-bottom:12px;"></p>
+    <div class="modal-actions">
+      <button class="btn" onclick="doLogout()">Abmelden</button>
+      <button class="btn btn-primary" id="btn-pw-setzen" onclick="passwortSetzenSpeichern()">Passwort setzen</button>
+    </div>
+  </div>
+</div>
+
 <div id="modal-neue-stunden" class="modal-overlay hidden">
   <div class="modal-box">
     <div class="modal-title">⏱ Stunden erfassen</div>
@@ -1137,7 +1182,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.79';
+const APP_VERSION = 'v6.80';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1932,6 +1977,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentUser = session.user;
     await loadProfil();
     showApp();
+    pruefePasswortPflicht();
     updateSyncBadge();
     // Erst liegengebliebene Änderungen senden, dann vorgemerkte Märkte
     // auffrischen – so überschreibt der Server keine ungesendeten Werte.
@@ -2094,11 +2140,65 @@ async function doLogin() {
   currentUser = data.user;
   await loadProfil();
   showApp();
+  pruefePasswortPflicht();
+}
+
+// ── ERSTANMELDUNG: EIGENES PASSWORT SETZEN (v6.80) ────────────
+// Vom Admin vergebene Passwörter sind Einmal-Passwörter. Die Edge Function
+// fahrer-anlegen (v3) setzt dazu app_metadata.passwort_gesetzt = false.
+// Nur === false erzwingt – Bestandskonten ohne das Feld bleiben unbehelligt.
+function passwortPflichtOffen() {
+  return currentUser?.app_metadata?.passwort_gesetzt === false;
+}
+
+function pruefePasswortPflicht() {
+  if (!passwortPflichtOffen()) return;
+  el('pw-neu').value = '';
+  el('pw-neu2').value = '';
+  el('pw-fehler').style.display = 'none';
+  openModal('modal-passwort-setzen');
+}
+
+async function passwortSetzenSpeichern() {
+  const pw1 = el('pw-neu').value;
+  const pw2 = el('pw-neu2').value;
+  const fehler = t => { el('pw-fehler').textContent = t; el('pw-fehler').style.display = 'block'; };
+  if (pw1.length < 8)  return fehler('Mindestens 8 Zeichen.');
+  if (pw1 !== pw2)     return fehler('Die beiden Eingaben stimmen nicht überein.');
+
+  const btn = el('btn-pw-setzen');
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(SUPA_URL + '/functions/v1/passwort-setzen', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Edge Functions mit verify_jwt brauchen das Access-Token explizit
+        Authorization: 'Bearer ' + session.access_token,
+      },
+      body: JSON.stringify({ passwort: pw1 }),
+    });
+    const j = await res.json();
+    if (!res.ok || !j.ok) { fehler(j.error || 'Konnte nicht gespeichert werden.'); return; }
+
+    // Ohne Refresh trägt das JWT weiter passwort_gesetzt=false und der Dialog
+    // käme beim nächsten Start erneut.
+    const { data: neu } = await sb.auth.refreshSession();
+    if (neu?.user) currentUser = neu.user;
+    closeModal('modal-passwort-setzen');
+    toast('✓ Passwort gesetzt', 'ok');
+  } catch (e) {
+    fehler(istNetzfehler(e) ? 'Keine Verbindung – bitte später erneut versuchen.' : 'Fehler: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Passwort setzen';
+  }
 }
 
 let manuellerLogout = false;
 async function doLogout() {
   manuellerLogout = true;
+  closeModal('modal-passwort-setzen');
   await sb.auth.signOut();
   currentUser = null; currentProfil = null; userRolle = null;
   document.body.classList.remove('rolle-fahrer');
@@ -5907,11 +6007,61 @@ async function loadMarktfahrerListe() {
         <div style="display:flex;gap:6px;align-items:center;">
           ${!mf.user_id ? `<button class="btn btn-sm" onclick="openFahrerLoginModal('${mf.id}')">🔑 Login anlegen</button>` : ''}
           ${mf.user_id && !eigenes ? `<button class="btn btn-sm" onclick="openRolleModal('${mf.id}')">🎚️ Rolle</button>` : ''}
+          ${mf.user_id && !eigenes ? `<button class="btn btn-sm" onclick="openPwResetModal('${mf.id}', '${esc(mf.name)}')">🔑 Passwort</button>` : ''}
           <button class="btn btn-sm btn-danger" onclick="deleteMarktfahrer('${mf.id}')">✕</button>
         </div>
       </div>
     </div>`;
   }).join('');
+}
+
+// ── PASSWORT ZURÜCKSETZEN (v6.80) ─────────────────────────────
+// Admin vergibt ein neues Einmal-Passwort; die Edge Function setzt zugleich
+// app_metadata.passwort_gesetzt = false, sodass der Nutzer beim nächsten
+// Anmelden ein eigenes vergeben muss. Kein Mailversand nötig – das Passwort
+// wird persönlich weitergegeben.
+let pwResetMfId = null;
+
+function openPwResetModal(mfId, name) {
+  pwResetMfId = mfId;
+  el('pwr-name').textContent = name;
+  el('pwr-pw').value = pwVorschlag();
+  el('pwr-fehler').style.display = 'none';
+  openModal('modal-pw-reset');
+}
+
+// Gut vorlesbares Einmal-Passwort: keine verwechselbaren Zeichen (0/O, 1/l/I).
+function pwVorschlag() {
+  const z = 'abcdefghijkmnpqrstuvwxyz23456789';
+  let out = '';
+  const rnd = crypto.getRandomValues(new Uint32Array(10));
+  for (let i = 0; i < 10; i++) out += z[rnd[i] % z.length];
+  return out;
+}
+
+async function pwResetSpeichern() {
+  const pw = el('pwr-pw').value.trim();
+  const fehler = t => { el('pwr-fehler').textContent = t; el('pwr-fehler').style.display = 'block'; };
+  if (pw.length < 8) return fehler('Mindestens 8 Zeichen.');
+
+  const btn = el('btn-pwr-speichern');
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(SUPA_URL + '/functions/v1/passwort-zuruecksetzen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+      body: JSON.stringify({ marktfahrer_id: pwResetMfId, passwort: pw }),
+    });
+    const j = await res.json();
+    if (!res.ok || !j.ok) { fehler(j.error || 'Fehlgeschlagen.'); return; }
+    closeModal('modal-pw-reset');
+    toast(`✓ Neues Passwort für ${j.name} gesetzt`, 'ok');
+  } catch (e) {
+    fehler(istNetzfehler(e) ? 'Keine Verbindung.' : 'Fehler: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Zurücksetzen';
+  }
 }
 
 // ── PAPIERKORB (v6.75) ────────────────────────────────────────
