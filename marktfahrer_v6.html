@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.78</title>
+<title>Marktfahrer · v6.79</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -614,7 +614,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.78</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.79</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -746,7 +746,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.78</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.79</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -1137,7 +1137,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.78';
+const APP_VERSION = 'v6.79';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -7239,33 +7239,58 @@ async function ladeStundenMarktSelector() {
   if (stundenInstanzId) stundenMarktGewaehlt();
 }
 
-// Füllt das Markt-Select aus Saison + Suchbegriff. Der gewählte Markt bleibt
-// immer in der Liste – sonst würde die Auswahl beim Tippen aus dem Select
-// fallen und der Tab stünde plötzlich leer da.
+// Vergleich für die Marktsuche (v6.79). Reine Teilstring-Suche war zu streng:
+// „hameln“ findet „Mystica Hamelon“ nicht. Deshalb zusätzlich ein Wortstamm-
+// Vergleich – teilen sich Suchwort und ein Wort im Namen die ersten fünf
+// Buchstaben, gilt das als Treffer.
+function marktPasst(name, suche) {
+  const n = (name || '').toLowerCase();
+  if (n.includes(suche)) return true;
+  const STAMM = 5;
+  if (suche.length < STAMM) return false;
+  const stamm = suche.slice(0, STAMM);
+  return n.split(/[^a-zäöüß0-9]+/i).some(w => w.length >= STAMM && w.startsWith(stamm));
+}
+
+// Füllt das Markt-Select aus Saison + Suchbegriff.
 function renderStundenMarktListe() {
   const sel = el('stunden-markt-select');
   if (!sel) return;
   const suche = stundenSuche.trim().toLowerCase();
+
   const treffer = stundenInstanzen.filter(i => {
-    if (i.id === stundenInstanzId) return true;
     if (stundenSaison && i.saison_jahr !== stundenSaison) return false;
     if (!suche) return true;
-    const name = (i.name || i.event_template?.name || '').toLowerCase();
-    return name.includes(suche);
+    return marktPasst(i.name, suche) || marktPasst(i.event_template?.name, suche);
   });
 
-  sel.innerHTML = '<option value="">— Markt wählen —</option>' +
-    treffer.map(i => {
-      const name = i.name || i.event_template?.name || '(Kein Name)';
-      const dat  = i.start_datum ? ' · ' + dateFmt(i.start_datum) : '';
-      const selected = i.id === stundenInstanzId ? 'selected' : '';
-      return `<option value="${i.id}" ${selected}>${name}${dat} (${i.saison_jahr})</option>`;
-    }).join('');
+  // Der aktuell gewählte Markt bleibt wählbar, auch wenn er nicht zu Saison oder
+  // Suche passt – sonst rutscht die Auswahl beim Tippen weg. Er zählt aber NICHT
+  // als Treffer (das hat in v6.78 „1 Treffer“ gemeldet, wo keiner war).
+  const gewaehlt = stundenInstanzId && !treffer.some(i => i.id === stundenInstanzId)
+    ? stundenInstanzen.find(i => i.id === stundenInstanzId) : null;
+
+  const opt = i => {
+    const name = i.name || i.event_template?.name || '(Kein Name)';
+    const dat  = i.start_datum ? ' · ' + dateFmt(i.start_datum) : '';
+    const sl   = i.id === stundenInstanzId ? 'selected' : '';
+    return `<option value="${i.id}" ${sl}>${name}${dat} (${i.saison_jahr})</option>`;
+  };
+
+  sel.innerHTML = '<option value="">— Markt wählen —</option>'
+    + (gewaehlt ? `<optgroup label="Aktuell gewählt">${opt(gewaehlt)}</optgroup>` : '')
+    + (treffer.length
+        ? (gewaehlt ? `<optgroup label="Treffer">${treffer.map(opt).join('')}</optgroup>`
+                    : treffer.map(opt).join(''))
+        : '');
 
   const hinweis = el('stunden-treffer');
   if (hinweis) {
-    hinweis.textContent = suche
-      ? `${treffer.length} Treffer` : `${treffer.length} Märkte in ${stundenSaison || '–'}`;
+    hinweis.textContent = !suche
+      ? `${treffer.length} Märkte in ${stundenSaison || '–'}`
+      : treffer.length
+        ? `${treffer.length} Treffer für „${stundenSuche.trim()}“`
+        : `Kein Markt in ${stundenSaison || '–'} passt zu „${stundenSuche.trim()}“`;
   }
 }
 
