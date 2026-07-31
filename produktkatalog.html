@@ -453,7 +453,7 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
 
 <script>
 'use strict';
-const PK_VERSION = 'v1.8';
+const PK_VERSION = 'v1.9';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
@@ -628,12 +628,20 @@ function renderProdukte() {
     return;
   }
   el('produkt-liste').innerHTML = liste.map(p => {
-    const vAnz = variantenVon(p.id).length;
+    const varianten = variantenVon(p.id);
+    const vAnz = varianten.length;
     const alk = p.alkohol_vol != null ? ` · ${String(p.alkohol_vol).replace('.', ',')} % vol` : '';
+    // Ausnahmepreis (v1.9): eigener Preis trotz einheitlicher Kategorie.
+    // Sichtbar machen, damit solche Abweichungen nicht unbemerkt entstehen.
+    const kat = cache.kategorien.find(k => k.id === p.kategorie_id);
+    const ausnahmen = (kat && kat.preis_modus === 'einheitlich')
+      ? varianten.filter(v => v.preis_cent != null).length : 0;
+    const ausnMark = ausnahmen
+      ? ` <span class="veg-leaf" title="${ausnahmen} Ausnahmepreis(e) statt Kategoriepreis">💰</span>` : '';
     return `<div class="card" onclick="openProdukt('${p.id}')">
       <div class="card-row">
         <div style="min-width:0;">
-          <div class="card-title">${esc(p.name)}${p.vegan ? ' <span class="veg-leaf" title="Vegan">🌱</span>' : ''}</div>
+          <div class="card-title">${esc(p.name)}${p.vegan ? ' <span class="veg-leaf" title="Vegan">🌱</span>' : ''}${ausnMark}</div>
           <div class="card-sub">${esc(katName(p.kategorie_id))} · ${vAnz} Größe(n)${alk}${p.artikelnr ? ' · Art. ' + esc(p.artikelnr) : ''}</div>
         </div>
         <div class="badge ${p.aktiv ? 'badge-aktiv' : 'badge-inaktiv'}">${p.aktiv ? 'aktiv' : 'inaktiv'}</div>
@@ -746,19 +754,30 @@ function renderVarianten() {
   const gesondert = kat && kat.preis_modus === 'gesondert';
   el('var-preis-hinweis').textContent = gesondert
     ? 'Kategorie „' + (kat ? kat.name : '') + '": Preis wird je Variante gepflegt.'
-    : 'Kategorie „' + (kat ? kat.name : '') + '": Preis kommt aus der Kategorie-Preistabelle (Reiter Preise). Preisfeld hier deaktiviert.';
+    : 'Kategorie „' + (kat ? kat.name : '') + '": Der Preis kommt aus der Kategorie-Preistabelle (Reiter Preise). '
+      + 'Ein Wert im Preisfeld gilt als Ausnahme und schlägt den Kategoriepreis – leer lassen heißt erben.';
   const sichtbar = varZeilen.map((v, i) => ({ v, i })).filter(x => !x.v._loeschen);
   if (!sichtbar.length) {
     el('var-liste').innerHTML = '<p class="hint" style="margin-bottom:10px;">Noch keine Größen angelegt.</p>';
     return;
   }
-  el('var-liste').innerHTML = sichtbar.map(({ v, i }) => `
+  el('var-liste').innerHTML = sichtbar.map(({ v, i }) => {
+    const geerbt = kat ? katPreisCent(kat.id, v.groesse) : null;
+    // Platzhalter zeigt, was ohne Eingabe gilt – so ist erkennbar, ob ein Wert
+    // eine Ausnahme ist oder nur den Kategoriepreis wiederholt.
+    const platz = gesondert ? 'Preis €'
+      : (geerbt != null ? (geerbt/100).toLocaleString('de-DE',{minimumFractionDigits:2}) + ' (Kategorie)' : 'Preis €');
+    const wert = v.preis_cent != null ? (v.preis_cent/100).toLocaleString('de-DE',{minimumFractionDigits:2}) : '';
+    const abw = !gesondert && v.preis_cent != null;
+    return `
     <div class="var-row">
-      <input type="text" placeholder="Größe, z. B. 0,75" value="${esc(v.groesse)}" onchange="varZeilen[${i}].groesse=this.value">
-      <input type="text" inputmode="decimal" placeholder="Preis €" value="${gesondert && v.preis_cent != null ? (v.preis_cent/100).toLocaleString('de-DE',{minimumFractionDigits:2}) : ''}"
-        ${gesondert ? '' : 'disabled'} onchange="varZeilen[${i}]._preisStr=this.value">
+      <input type="text" placeholder="Größe, z. B. 0,75" value="${esc(v.groesse)}" onchange="varZeilen[${i}].groesse=this.value; renderVarianten()">
+      <input type="text" inputmode="decimal" placeholder="${esc(platz)}" value="${wert}"
+        title="${abw ? 'Ausnahmepreis – überschreibt die Kategorie' : ''}"
+        style="${abw ? 'border-color:var(--gold);font-weight:600;' : ''}"
+        onchange="varZeilen[${i}]._preisStr=this.value">
       <button class="icon-btn" onclick="removeVariante(${i})">✕</button>
-    </div>`).join('');
+    </div>`; }).join('');
 }
 function addVarianteZeile() {
   varZeilen.push({ id: null, produkt_id: aktProduktId, groesse: '', preis_cent: null, _neu: true });
@@ -783,9 +802,11 @@ async function saveVarianten() {
     if (v._loeschen) continue;
     const groesse = (v.groesse || '').trim();
     if (!groesse) continue;
-    const preis = gesondert
-      ? (v._preisStr !== undefined ? parseEuroCent(v._preisStr) : v.preis_cent)
-      : null;
+    // v1.9: Auch bei einheitlichen Kategorien wird ein eingetragener Preis
+    // gespeichert (Ausnahmepreis). Vorher wurde hier hart null geschrieben –
+    // eine in der DB hinterlegte Ausnahme verschwand beim nächsten Speichern
+    // dieses Produkts kommentarlos.
+    const preis = v._preisStr !== undefined ? parseEuroCent(v._preisStr) : v.preis_cent;
     if (v.id) {
       if (!await dbW(sb.from('produkt_variante').update({ groesse, preis_cent: preis, geaendert_am: now }).eq('id', v.id), 'Variante speichern')) return;
     } else {
@@ -1033,16 +1054,25 @@ function slFlagge(code) {
   return '';
 }
 
-/* Preis einer bestellten Variante: einheitliche Kategorien über kategorie_preis,
-   gesonderte über den Variantenpreis. */
+/* Preis einer Variante (v1.9): Ein gefüllter Variantenpreis ist ein AUSNAHME-
+   Preis und schlägt den Kategoriepreis – in jeder Kategorie. Leer heißt „erbt
+   von der Kategorie". Damit rechnet der Katalog genauso wie bestPreis() in der
+   Marktfahrer-App; vorher ignorierte er bei einheitlichen Kategorien jeden
+   Variantenpreis, sodass beide Module verschiedene Preise anzeigen konnten.
+   Anlass: Kehlenschneider (Schnaps/Likör, aber 9,– € / 28,– €). */
 function slPreisCent(produkt, groesse) {
-  const kat = cache.kategorien.find(k => k.id === produkt.kategorie_id);
-  if (kat && kat.preis_modus === 'einheitlich') {
-    const kp = cache.katPreise.find(x => x.kategorie_id === kat.id && x.groesse === groesse);
-    return kp ? kp.preis_cent : null;
-  }
   const v = cache.varianten.find(x => x.produkt_id === produkt.id && x.groesse === groesse);
-  return (v && v.preis_cent != null) ? v.preis_cent : null;
+  if (v && v.preis_cent != null) return v.preis_cent;
+  const kat = cache.kategorien.find(k => k.id === produkt.kategorie_id);
+  if (!kat) return null;
+  const kp = cache.katPreise.find(x => x.kategorie_id === kat.id && x.groesse === groesse);
+  return kp ? kp.preis_cent : null;
+}
+
+/* Geerbter Kategoriepreis einer Größe – für Platzhalter und Anzeige. */
+function katPreisCent(kategorieId, groesse) {
+  const kp = cache.katPreise.find(x => x.kategorie_id === kategorieId && x.groesse === (groesse || '').trim());
+  return kp ? kp.preis_cent : null;
 }
 function slEuro(cent) {
   return (cent % 100 === 0)
