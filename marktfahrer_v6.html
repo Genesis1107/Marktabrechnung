@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.81</title>
+<title>Marktfahrer · v6.82</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -614,7 +614,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.81</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.82</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -746,7 +746,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.81</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.82</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -1182,7 +1182,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.81';
+const APP_VERSION = 'v6.82';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -3370,8 +3370,12 @@ async function renameStand(standId, alterName) {
   if (!name || name === alterName) return;
 
   const now = new Date().toISOString();
+  // Achtung: Die Tabelle 'stand' hat KEINE Spalten erstellt_von/geaendert_von
+  // (abweichend von den meisten anderen Fachtabellen). Ein Schreiben darauf
+  // quittiert PostgREST mit „Could not find the 'geaendert_von' column“ –
+  // genau daran scheiterte das Umbenennen in v6.77–v6.81.
   const { error } = await sb.from('stand')
-    .update({ bezeichnung: name, geaendert_am: now, geaendert_von: currentUser.id })
+    .update({ bezeichnung: name, geaendert_am: now })
     .eq('id', standId);
   if (error) {
     const doppelt = /duplicate|unique/i.test(error.message || '');
