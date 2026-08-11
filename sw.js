@@ -8,7 +8,7 @@
 //     Hintergrund-Aktualisierung (ändern sich selten).
 //   · Supabase-API: wird NIE angefasst (kein Cache, kein Intercept).
 // ═══════════════════════════════════════════════════════════════
-const CACHE = 'marktfahrer-v6.82';
+const CACHE = 'marktfahrer-v6.83';
 const SHELL = [
   './marktfahrer_v6.html',
   './anleitung.html',

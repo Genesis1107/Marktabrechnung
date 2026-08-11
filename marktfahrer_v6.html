@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.82</title>
+<title>Marktfahrer · v6.83</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -548,6 +548,12 @@ body.rolle-fahrer .admin-only { display: none !important; }
 .chr-stunden-kpi > div { text-align: center; }
 .chr-stunden-kpi .kpi-val { font-size: 26px; }
 .chr-person-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text2); padding: 3px 0; }
+/* Besatzung (v6.83): wer war auf dem Markt, bei mehreren Kutschen je Kutsche */
+.chr-bes-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13px; color: var(--text2); padding: 5px 0; border-bottom: 1px solid var(--border); }
+.chr-bes-row:last-child { border-bottom: none; }
+.chr-bes-kutsche { color: var(--text); font-weight: 600; white-space: nowrap; }
+.chr-bes-umsatz { color: var(--text3); font-weight: 400; font-size: 12px; }
+.chr-bes-namen { text-align: right; }
 /* Tagesverlauf Cards */
 .chr-tage-cards { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; margin-bottom: 12px; }
 .chr-tage-cards::-webkit-scrollbar { display: none; }
@@ -614,7 +620,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.82</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.83</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -746,7 +752,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.82</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.83</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -1182,7 +1188,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.82';
+const APP_VERSION = 'v6.83';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -5748,7 +5754,40 @@ async function renderChronikTab() {
     else dat = datOther[otherInst.findIndex(o => o.id === inst.id)];
     return { jahr: inst.saison_jahr, tage: inst.dauer_tage || dat?.tage.length || 0, gesamt: dat ? dat.barGesamt + dat.ecGesamt : 0 };
   });
-  wrap.innerHTML = renderChronikHTML(alleInstanzen, aktInst, datAkt, datPrev, prevInst, stundenMap, trendDaten);
+  // Besatzung (v6.83): nur für das angezeigte Jahr laden – die Trendjahre
+  // brauchen sie nicht, sonst wären es N zusätzliche Abfragen.
+  const besatzung = await ladeChronikBesatzung(chronikInstanzId);
+  wrap.innerHTML = renderChronikHTML(alleInstanzen, aktInst, datAkt, datPrev, prevInst, stundenMap, trendDaten, besatzung);
+}
+
+// Wer war auf diesem Markt – und an welcher Kutsche? (v6.83)
+// Der Chronik-Tab ist bewusst nicht offline-fähig (CLAUDE.md 4a), deshalb
+// direkte Abfragen ohne ocQuery/vormerkLaden. Ein Fehler darf die ganze
+// Chronik nicht kippen: dann bleibt der Block einfach leer.
+async function ladeChronikBesatzung(instanzId) {
+  try {
+    const [rf, rz] = await Promise.all([
+      sb.from('event_marktfahrer').select('status, marktfahrer:marktfahrer_id(id, name)')
+        .eq('event_instanz_id', instanzId).is('geloescht_am', null),
+      sb.from('stand_zuordnung')
+        .select('stand_id, marktfahrer:marktfahrer_id(id, name), stand!inner(event_instanz_id)')
+        .eq('stand.event_instanz_id', instanzId).is('geloescht_am', null),
+    ]);
+    const fahrer = (rf.data || []).filter(f => f.marktfahrer).map(f => ({
+      id: f.marktfahrer.id, name: f.marktfahrer.name,
+      // Altmärkte tragen teils nur Vorschläge – lieber kenntlich machen als weglassen
+      geplant: f.status !== 'bestaetigt',
+    }));
+    const proStand = {};
+    (rz.data || []).forEach(z => {
+      if (!z.marktfahrer) return;
+      (proStand[z.stand_id] = proStand[z.stand_id] || []).push(z.marktfahrer);
+    });
+    return { fahrer, proStand };
+  } catch (e) {
+    console.warn('Besatzung konnte nicht geladen werden', e);
+    return { fahrer: [], proStand: {} };
+  }
 }
 
 async function ladeChronikDaten(instanzId) {
@@ -5775,7 +5814,8 @@ async function ladeChronikDaten(instanzId) {
   const tage = Object.entries(tageMap).sort(([a],[b]) => a.localeCompare(b))
     .map(([datum,v]) => ({datum, bar:v.bar, ec:v.ec, gesamt:v.bar+v.ec}));
   const standeMap = {};
-  staende.forEach(s => { standeMap[s.id] = {bez:s.bezeichnung,bar:0,ec:0}; });
+  // id mitführen (v6.83): der Besatzungs-Block ordnet Fahrer über stand_id zu.
+  staende.forEach(s => { standeMap[s.id] = {id:s.id,bez:s.bezeichnung,bar:0,ec:0}; });
   (zaehl||[]).forEach(z => {
     if (!standeMap[z.stand_id]) return;
     const bar = z.modus==='zaehlen'?(z.ist_bestand_cent||0)-(z.anfangsbestand_cent||0):(z.tagesumsatz_bar_cent||0);
@@ -5785,7 +5825,7 @@ async function ladeChronikDaten(instanzId) {
   return { tage, staende: Object.values(standeMap), barGesamt: tage.reduce((s,t)=>s+t.bar,0), ecGesamt: tage.reduce((s,t)=>s+t.ec,0) };
 }
 
-function renderChronikHTML(alleInstanzen, aktInst, datAkt, datPrev, prevInst, stundenMap, trendDaten) {
+function renderChronikHTML(alleInstanzen, aktInst, datAkt, datPrev, prevInst, stundenMap, trendDaten, besatzung) {
   const gesamt   = datAkt.barGesamt + datAkt.ecGesamt;
   const n        = datAkt.tage.length || 1;
   const ecAnteil = gesamt > 0 ? datAkt.ecGesamt / gesamt * 100 : 0;
@@ -5827,6 +5867,40 @@ function renderChronikHTML(alleInstanzen, aktInst, datAkt, datPrev, prevInst, st
     '<div class="chr-ec-split-track"><div class="chr-ec-split-bar" style="width:'+barPct+'%;background:var(--gold)"></div><div class="chr-ec-split-bar" style="flex:1;background:var(--blue2)"></div></div>'+
     '<div class="chr-ec-split-label"><span>🪙 Bar</span><span>💳 EC</span></div>'+
     '<div class="chr-ec-totals">'+eur(datAkt.barGesamt)+' Bar · '+eur(datAkt.ecGesamt)+' EC</div></div>';
+
+  // ── Besatzung (v6.83) ──────────────────────────────────────
+  // Eine Kutsche: nur die Namensreihe. Mehrere Kutschen: je Kutsche eine Zeile
+  // mit Umsatz und Fahrern. Die versteckte .chr-bes-alle trägt die reine
+  // Namensliste – daraus baut exportChronikPDF() die Kopfzeile des PDFs.
+  const bes      = besatzung || { fahrer: [], proStand: {} };
+  const besLabel = f => f.name + (f.geplant ? ' (geplant)' : '');
+  const sortDe   = (a,b) => a.localeCompare(b,'de');
+  const alleNamen = bes.fahrer.map(besLabel).sort(sortDe);
+  const hatZuo    = Object.keys(bes.proStand).length > 0;
+  let besatzungBlock = '';
+  if (alleNamen.length || hatZuo) {
+    let inner;
+    if (datAkt.staende.length > 1) {
+      const zugeordnet = new Set();
+      const zeilen = datAkt.staende.map(s => {
+        const mfs = bes.proStand[s.id] || [];
+        mfs.forEach(m => zugeordnet.add(m.id));
+        const namen = mfs.map(m => m.name).sort(sortDe).join(', ') || '—';
+        return '<div class="chr-bes-row"><span class="chr-bes-kutsche">🛒 '+esc(s.bez)+
+          ' <span class="chr-bes-umsatz">'+eur(s.bar+s.ec)+'</span></span>'+
+          '<span class="chr-bes-namen">'+esc(namen)+'</span></div>';
+      });
+      const ohne = bes.fahrer.filter(f => !zugeordnet.has(f.id));
+      if (ohne.length) zeilen.push('<div class="chr-bes-row"><span class="chr-bes-kutsche">ohne Kutschenzuordnung</span>'+
+        '<span class="chr-bes-namen">'+esc(ohne.map(besLabel).sort(sortDe).join(', '))+'</span></div>');
+      inner = zeilen.join('');
+    } else {
+      inner = '<div class="chr-bes-row"><span class="chr-bes-namen" style="text-align:left">'+
+        esc(alleNamen.join(' · ') || '—')+'</span></div>';
+    }
+    besatzungBlock = '<div class="chr-block"><div class="chr-block-titel">Besatzung</div>'+inner+
+      '<div class="chr-bes-alle" hidden>'+esc(alleNamen.join(' · '))+'</div></div>';
+  }
 
   const gesamtStunden = Object.values(stundenMap).reduce((s,v)=>s+v,0);
   // Fahrer-Rolle: nur die Gesamtsumme (Schlüssel __gesamt), keine Aufteilung pro Person
@@ -5891,7 +5965,7 @@ function renderChronikHTML(alleInstanzen, aktInst, datAkt, datPrev, prevInst, st
     '<h2 style="margin:0;">'+( aktInst?.name||currentInstanz?.event_template?.name||'Chronik')+'</h2>'+
     '<button class="chr-pdf-btn" style="width:auto;padding:7px 14px;" onclick="exportChronikPDF()">📜 PDF</button></div>'+
     '<div class="chr-jahr-tabs">'+jahrTabs+'</div>'+
-    kpi1+kpi2+ecBlock+stundenBlock+tageCards+trendBlock+tabelleBlock+notizBlock+'</div>';
+    kpi1+kpi2+ecBlock+besatzungBlock+stundenBlock+tageCards+trendBlock+tabelleBlock+notizBlock+'</div>';
 }
 
 async function wechselChronikJahr(instanzId) {
@@ -5905,6 +5979,8 @@ function exportChronikPDF() {
   if (!sectionEl) { toast('Keine Daten', 'err'); return; }
   const marktName = sectionEl.querySelector('h2')?.textContent || 'Markt';
   const aktJahr   = document.querySelector('.chr-jahr-btn.active')?.textContent || '';
+  // Besatzung für die Kopfzeile (v6.83) – gleiches Muster wie marktName: aus dem DOM
+  const besNamen  = sectionEl.querySelector('.chr-bes-alle')?.textContent || '';
   const heute     = new Date().toLocaleDateString('de-DE');
   const contentHtml = sectionEl.innerHTML;
   const printHtml = `<!DOCTYPE html>
@@ -5917,6 +5993,13 @@ function exportChronikPDF() {
 .pdf-header{text-align:center;padding:14px 0 18px;border-bottom:1px solid #e0d0b0;margin-bottom:18px}
 .pdf-header h1{font-family:Cinzel,serif;font-size:22px;font-weight:700;color:#3d1f08;letter-spacing:1px}
 .pdf-header .sub{font-family:"Crimson Text",serif;font-style:italic;font-size:14px;color:#7a5c3a;margin-top:4px}
+.pdf-header .crew{font-size:11px;color:#7a5c3a;margin-top:6px}
+[hidden]{display:none!important}
+.chr-bes-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:12px;color:#555;padding:4px 0;border-bottom:1px solid #eee}
+.chr-bes-row:last-child{border-bottom:none}
+.chr-bes-kutsche{color:#3d1f08;font-weight:600;white-space:nowrap}
+.chr-bes-umsatz{color:#9a7a4a;font-weight:400;font-size:11px}
+.chr-bes-namen{text-align:right}
 .chr-jahr-tabs,.chr-pdf-btn,button{display:none!important}h2{display:none}
 .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
 .kpi-card{border:1px solid #d0b888;border-top:3px solid #c9942a;border-radius:4px;padding:10px 12px}
@@ -5964,7 +6047,7 @@ function exportChronikPDF() {
 @media print{body{padding:10px 14px}}
 </style></head><body>
 <div class="pdf-header"><div style="font-size:20px;margin-bottom:6px">⚜</div>
-<h1>${marktName}</h1><div class="sub">Marktchronik · Saison ${aktJahr}</div></div>
+<h1>${marktName}</h1><div class="sub">Marktchronik · Saison ${aktJahr}</div>${besNamen ? `<div class="crew">Besatzung: ${besNamen}</div>` : ''}</div>
 ${contentHtml}
 <div class="pdf-footer"><p>Marktfahrer App · Beerenweine · ${APP_VERSION} · Erstellt am ${heute}</p></div>
 </body></html>`;
