@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.83</title>
+<title>Marktfahrer · v6.84</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -438,6 +438,20 @@ body.rolle-fahrer .admin-only { display: none !important; }
 .rest-ungez { color: var(--text3); font-style: italic; }
 .rest-ausverk { color: var(--gold); font-weight: 600; }
 .rest-warn { color: var(--orange, #e08a2e); }
+/* Sortierung, Sprungleiste & Suche (v6.84) – die Ware steht am Stand nach
+   Größe sortiert, nicht alphabetisch. */
+.rest-werkzeug { display: flex; gap: 6px; margin-bottom: 8px; }
+.rest-suche { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 8px 10px; font-size: 14px; outline: none; }
+.rest-suche:focus { border-color: var(--gold); }
+.rest-sortbtn { flex: 0 0 auto; padding: 8px 10px; font-size: 12px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: var(--text2); cursor: pointer; white-space: nowrap; }
+.rest-sortbtn.an { background: var(--gold); border-color: var(--gold2); color: var(--bg); font-weight: 600; }
+.rest-sprung { display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; padding-bottom: 6px; margin-bottom: 4px; }
+.rest-sprung::-webkit-scrollbar { display: none; }
+.rest-sprung-chip { flex: 0 0 auto; padding: 4px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg3); color: var(--text2); font-size: 12px; cursor: pointer; }
+.rest-sprung-chip.voll { border-color: var(--gold); color: var(--gold); }
+.rest-sprung-zahl { font-size: 10px; color: var(--text3); margin-left: 4px; }
+.rest-gruppe { position: sticky; top: 0; z-index: 2; background: var(--bg2); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--gold); padding: 7px 0 5px; border-bottom: 1px solid var(--border2); }
+.rest-leer { padding: 18px 0; text-align: center; color: var(--text3); font-size: 13px; font-style: italic; }
 /* Ausverkauft-Marker aus der Vorjahres-Zählung (v6.70) */
 .best-var-avk { font-size: 12px; margin-left: 2px; }
 .best-avk-hinweis { margin: 10px 14px 0; padding: 8px 12px; border-left: 3px solid var(--gold); background: var(--bg2); border-radius: 4px; font-size: 12px; color: var(--text2); line-height: 1.45; }
@@ -548,7 +562,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
 .chr-stunden-kpi > div { text-align: center; }
 .chr-stunden-kpi .kpi-val { font-size: 26px; }
 .chr-person-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text2); padding: 3px 0; }
-/* Besatzung (v6.83): wer war auf dem Markt, bei mehreren Kutschen je Kutsche */
+/* Besatzung (v6.84): wer war auf dem Markt, bei mehreren Kutschen je Kutsche */
 .chr-bes-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13px; color: var(--text2); padding: 5px 0; border-bottom: 1px solid var(--border); }
 .chr-bes-row:last-child { border-bottom: none; }
 .chr-bes-kutsche { color: var(--text); font-weight: 600; white-space: nowrap; }
@@ -620,7 +634,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.83</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.84</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -752,7 +766,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.83</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.84</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -1188,7 +1202,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.83';
+const APP_VERSION = 'v6.84';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -3695,23 +3709,26 @@ async function openKasseDetail(standId, datum, push = true) {
   currentKasseTag = datum;
   if (push) navStack.push({screen: 'kasse-detail', instanzId: currentInstanzId});
 
-  let stand = null, vorh = null;
+  let stand = null, vorh = null, alleZ = null;
   try {
     const rs = await sb.from('stand').select('*').eq('id', standId).single();
     if (rs.error && istNetzfehler(rs.error)) throw rs.error;
     stand = rs.data;
-    // Vorhandene Zählung laden
+    // Alle Zählungen dieser Kutsche laden (max. 9 Tage) – daraus stammen
+    // sowohl die Zählung des Tages als auch der fortgeschriebene
+    // Anfangsbestand (v6.84).
     const rz = await sb.from('kassenzaehlung').select('*')
-      .eq('stand_id', standId).eq('datum', datum)
-      .is('geloescht_am', null).maybeSingle();
+      .eq('stand_id', standId).is('geloescht_am', null).order('datum');
     if (rz.error && istNetzfehler(rz.error)) throw rz.error;
-    vorh = rz.data;
+    alleZ = rz.data || [];
+    vorh = alleZ.find(z => z.datum === datum) || null;
   } catch (e) {
     if (!istNetzfehler(e)) throw e;
     // Offline: aus dem Kasse-Cache dieser Instanz bedienen
     const p = kassePaket(currentInstanzId);
     stand = p?.staende.find(st => st.id === standId) || null;
     if (!stand) { toast('📡 Offline – Kutsche nicht im lokalen Stand', 'err'); return; }
+    alleZ = (p?.zaehlungen || []).filter(z => z.stand_id === standId && !z.geloescht_am);
     vorh = cacheZaehlung(currentInstanzId, standId, datum);
   }
   if (!stand) { toast('Kutsche nicht gefunden', 'err'); return; }
@@ -3720,14 +3737,38 @@ async function openKasseDetail(standId, datum, push = true) {
 
   setHeader('Tageszählung', `${stand.bezeichnung} · ${dateFmt(datum)}`, true);
   showScreen('kasse-detail');
-  renderKasseDetailScreen(stand, datum, vorh);
+  renderKasseDetailScreen(stand, datum, vorh, letzterAnfangsbestand(alleZ, datum));
 }
 
-function renderKasseDetailScreen(stand, datum, vorh) {
+// Anfangsbestand fortschreiben (v6.84): Der Betrag im Kassenkoffer bleibt
+// über die Marktlaufzeit gleich; ihn jeden Tag neu einzutippen ist reine
+// Fleißarbeit und fehleranfällig. Deshalb wird der zuletzt gezählte Wert
+// derselben Kutsche vorgeschlagen – gespeichert wird er weiterhin pro Tag
+// (CLAUDE.md: Pflichtfeld an der kassenzaehlung, nicht am stand).
+// Bevorzugt der jüngste frühere Tag; gibt es nur spätere (Nachtrag eines
+// vergessenen Tages), zählt der nächstgelegene spätere.
+function letzterAnfangsbestand(zaehlungen, datum) {
+  const kandidaten = (zaehlungen || [])
+    .filter(z => z.modus === 'zaehlen' && (z.anfangsbestand_cent || 0) > 0 && z.datum !== datum);
+  if (!kandidaten.length) return null;
+  const frueher = kandidaten.filter(z => z.datum < datum).sort((a,b) => b.datum.localeCompare(a.datum));
+  const quelle  = frueher[0] || kandidaten.sort((a,b) => a.datum.localeCompare(b.datum))[0];
+  return { cent: quelle.anfangsbestand_cent, datum: quelle.datum };
+}
+
+function renderKasseDetailScreen(stand, datum, vorh, vorschlag) {
   const wrap = el('screen-kasse-detail');
   const ro = marktReadonly();
   const modus = vorh?.modus || 'zaehlen';
   const anfang = vorh?.anfangsbestand_cent ?? 0;
+  // Fortgeschriebener Anfangsbestand (v6.84): nur vorbelegen, wenn für diesen
+  // Tag noch keiner erfasst ist – ein gespeicherter Wert wird nie überschrieben.
+  const uebernommen = (anfang > 0 || !vorschlag) ? null : vorschlag;
+  const anfangFeld  = anfang > 0 ? (anfang/100).toFixed(2)
+                    : uebernommen ? (uebernommen.cent/100).toFixed(2) : '';
+  const anfangHint  = uebernommen
+    ? `<span style="color:var(--gold);">Übernommen vom ${dateFmt(uebernommen.datum)}</span> · änderbar`
+    : 'Pflichtfeld · bleibt über den Markt gleich';
 
   const stu = vorh?.stueckelung || {};
   const muenzen = stu.muenzen || {};
@@ -3804,11 +3845,11 @@ function renderKasseDetailScreen(stand, datum, vorh) {
         <div class="field" style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;">
           <label style="color:var(--gold);">Kassenanfangsbestand (€) *</label>
           <input type="number" id="kasse-anfang"
-            value="${anfang > 0 ? (anfang/100).toFixed(2) : ''}"
+            value="${anfangFeld}"
             placeholder="z. B. 400.00"
             step="0.01" inputmode="decimal"
             oninput="calcKasseSumme()" onfocus="clearZero(this)" ${ro ? 'disabled' : ''}>
-          <div style="font-size:11px;color:var(--text3);margin-top:4px;">Pflichtfeld · wird pro Zählung einmalig erfasst</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px;">${anfangHint}</div>
         </div>
         <h3 style="margin-top:4px;">Münzen</h3>
         <div class="kasse-zahl-grid">
@@ -3869,19 +3910,24 @@ async function switchKasseTag(datum) {
     b.classList.toggle('btn-primary', b.id === 'tag-btn-' + datum);
   });
   // Zählung für neuen Tag laden — KEIN navStack-Push
-  let vorh = null;
+  // Alle Tage der Kutsche holen: sonst fehlte beim Tageswechsel die Quelle
+  // für den fortgeschriebenen Anfangsbestand (v6.84).
+  let vorh = null, alleZ = [];
   try {
     const rz = await sb.from('kassenzaehlung')
-      .select('*').eq('stand_id', currentStandId).eq('datum', datum)
-      .is('geloescht_am', null).maybeSingle();
+      .select('*').eq('stand_id', currentStandId)
+      .is('geloescht_am', null).order('datum');
     if (rz.error && istNetzfehler(rz.error)) throw rz.error;
-    vorh = rz.data;
+    alleZ = rz.data || [];
+    vorh = alleZ.find(z => z.datum === datum) || null;
   } catch (e) {
     if (!istNetzfehler(e)) throw e;
+    const p = kassePaket(currentInstanzId);
+    alleZ = (p?.zaehlungen || []).filter(z => z.stand_id === currentStandId && !z.geloescht_am);
     vorh = cacheZaehlung(currentInstanzId, currentStandId, datum);
   }
   currentZaehlungId = vorh?.id || null;
-  renderKasseDetailScreen(currentStand, datum, vorh);
+  renderKasseDetailScreen(currentStand, datum, vorh, letzterAnfangsbestand(alleZ, datum));
 }
 
 async function loadEcVorhandener(standId, datum) {
@@ -4474,6 +4520,15 @@ async function ladeReste() {
   return bst.reste;
 }
 
+// Größen-Sortierung (v6.84): Am Stand steht die Ware nach Flaschengröße in
+// Reihen, nicht alphabetisch. '0,25 Bord' → 0.25, '1,0 Ton' → 1.0,
+// 'Stück' → ans Ende. Gleiche Zahl wird nach Beschriftung entschieden, damit
+// '0,2' und '0,2 Ton' nebeneinander liegen.
+function groessenWert(g) {
+  const m = String(g || '').match(/(\d+(?:[.,]\d+)?)/);
+  return m ? parseFloat(m[1].replace(',', '.')) : 9999;
+}
+
 async function oeffneRestSheet() {
   const bestellt = restBestellteMengen();
   const varIds = Object.keys(bestellt).filter(v => bestellt[v] > 0);
@@ -4485,46 +4540,156 @@ async function oeffneRestSheet() {
   bst.restEntwurf = {};
   Object.entries(bst.reste).forEach(([v, r]) => { bst.restEntwurf[v] = String(r.menge); });
 
-  // Varianten nach Kategorie/Produkt sortiert auflisten
+  // Kategorie-Reihenfolge: innerhalb einer Größe erst Wein/Met, zuletzt
+  // Schnaps/Likör und Absinth – so, wie es an der Kutsche liegt.
+  const katRang = {};
+  (bst.kategorien || []).forEach(k => { katRang[k.id] = k.reihenfolge ?? 999; });
+
   const varInfo = {};
   bst.produkte.forEach(p => p.varianten.forEach(v => {
-    if (bestellt[v.id] > 0) varInfo[v.id] = { produkt: p.name, groesse: v.groesse, katId: p.kategorie_id };
+    if (bestellt[v.id] > 0) varInfo[v.id] = {
+      produkt: p.name, groesse: v.groesse, katId: p.kategorie_id, katRang: katRang[p.kategorie_id] ?? 999,
+    };
   }));
-  const sortiert = varIds.filter(v => varInfo[v]).sort((a, b) => {
-    const A = varInfo[a], B = varInfo[b];
-    return A.produkt.localeCompare(B.produkt) || A.groesse.localeCompare(B.groesse);
-  });
+  const alleVarianten = varIds.filter(v => varInfo[v]);
 
-  const zeilen = sortiert.map(vid => {
-    const info = varInfo[vid];
-    const best = bestellt[vid];
-    const wert = bst.restEntwurf[vid] ?? '';
-    const kurz = vid.slice(0, 8);
-    return `<div class="rest-zeile">
-      <div class="rest-name">
-        <div class="rest-prod">${esc(info.produkt)}</div>
-        <div class="rest-meta">${esc(info.groesse)} · bestellt ${best}</div>
-      </div>
-      <input type="number" class="rest-input" id="rest-${kurz}" value="${wert}"
-        min="0" step="1" inputmode="numeric" pattern="[0-9]*" placeholder="–"
-        oninput="restLive('${vid}', ${best}, this.value)" onfocus="this.select()">
-      <div class="rest-verkauft" id="restv-${kurz}">${restVerkauftText(wert, best)}</div>
-    </div>`;
-  }).join('');
+  bst._restVarianten = alleVarianten;
+  bst._restBestellt  = bestellt;
+  bst._restInfo      = varInfo;
+  bst.restSort   = localStorage.getItem('mf_rest_sort') === 'name' ? 'name' : 'groesse';
+  bst.restSuche  = '';
+  bst.restNurOffen = false;
 
   const kn = bst.staende.length > 1 ? ' · ' + aktKutscheName() : '';
   const body = `
-    <div class="hinweis-box" style="margin-bottom:12px;font-size:12px;">
+    <div class="hinweis-box" style="margin-bottom:10px;font-size:12px;">
       Zähle, was noch da ist. <b>Leer lassen = nicht gezählt</b>, <b>0 = ausverkauft</b>.
       Du kannst jederzeit aufhören – Teilzählungen sind in Ordnung.
     </div>
-    <div class="rest-zaehler" id="rest-zaehler">${restZaehlerText(sortiert.length)}</div>
-    <div class="rest-liste">${zeilen}</div>
+    <div class="rest-werkzeug">
+      <input type="text" class="rest-suche" id="rest-suche" placeholder="Sorte suchen …"
+        autocomplete="off" oninput="restSuchen(this.value)">
+      <button class="rest-sortbtn" id="rest-sortbtn" onclick="restSortWechseln()"></button>
+      <button class="rest-sortbtn" id="rest-offenbtn" onclick="restOffenWechseln()">offen</button>
+    </div>
+    <div class="rest-sprung" id="rest-sprung"></div>
+    <div class="rest-zaehler" id="rest-zaehler">${restZaehlerText(alleVarianten.length)}</div>
+    <div class="rest-liste" id="rest-liste"></div>
     <button class="btn btn-primary btn-full" style="margin-top:12px;" onclick="restSpeichern()">Zählung speichern</button>`;
 
-  bst._restVarianten = sortiert;
-  bst._restBestellt = bestellt;
   oeffneSheet('Restbestand zählen' + kn, 'Was steht nach dem Markt noch in der Kiste?', body);
+  restListeRendern();
+}
+
+// Sichtbare Varianten nach Sortierung, Suchtext und Filter
+function restSichtbare() {
+  const info = bst._restInfo || {};
+  const such = (bst.restSuche || '').trim().toLowerCase();
+  let liste = (bst._restVarianten || []).filter(v => {
+    if (bst.restNurOffen && String(bst.restEntwurf[v] ?? '').trim() !== '') return false;
+    if (!such) return true;
+    const i = info[v];
+    return (i.produkt + ' ' + i.groesse).toLowerCase().includes(such);
+  });
+  if (bst.restSort === 'name') {
+    liste.sort((a, b) => info[a].produkt.localeCompare(info[b].produkt)
+      || groessenWert(info[a].groesse) - groessenWert(info[b].groesse));
+  } else {
+    liste.sort((a, b) => groessenWert(info[a].groesse) - groessenWert(info[b].groesse)
+      || info[a].groesse.localeCompare(info[b].groesse)
+      || info[a].katRang - info[b].katRang
+      || info[a].produkt.localeCompare(info[b].produkt));
+  }
+  return liste;
+}
+
+function restListeRendern() {
+  const info  = bst._restInfo || {};
+  const best  = bst._restBestellt || {};
+  const liste = restSichtbare();
+  const nachGroesse = bst.restSort === 'groesse';
+
+  const sortBtn = el('rest-sortbtn');
+  if (sortBtn) sortBtn.textContent = nachGroesse ? '↕ Größe' : '↕ A–Z';
+  const offenBtn = el('rest-offenbtn');
+  if (offenBtn) offenBtn.classList.toggle('an', !!bst.restNurOffen);
+
+  restSprungRendern(liste);
+
+  const wrap = el('rest-liste');
+  if (!wrap) return;
+  if (!liste.length) {
+    wrap.innerHTML = '<div class="rest-leer">'
+      + (bst.restNurOffen ? 'Alles gezählt 🎉' : 'Nichts gefunden') + '</div>';
+    return;
+  }
+  let html = '', letzteGr = null, grIdx = -1;
+  liste.forEach(vid => {
+    const i = info[vid], b = best[vid], wert = bst.restEntwurf[vid] ?? '', kurz = vid.slice(0, 8);
+    if (nachGroesse && i.groesse !== letzteGr) {
+      letzteGr = i.groesse; grIdx++;
+      html += `<div class="rest-gruppe" id="restg-${grIdx}">${esc(i.groesse)}</div>`;
+    }
+    html += `<div class="rest-zeile">
+      <div class="rest-name">
+        <div class="rest-prod">${esc(i.produkt)}</div>
+        <div class="rest-meta">${esc(i.groesse)} · bestellt ${b}</div>
+      </div>
+      <input type="number" class="rest-input" id="rest-${kurz}" value="${wert}"
+        min="0" step="1" inputmode="numeric" pattern="[0-9]*" placeholder="–"
+        oninput="restLive('${vid}', ${b}, this.value)" onfocus="this.select()">
+      <div class="rest-verkauft" id="restv-${kurz}">${restVerkauftText(wert, b)}</div>
+    </div>`;
+  });
+  wrap.innerHTML = html;
+}
+
+// Sprungleiste: nur bei Größen-Sortierung ohne aktive Suche – sonst zeigte
+// sie in eine gefilterte Liste und träfe daneben. Zeigt je Reihe, wie weit
+// gezählt ist ("0,5 · 12/28"), damit man am Stand sieht, wo noch was fehlt.
+function restSprungRendern(liste) {
+  const sprung = el('rest-sprung');
+  if (!sprung) return;
+  const info = bst._restInfo || {};
+  if (bst.restSort !== 'groesse' || (bst.restSuche || '').trim()) {
+    sprung.innerHTML = '';
+    sprung.style.display = 'none';
+    return;
+  }
+  const sichtbar = liste || restSichtbare();
+  const gr = [];
+  sichtbar.forEach(v => { if (!gr.includes(info[v].groesse)) gr.push(info[v].groesse); });
+  sprung.innerHTML = gr.map((g, i) => {
+    const inGr = sichtbar.filter(v => info[v].groesse === g);
+    const gez  = inGr.filter(v => String(bst.restEntwurf[v] ?? '').trim() !== '').length;
+    const voll = gez === inGr.length ? ' voll' : '';
+    return `<button class="rest-sprung-chip${voll}" onclick="restSpringe(${i})">${esc(g)}`
+      + `<span class="rest-sprung-zahl">${gez}/${inGr.length}</span></button>`;
+  }).join('');
+  sprung.style.display = gr.length > 1 ? 'flex' : 'none';
+}
+
+function restSortWechseln() {
+  bst.restSort = bst.restSort === 'groesse' ? 'name' : 'groesse';
+  localStorage.setItem('mf_rest_sort', bst.restSort);
+  restListeRendern();
+}
+
+function restOffenWechseln() {
+  bst.restNurOffen = !bst.restNurOffen;
+  restListeRendern();
+}
+
+function restSuchen(txt) {
+  bst.restSuche = txt || '';
+  restListeRendern();
+}
+
+function restSpringe(idx) {
+  const ziel = el('restg-' + idx);
+  const box  = el('rest-liste');
+  if (!ziel || !box) return;
+  box.scrollTop = ziel.offsetTop - box.offsetTop;
 }
 
 function restVerkauftText(wert, bestellt) {
@@ -4552,6 +4717,11 @@ function restLive(varId, bestellt, val) {
   if (vEl) vEl.innerHTML = restVerkauftText(s2, bestellt);
   const zEl = el('rest-zaehler');
   if (zEl) zEl.textContent = restZaehlerText((bst._restVarianten || []).length);
+  // Nur Zähler und Sprungleiste auffrischen – die Liste NICHT neu bauen:
+  // sonst verliert das Eingabefeld beim Tippen den Fokus, und bei aktivem
+  // Filter "offen" würde die gerade bearbeitete Zeile unter dem Finger
+  // verschwinden (v6.84).
+  restSprungRendern();
 }
 
 // Speichern: geänderte Werte schreiben, geleerte Felder soft-löschen
@@ -5754,13 +5924,13 @@ async function renderChronikTab() {
     else dat = datOther[otherInst.findIndex(o => o.id === inst.id)];
     return { jahr: inst.saison_jahr, tage: inst.dauer_tage || dat?.tage.length || 0, gesamt: dat ? dat.barGesamt + dat.ecGesamt : 0 };
   });
-  // Besatzung (v6.83): nur für das angezeigte Jahr laden – die Trendjahre
+  // Besatzung (v6.84): nur für das angezeigte Jahr laden – die Trendjahre
   // brauchen sie nicht, sonst wären es N zusätzliche Abfragen.
   const besatzung = await ladeChronikBesatzung(chronikInstanzId);
   wrap.innerHTML = renderChronikHTML(alleInstanzen, aktInst, datAkt, datPrev, prevInst, stundenMap, trendDaten, besatzung);
 }
 
-// Wer war auf diesem Markt – und an welcher Kutsche? (v6.83)
+// Wer war auf diesem Markt – und an welcher Kutsche? (v6.84)
 // Der Chronik-Tab ist bewusst nicht offline-fähig (CLAUDE.md 4a), deshalb
 // direkte Abfragen ohne ocQuery/vormerkLaden. Ein Fehler darf die ganze
 // Chronik nicht kippen: dann bleibt der Block einfach leer.
@@ -5814,7 +5984,7 @@ async function ladeChronikDaten(instanzId) {
   const tage = Object.entries(tageMap).sort(([a],[b]) => a.localeCompare(b))
     .map(([datum,v]) => ({datum, bar:v.bar, ec:v.ec, gesamt:v.bar+v.ec}));
   const standeMap = {};
-  // id mitführen (v6.83): der Besatzungs-Block ordnet Fahrer über stand_id zu.
+  // id mitführen (v6.84): der Besatzungs-Block ordnet Fahrer über stand_id zu.
   staende.forEach(s => { standeMap[s.id] = {id:s.id,bez:s.bezeichnung,bar:0,ec:0}; });
   (zaehl||[]).forEach(z => {
     if (!standeMap[z.stand_id]) return;
@@ -5868,7 +6038,7 @@ function renderChronikHTML(alleInstanzen, aktInst, datAkt, datPrev, prevInst, st
     '<div class="chr-ec-split-label"><span>🪙 Bar</span><span>💳 EC</span></div>'+
     '<div class="chr-ec-totals">'+eur(datAkt.barGesamt)+' Bar · '+eur(datAkt.ecGesamt)+' EC</div></div>';
 
-  // ── Besatzung (v6.83) ──────────────────────────────────────
+  // ── Besatzung (v6.84) ──────────────────────────────────────
   // Eine Kutsche: nur die Namensreihe. Mehrere Kutschen: je Kutsche eine Zeile
   // mit Umsatz und Fahrern. Die versteckte .chr-bes-alle trägt die reine
   // Namensliste – daraus baut exportChronikPDF() die Kopfzeile des PDFs.
@@ -5979,7 +6149,7 @@ function exportChronikPDF() {
   if (!sectionEl) { toast('Keine Daten', 'err'); return; }
   const marktName = sectionEl.querySelector('h2')?.textContent || 'Markt';
   const aktJahr   = document.querySelector('.chr-jahr-btn.active')?.textContent || '';
-  // Besatzung für die Kopfzeile (v6.83) – gleiches Muster wie marktName: aus dem DOM
+  // Besatzung für die Kopfzeile (v6.84) – gleiches Muster wie marktName: aus dem DOM
   const besNamen  = sectionEl.querySelector('.chr-bes-alle')?.textContent || '';
   const heute     = new Date().toLocaleDateString('de-DE');
   const contentHtml = sectionEl.innerHTML;
