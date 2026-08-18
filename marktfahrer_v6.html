@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.84</title>
+<title>Marktfahrer · v6.85</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -634,7 +634,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.84</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.85</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -766,7 +766,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.84</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.85</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -834,17 +834,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <input type="date" id="nm-ende">
       </div>
     </div>
-    <div style="margin-top:14px;" class="field-row">
-      <div class="field" style="margin-bottom:0">
-        <label>2. Zeitraum Start</label>
-        <input type="date" id="nm-start-2">
-      </div>
-      <div class="field" style="margin-bottom:0">
-        <label>2. Zeitraum Ende</label>
-        <input type="date" id="nm-ende-2">
-      </div>
-    </div>
-    <p style="color:var(--text3);font-size:11px;margin-top:6px;">Nur ausfüllen, wenn der Markt über zwei getrennte Wochenenden am selben Ort läuft. Die Tage dazwischen zählen dann nicht als Markttage.</p>
+    <p style="color:var(--text3);font-size:11px;margin-top:6px;">Läuft der Markt über mehrere getrennte Wochenenden? Weitere Zeiträume trägst du nach dem Anlegen im Planung-Tab ein.</p>
     <div class="field" style="margin-top:14px;">
       <label>Rhythmus</label>
       <select id="nm-rhythmus">
@@ -1202,7 +1192,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.84';
+const APP_VERSION = 'v6.85';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1276,50 +1266,109 @@ function tageRange(startIso, endeIso, padVor = 0, padNach = 0) {
   return tage;
 }
 
-// ── ZWEI MARKT-ZEITRÄUME ──────────────────────────────────────
-// Eine Instanz kann optional über zwei getrennte Blöcke laufen (z. B. zwei
-// Wochenenden am selben Ort). Die Lücke dazwischen sind KEINE Markttage.
-// Echte Markttage (Block 1 + optional Block 2), ohne Lücke:
+// ── MARKT-ZEITRÄUME (beliebig viele, seit v6.85) ──────────────
+// Eine Instanz kann über mehrere getrennte Blöcke laufen (z. B. drei
+// Adventswochenenden). Quelle der Wahrheit ist die Spalte `zeitraeume`
+// (jsonb-Array [{s,e}], chronologisch). Die Lücken dazwischen sind KEINE
+// Markttage. start_datum/end_datum bleiben Block 1 (Sortierung, Filter),
+// start_datum_2/end_datum_2 Block 2 (Brücke für die Personalplanung).
+
+// Blöcke einer Instanz – mit Rückfall auf die Altspalten, damit alte
+// Einträge im Offline-Cache und nicht migrierte Zeilen weiter tragen.
+function bloecke(inst) {
+  if (!inst) return [];
+  const z = inst.zeitraeume;
+  if (Array.isArray(z) && z.length) {
+    return z.filter(b => b && b.s)
+            .map(b => ({ s: b.s, e: b.e || b.s }))
+            .sort((a, b) => a.s.localeCompare(b.s));
+  }
+  if (!inst.start_datum) return [];
+  const alt = [{ s: inst.start_datum, e: inst.end_datum || inst.start_datum }];
+  if (inst.start_datum_2) alt.push({ s: inst.start_datum_2, e: inst.end_datum_2 || inst.start_datum_2 });
+  return alt;
+}
+// Erster bzw. letzter echter Markttag über ALLE Blöcke
+function marktStart(inst) { const b = bloecke(inst); return b.length ? b[0].s : null; }
+function marktEnde(inst)  { const b = bloecke(inst); return b.length ? b[b.length - 1].e : null; }
+
+// Echte Markttage (alle Blöcke), ohne die Lücken dazwischen:
 function marktTage(inst) {
-  if (!inst?.start_datum) return [];
-  const t = tageRange(inst.start_datum, inst.end_datum);
-  if (inst.start_datum_2) t.push(...tageRange(inst.start_datum_2, inst.end_datum_2));
-  return t;
+  const t = [];
+  for (const b of bloecke(inst)) t.push(...tageRange(b.s, b.e));
+  return [...new Set(t)].sort();
 }
 // Tage für Stundenerfassung: jeder Block mit ±1 Puffertag (Vor-/Nachbereitung);
-// die reine Lücke dazwischen bleibt ausgespart (dort keine Arbeitszeit).
+// die reinen Lücken dazwischen bleiben ausgespart (dort keine Arbeitszeit).
 function stundenTage(inst) {
-  if (!inst?.start_datum) return [];
-  const t = tageRange(inst.start_datum, inst.end_datum, 1, 1);
-  if (inst.start_datum_2) t.push(...tageRange(inst.start_datum_2, inst.end_datum_2, 1, 1));
+  const t = [];
+  for (const b of bloecke(inst)) t.push(...tageRange(b.s, b.e, 1, 1));
   return [...new Set(t)].sort();
 }
 // Beschriftung eines Tags in der Stundenauswahl (Markttag / Vor- / Nachbereitung)
 function tagSuffix(inst, t) {
-  const bloecke = [[inst.start_datum, inst.end_datum || inst.start_datum]];
-  if (inst.start_datum_2) bloecke.push([inst.start_datum_2, inst.end_datum_2 || inst.start_datum_2]);
-  for (const [s, e] of bloecke) if (t >= s && t <= e) return '';
+  const bl = bloecke(inst);
+  for (const b of bl) if (t >= b.s && t <= b.e) return '';
   const plus1  = iso => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + 1); return isoLocal(d); };
   const minus1 = iso => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - 1); return isoLocal(d); };
-  for (const [s, e] of bloecke) {
-    if (t === minus1(s)) return ' ↑ Vorbereitung';
-    if (t === plus1(e))  return ' ↓ Nachbereitung';
+  for (const b of bl) {
+    if (t === minus1(b.s)) return ' ↑ Vorbereitung';
+    if (t === plus1(b.e))  return ' ↓ Nachbereitung';
   }
   return '';
 }
-// Gesamtzahl echter Markttage über beide Blöcke
-function dauerTage(start, ende, start2, ende2) {
-  if (!start) return null;
-  let n = tageRange(start, ende).length;
-  if (start2) n += tageRange(start2, ende2).length;
+// Gesamtzahl echter Markttage über alle Blöcke
+function dauerTage(bl) {
+  let n = 0;
+  for (const b of (bl || [])) n += tageRange(b.s, b.e).length;
   return n || null;
 }
-// Anzeigetext des/der Zeiträume(s)
+// Anzeigetext der Zeiträume: "27.11. – 29.11. + 04.12. – 06.12.2026".
+// Bei mehreren Blöcken steht die Jahreszahl nur am letzten Datum – drei
+// volle Datumsangaben mit Jahr sprengen sonst die Kartenzeile auf dem iPhone.
+// Ein einzelner Block wird wie bisher voll ausgeschrieben.
 function zeitraumText(inst) {
-  if (!inst?.start_datum) return '';
-  let s = dateFmt(inst.start_datum) + (inst.end_datum ? ' – ' + dateFmt(inst.end_datum) : '');
-  if (inst.start_datum_2) s += ' + ' + dateFmt(inst.start_datum_2) + (inst.end_datum_2 ? ' – ' + dateFmt(inst.end_datum_2) : '');
-  return s;
+  const bl = bloecke(inst);
+  if (!bl.length) return '';
+  const letztes = bl[bl.length - 1].e;
+  const fmt = (iso, voll) => (voll || bl.length === 1 || iso.slice(0, 4) !== letztes.slice(0, 4))
+    ? dateFmt(iso) : dateFmt(iso).replace(/\.\d{4}$/, '.');
+  return bl.map((b, i) => {
+    const einTag = !b.e || b.e === b.s;
+    const letzt  = i === bl.length - 1;
+    return einTag ? fmt(b.s, letzt) : fmt(b.s, false) + ' – ' + fmt(b.e, letzt);
+  }).join(' + ');
+}
+// Eingegebene Blöcke prüfen und normalisieren (sortieren, angrenzende
+// zusammenführen). Rückgabe: { bloecke } oder { fehler }.
+function zeitraeumeNormalisieren(liste) {
+  const bl = (liste || [])
+    .filter(b => b && b.s)
+    .map(b => ({ s: b.s, e: b.e || b.s }))
+    .sort((a, b) => a.s.localeCompare(b.s));
+  if (!bl.length) return { fehler: 'Mindestens ein Zeitraum mit Startdatum ist nötig' };
+  for (const b of bl) if (b.e < b.s) return { fehler: 'Ein Ende liegt vor dem zugehörigen Start' };
+  const plus1 = iso => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + 1); return isoLocal(d); };
+  const raus = [bl[0]];
+  for (let i = 1; i < bl.length; i++) {
+    const vor = raus[raus.length - 1], akt = bl[i];
+    if (akt.s <= vor.e) return { fehler: 'Zeiträume dürfen sich nicht überschneiden' };
+    // Nahtlos anschließend → zu einem Block verschmelzen (keine Lücke = ein Zeitraum)
+    if (akt.s === plus1(vor.e)) { vor.e = akt.e; continue; }
+    raus.push(akt);
+  }
+  return { bloecke: raus };
+}
+// Datenfelder für event_instanz aus den Blöcken (inkl. Legacy-Spiegelung)
+function zeitraumFelder(bl) {
+  return {
+    zeitraeume: bl,
+    start_datum: bl[0].s,
+    end_datum: bl[0].e,
+    start_datum_2: bl[1] ? bl[1].s : null,
+    end_datum_2: bl[1] ? bl[1].e : null,
+    dauer_tage: dauerTage(bl),
+  };
 }
 
 // ── DB-SCHREIB-WRAPPER ────────────────────────────────────────
@@ -1691,7 +1740,7 @@ async function vormerkLaden(instanzId, phase) {
   // die Märkte-Liste noch zur Marktauswahl im Stunden-Tab.
   const [rsel, rml] = await Promise.all([
     sb.from('event_instanz')
-      .select('id, name, saison_jahr, status, start_datum, end_datum, start_datum_2, end_datum_2, event_template(name)')
+      .select('id, name, saison_jahr, status, start_datum, end_datum, start_datum_2, end_datum_2, zeitraeume, event_template(name)')
       .is('geloescht_am', null).order('start_datum', { ascending: false }),
     sb.from('event_instanz')
       .select('*, event_template(name, ort, plz, km_minden, km_schoellkrippen)')
@@ -2507,7 +2556,7 @@ function deadlineKurz(inst) {
   if (!inst?.start_datum) return null;
   const today = new Date(); today.setHours(0,0,0,0);
   const start = new Date(inst.start_datum + 'T00:00:00');
-  const end   = inst.end_datum ? new Date(inst.end_datum + 'T00:00:00') : start;
+  const end   = new Date(marktEnde(inst) + 'T00:00:00');
   const jahr  = inst.saison_jahr || start.getFullYear();
   const s     = inst.status;
   if (s === 'interessent' || s === 'beworben') {
@@ -2572,7 +2621,7 @@ async function aufgabenZeilenAdmin(today) {
   // (erledigt-Haken) steht noch aus. Fenster: Marktende ≤ 60 Tage.
   const abg = alleMaerkte.filter(m => {
     if (m.status !== 'abgeschlossen' || !m.start_datum) return false;
-    const end = new Date((m.end_datum_2 || m.end_datum || m.start_datum) + 'T00:00:00');
+    const end = new Date(marktEnde(m) + 'T00:00:00');
     return (today - end) / 86400000 <= 60;
   });
   if (abg.length) {
@@ -2585,7 +2634,7 @@ async function aufgabenZeilenAdmin(today) {
       if (a.skaldenmet_stueck == null && a.skaldenmet_feige_stueck == null) return;
       const m = abg.find(x => x.id === a.event_instanz_id);
       if (!m) return;
-      const end  = new Date((m.end_datum_2 || m.end_datum || m.start_datum) + 'T00:00:00');
+      const end  = new Date(marktEnde(m) + 'T00:00:00');
       const dEnd = Math.ceil((today - end) / 86400000);
       zeilen.push({ m, start: new Date(m.start_datum + 'T00:00:00'),
         stufe: 'gelb',
@@ -2628,7 +2677,7 @@ async function aufgabenZeilenFahrer(today) {
       // Erledigt aus Fahrer-Sicht, sobald Stückzahlen eingetragen sind –
       // die Meldung selbst (erledigt-Haken) ist danach Admin-Sache.
       if (a.skaldenmet_stueck != null || a.skaldenmet_feige_stueck != null) return;
-      const end = new Date((m.end_datum_2 || m.end_datum || m.start_datum) + 'T00:00:00');
+      const end = new Date(marktEnde(m) + 'T00:00:00');
       const dEnd = Math.ceil((today - end) / 86400000);
       zeilen.push({ m, start,
         stufe: dEnd >= 5 ? 'rot' : 'gelb', // 5-Tage-Nachbereitungsfrist
@@ -2975,28 +3024,7 @@ async function renderPlanungTab(scrollHalten = false) {
           <input type="date" id="plan-ende" value="${inst.end_datum || ''}" onchange="savePlanungDaten()" ${istAdmin() ? '' : 'disabled'}>
         </div>
       </div>
-      <div class="wf-section" style="margin-top:14px;">
-        <div class="wf-section-header" onclick="toggleWfSection(this)">
-          <span class="wf-section-title">📅 2. Zeitraum <span style="font-weight:400;color:var(--text3);">(Doppel-Wochenende)</span></span>
-          <div class="wf-section-meta">
-            ${inst.start_datum_2 ? '<span class="wf-badge wf-badge-ok">gesetzt</span>' : ''}
-            <span class="wf-chevron ${inst.start_datum_2 ? 'open' : ''}">›</span>
-          </div>
-        </div>
-        <div class="wf-body ${inst.start_datum_2 ? 'open' : ''}" style="padding:12px 14px;">
-          <div class="field-row">
-            <div class="field" style="margin-bottom:0">
-              <label>2. Start (opt.)</label>
-              <input type="date" id="plan-start-2" value="${inst.start_datum_2 || ''}" onchange="savePlanungDaten()" ${istAdmin() ? '' : 'disabled'}>
-            </div>
-            <div class="field" style="margin-bottom:0">
-              <label>2. Ende (opt.)</label>
-              <input type="date" id="plan-ende-2" value="${inst.end_datum_2 || ''}" onchange="savePlanungDaten()" ${istAdmin() ? '' : 'disabled'}>
-            </div>
-          </div>
-          <p style="color:var(--text3);font-size:11px;margin-top:6px;">2. Zeitraum nur bei Märkten über zwei getrennte Wochenenden. Die Tage dazwischen sind keine Markttage.</p>
-        </div>
-      </div>
+      ${planZeitraumSektion(inst)}
       <div class="field admin-only" style="margin-top:14px;">
         <label>Personalbedarf (Fahrer)</label>
         <input type="number" id="plan-personalbedarf" min="1" max="20" step="1" value="${inst.personalbedarf ?? 1}" onchange="savePersonalbedarf()" style="max-width:120px;">
@@ -3249,27 +3277,97 @@ async function saveInstanzStatus() {
   loadMaerkte();
 }
 
+// ── ZEITRÄUME IM PLANUNG-TAB (v6.85) ──────────────────────────
+// Block 1 sind die Felder „Start/Ende" oben. Alle weiteren Blöcke leben in
+// planWeitere und werden hier als Liste gepflegt.
+let planWeitere = [];
+
+// Aufklappbare Sektion; initialisiert planWeitere aus der Instanz.
+function planZeitraumSektion(inst) {
+  planWeitere = bloecke(inst).slice(1);
+  const n = planWeitere.length;
+  return `<div class="wf-section" style="margin-top:14px;">
+    <div class="wf-section-header" onclick="toggleWfSection(this)">
+      <span class="wf-section-title">📅 Weitere Zeiträume <span style="font-weight:400;color:var(--text3);">(mehrere Wochenenden)</span></span>
+      <div class="wf-section-meta">
+        ${n ? `<span class="wf-badge wf-badge-ok">${n} weitere${n === 1 ? 'r' : ''}</span>` : ''}
+        <span class="wf-chevron ${n ? 'open' : ''}">›</span>
+      </div>
+    </div>
+    <div class="wf-body ${n ? 'open' : ''}" style="padding:12px 14px;">
+      <div id="plan-zr-liste">${planZeitraumListeHtml()}</div>
+      ${istAdmin() ? '<button class="btn btn-sm" style="margin-top:10px;" onclick="planZeitraumAdd()">＋ Zeitraum hinzufügen</button>' : ''}
+      <p style="color:var(--text3);font-size:11px;margin-top:8px;">Nur bei Märkten über mehrere getrennte Wochenenden am selben Ort. Die Tage zwischen den Zeiträumen sind keine Markttage.</p>
+    </div>
+  </div>`;
+}
+
+// Die Zeilen der Liste (eigene Funktion, damit Hinzufügen/Löschen nur die
+// Liste neu zeichnet und der Rest des Tabs stehen bleibt).
+function planZeitraumListeHtml() {
+  if (!planWeitere.length) {
+    return '<p style="color:var(--text3);font-size:12px;margin:0;">Kein weiterer Zeitraum – der Markt läuft an einem Stück.</p>';
+  }
+  const aus = istAdmin() ? '' : 'disabled';
+  return planWeitere.map((b, i) => `<div class="field-row" style="margin-bottom:8px;align-items:flex-end;">
+    <div class="field" style="margin-bottom:0">
+      <label>${i + 2}. Start</label>
+      <input type="date" id="plan-zr-${i}-s" value="${b.s || ''}" onchange="planZeitraumChange()" ${aus}>
+    </div>
+    <div class="field" style="margin-bottom:0">
+      <label>${i + 2}. Ende</label>
+      <input type="date" id="plan-zr-${i}-e" value="${b.e || ''}" onchange="planZeitraumChange()" ${aus}>
+    </div>
+    ${istAdmin() ? `<button class="btn btn-sm btn-danger" style="margin-bottom:0;" onclick="planZeitraumDel(${i})" title="Zeitraum entfernen">✕</button>` : ''}
+  </div>`).join('');
+}
+
+// Werte aus den Eingabefeldern zurück in planWeitere holen
+function planZeitraumLesen() {
+  planWeitere = planWeitere.map((b, i) => ({
+    s: el(`plan-zr-${i}-s`)?.value || '',
+    e: el(`plan-zr-${i}-e`)?.value || '',
+  }));
+}
+
+function planZeitraumAdd() {
+  planZeitraumLesen();
+  planWeitere.push({ s: '', e: '' });
+  el('plan-zr-liste').innerHTML = planZeitraumListeHtml();
+}
+
+async function planZeitraumDel(i) {
+  planZeitraumLesen();
+  planWeitere.splice(i, 1);
+  el('plan-zr-liste').innerHTML = planZeitraumListeHtml();
+  await savePlanungDaten();
+}
+
+async function planZeitraumChange() {
+  planZeitraumLesen();
+  await savePlanungDaten();
+}
+
 async function savePlanungDaten() {
   const start = el('plan-start').value;
   const ende  = el('plan-ende').value || null;
   if (!start) return;
-  const start2 = el('plan-start-2').value || null;
-  const ende2  = el('plan-ende-2').value || null;
-  if (start2 && start2 <= (ende || start)) { toast('Der 2. Zeitraum muss nach dem 1. liegen', 'err'); return; }
-  if (start2 && !ende2) { toast('Bitte auch das Ende des 2. Zeitraums angeben', 'err'); return; }
-  const dauer = dauerTage(start, ende, start2, ende2);
+  planZeitraumLesen();
+  // Noch leere Zeilen (frisch hinzugefügt) blockieren das Speichern nicht
+  const eingabe = [{ s: start, e: ende || start }, ...planWeitere.filter(b => b.s)];
+  const norm = zeitraeumeNormalisieren(eingabe);
+  if (norm.fehler) { toast(norm.fehler, 'err'); return; }
+  const bl = norm.bloecke;
+  const felder = zeitraumFelder(bl);
   await dbW(sb.from('event_instanz').update({
-    start_datum: start, end_datum: ende,
-    start_datum_2: start2, end_datum_2: ende2,
-    dauer_tage: dauer, geaendert_am: new Date().toISOString()
+    ...felder, geaendert_am: new Date().toISOString()
   }).eq('id', currentInstanzId), 'Markt speichern');
   // currentInstanz im Speicher aktualisieren, damit Kasse/Stunden sofort stimmen
-  if (currentInstanz) {
-    currentInstanz.start_datum = start; currentInstanz.end_datum = ende;
-    currentInstanz.start_datum_2 = start2; currentInstanz.end_datum_2 = ende2;
-    currentInstanz.dauer_tage = dauer;
-  }
+  if (currentInstanz) Object.assign(currentInstanz, felder);
   toast('Daten gespeichert', 'ok');
+  // Hat die Prüfung sortiert oder Blöcke verschmolzen, stimmt die Anzeige
+  // nicht mehr mit den Feldern überein → Tab neu zeichnen (Scroll halten).
+  if (JSON.stringify(bl) !== JSON.stringify(eingabe)) renderPlanungTab(true);
 }
 
 // ── STAMMDATEN (Template) bearbeiten ──────────────────────────
@@ -5418,7 +5516,7 @@ function exportBestellungPDF() {
   const inst   = currentInstanz;
   const name   = inst?.name || inst?.event_template?.name || 'Markt';
   const ort    = inst?.event_template?.ort || '';
-  const datum  = inst?.start_datum ? dateFmt(inst.start_datum) + (inst.end_datum ? ' – ' + dateFmt(inst.end_datum) : '') : '';
+  const datum  = zeitraumText(inst);
   const heute  = new Date().toLocaleDateString('de-DE');
   const { kgGesamt, kistenBerechnet, paletten, umsatzCent } = bestGewicht();
   // Kutschen-/Bestellkennung fürs Lager (v6.68): bei zwei Kutschen gehen zwei
@@ -5888,7 +5986,7 @@ async function renderChronikTab() {
   if (!templateId) { wrap.innerHTML = '<div class="section"><p style="color:var(--text3)">Kein Template.</p></div>'; return; }
   const { data: alleInstanzen } = await sb
     .from('event_instanz')
-    .select('id, saison_jahr, start_datum, end_datum, name, notiz, dauer_tage')
+    .select('id, saison_jahr, start_datum, end_datum, start_datum_2, end_datum_2, zeitraeume, name, notiz, dauer_tage')
     .eq('template_id', templateId).is('geloescht_am', null)
     .order('saison_jahr', { ascending: false });
   if (!chronikInstanzId || !alleInstanzen?.find(i => i.id === chronikInstanzId))
@@ -6792,7 +6890,7 @@ function fahrerAufgabeStatus(def, aufgabe, inst) {
   if (!inst?.start_datum) return { stufe: 'wartet', text: 'noch kein Datum' };
   const heute = new Date(); heute.setHours(0, 0, 0, 0);
   const start = new Date(inst.start_datum + 'T00:00:00');
-  const ende  = new Date((inst.end_datum || inst.start_datum) + 'T00:00:00');
+  const ende  = new Date(marktEnde(inst) + 'T00:00:00');
   const tage  = (a, b) => Math.round((a - b) / 86400000);
 
   if (def.faellig === 'vor_start') {
@@ -6811,7 +6909,7 @@ function fahrerAufgabeStatus(def, aufgabe, inst) {
     return { stufe: 'offen', text: 'läuft' };
   }
   // ab_ende
-  if (heute <= ende) return { stufe: 'wartet', text: `ab ${dateFmt(inst.end_datum || inst.start_datum)}` };
+  if (heute <= ende) return { stufe: 'wartet', text: `ab ${dateFmt(marktEnde(inst))}` };
   const nachEnde = tage(heute, ende);
   if (nachEnde >= def.fristTage) {
     return { stufe: 'rot', text: `seit ${nachEnde} Tagen fällig` };
@@ -6960,7 +7058,7 @@ function deadlineBanner(instanz) {
   if (!instanz?.start_datum) return '';
   const today     = new Date(); today.setHours(0,0,0,0);
   const start     = new Date(instanz.start_datum + 'T00:00:00');
-  const end       = instanz.end_datum ? new Date(instanz.end_datum + 'T00:00:00') : start;
+  const end       = new Date(marktEnde(instanz) + 'T00:00:00');
   const jahr      = instanz.saison_jahr || start.getFullYear();
   const status    = instanz.status;
   const warnMs    = 14 * 86400000;
@@ -7003,7 +7101,7 @@ function ampelFarbe(instanz) {
   if (!instanz?.start_datum) return '';
   const today  = new Date(); today.setHours(0,0,0,0);
   const start  = new Date(instanz.start_datum + 'T00:00:00');
-  const end    = instanz.end_datum ? new Date(instanz.end_datum + 'T00:00:00') : start;
+  const end    = new Date(marktEnde(instanz) + 'T00:00:00');
   const jahr   = instanz.saison_jahr || start.getFullYear();
   const status = instanz.status;
 
@@ -7390,8 +7488,6 @@ function openNeuerMarktModal() {
   el('nm-plz').value      = '';
   el('nm-start').value    = '';
   el('nm-ende').value     = '';
-  el('nm-start-2').value  = '';
-  el('nm-ende-2').value   = '';
   el('nm-km-sued').value  = '';
   el('nm-km-nord').value  = '';
   el('nm-notiz').value    = '';
@@ -7409,11 +7505,9 @@ async function saveNeuerMarkt() {
   const now   = new Date().toISOString();
   const jahr  = parseInt(start.slice(0,4));
   const ende  = el('nm-ende').value || null;
-  const start2 = el('nm-start-2').value || null;
-  const ende2  = el('nm-ende-2').value || null;
-  if (start2 && start2 <= (ende || start)) { toast('Der 2. Zeitraum muss nach dem 1. liegen', 'err'); return; }
-  if (start2 && !ende2) { toast('Bitte auch das Ende des 2. Zeitraums angeben', 'err'); return; }
-  const dauer = dauerTage(start, ende, start2, ende2);
+  const norm  = zeitraeumeNormalisieren([{ s: start, e: ende || start }]);
+  if (norm.fehler) { toast(norm.fehler, 'err'); return; }
+  const zrFelder = zeitraumFelder(norm.bloecke);
   const kmS   = parseInt(el('nm-km-sued').value) || null;
   const kmN   = parseInt(el('nm-km-nord').value) || null;
   const plz   = el('nm-plz').value.trim() || null;
@@ -7440,9 +7534,7 @@ async function saveNeuerMarkt() {
     id: instanzId, template_id: templateId,
     saison_jahr: jahr, name,
     status: 'beworben',
-    start_datum: start, end_datum: ende,
-    start_datum_2: start2, end_datum_2: ende2,
-    dauer_tage: dauer, notiz,
+    ...zrFelder, notiz,
     nextcloud_url: ncUrl,
     erstellt_am: now, geaendert_am: now,
     erstellt_von: currentUser.id, geaendert_von: currentUser.id,
@@ -7479,7 +7571,9 @@ async function saveNeuesJahr() {
   const start = el('nj-start').value;
   if (!start) { toast('Start-Datum fehlt', 'err'); return; }
   const ende  = el('nj-ende').value || null;
-  const dauer = ende ? Math.round((new Date(ende) - new Date(start)) / 86400000) + 1 : null;
+  const njNorm = zeitraeumeNormalisieren([{ s: start, e: ende || start }]);
+  if (njNorm.fehler) { toast(njNorm.fehler, 'err'); return; }
+  const njFelder = zeitraumFelder(njNorm.bloecke);
   const jahr  = parseInt(start.slice(0, 4));
   const now   = new Date().toISOString();
 
@@ -7490,9 +7584,7 @@ async function saveNeuesJahr() {
     saison_jahr: jahr,
     name: currentInstanz.name || currentInstanz.event_template?.name,
     status: 'abgeschlossen',
-    start_datum: start,
-    end_datum: ende,
-    dauer_tage: dauer,
+    ...njFelder,
     notiz: el('nj-notiz').value || null,
     nextcloud_url: currentInstanz.nextcloud_url || null,
     erstellt_am: now, geaendert_am: now,
@@ -7532,7 +7624,7 @@ async function loadSaison() {
 
   // Märkte dieses Jahres laden
   const { data } = await sb.from('event_instanz')
-    .select('id, name, status, start_datum, end_datum, dauer_tage, event_template(name, ort)')
+    .select('id, name, status, start_datum, end_datum, start_datum_2, end_datum_2, zeitraeume, dauer_tage, event_template(name, ort)')
     .eq('saison_jahr', saisonJahr).is('geloescht_am', null)
     .order('start_datum');
   const maerkte = data || [];
@@ -7571,7 +7663,11 @@ async function loadSaison() {
   const listeHtml = sortiert.length ? sortiert.map(m => {
     const name  = esc(m.name || m.event_template?.name || '(Kein Name)');
     const ort   = esc(m.event_template?.ort || '');
-    const daten = m.start_datum ? dateFmt(m.start_datum) + (m.end_datum ? '–'+dateFmt(m.end_datum) : '') : '';
+    const mBl   = bloecke(m);
+    const daten = mBl.length
+      ? dateFmt(mBl[0].s) + (marktEnde(m) !== mBl[0].s ? '–' + dateFmt(marktEnde(m)) : '')
+        + (mBl.length > 1 ? ` (${mBl.length} Zeiträume)` : '')
+      : '';
     const umsatz = umsatzMap[m.id];
     return `<div class="saison-markt-row" onclick="openMarktDetail('${m.id}')">
       <span class="badge status-${m.status || 'interessent'}" style="min-width:80px;text-align:center;">${STATUS_LABEL[m.status] || '?'}</span>
@@ -7625,7 +7721,7 @@ let stundenSuche     = '';   // Filtertext
 
 async function ladeStundenMarktSelector() {
   const { data } = await ocQuery('stunden_selector', () => sb.from('event_instanz')
-    .select('id, name, saison_jahr, status, start_datum, end_datum, start_datum_2, end_datum_2, event_template(name)')
+    .select('id, name, saison_jahr, status, start_datum, end_datum, start_datum_2, end_datum_2, zeitraeume, event_template(name)')
     .is('geloescht_am', null)
     .order('start_datum', { ascending: false }));
   stundenInstanzen = data || [];
@@ -7808,7 +7904,7 @@ async function openNeueStundenModal() {
   let inst = null;
   try {
     const r = await sb.from('event_instanz')
-      .select('start_datum, end_datum').eq('id', stundenInstanzId).single();
+      .select('start_datum, end_datum, start_datum_2, end_datum_2, zeitraeume').eq('id', stundenInstanzId).single();
     if (r.error && istNetzfehler(r.error)) throw r.error;
     inst = r.data;
   } catch (e) {

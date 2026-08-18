@@ -306,7 +306,7 @@ td.zelle.abwesend { background: repeating-linear-gradient(45deg, transparent, tr
 
 <script>
 'use strict';
-const PP_VERSION = 'v0.8';
+const PP_VERSION = 'v0.9';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 const LAGER_SUED = 'a1b2c3d4-0001-0001-0001-000000000001';
@@ -406,7 +406,7 @@ async function ladeUndZeichne() {
     sb.from('marktfahrer').select('*').is('geloescht_am', null).eq('aktiv', true)
       .order('sortierung').order('name'),
     sb.from('event_instanz')
-      .select('id, name, status, start_datum, end_datum, start_datum_2, end_datum_2, dauer_tage, lager_id, personalbedarf, template:template_id(plz, ort, km_minden, km_schoellkrippen)')
+      .select('id, name, status, start_datum, end_datum, start_datum_2, end_datum_2, zeitraeume, dauer_tage, lager_id, personalbedarf, template:template_id(plz, ort, km_minden, km_schoellkrippen)')
       .eq('saison_jahr', currentJahr).is('geloescht_am', null)
       .neq('status', 'abgelehnt')
       .order('start_datum'),
@@ -492,12 +492,26 @@ function isoKW(dateStr) {
 }
 
 /* ── MARKTTAGE & STUNDEN-SCHÄTZUNG ──────────────────────────── */
-function marktTage(m) {
-  let t = m.dauer_tage || 0;
-  if (m.start_datum_2 && m.end_datum_2) {
-    t += Math.round((new Date(m.end_datum_2) - new Date(m.start_datum_2)) / 86400000) + 1;
+// Blöcke eines Marktes (seit v6.85: Spalte zeitraeume, beliebig viele).
+// Rückfall auf die Altspalten für nicht migrierte Zeilen.
+function bloecke(m) {
+  const z = m?.zeitraeume;
+  if (Array.isArray(z) && z.length) {
+    return z.filter(b => b && b.s).map(b => ({ s: b.s, e: b.e || b.s }))
+            .sort((a, b) => a.s.localeCompare(b.s));
   }
-  return t;
+  if (!m?.start_datum) return [];
+  const bl = [{ s: m.start_datum, e: m.end_datum || m.start_datum }];
+  if (m.start_datum_2) bl.push({ s: m.start_datum_2, e: m.end_datum_2 || m.start_datum_2 });
+  return bl;
+}
+function marktEnde(m) { const bl = bloecke(m); return bl.length ? bl[bl.length - 1].e : m?.end_datum; }
+// Echte Markttage über alle Blöcke (ohne die Lücken dazwischen).
+// Bis v0.8 wurde hier dauer_tage + Block 2 gerechnet – dauer_tage enthält
+// aber bereits alle Blöcke, Doppel-Wochenenden zählten also zu viel.
+function marktTage(m) {
+  return bloecke(m).reduce((t, b) =>
+    t + Math.round((new Date(b.e) - new Date(b.s)) / 86400000) + 1, 0);
 }
 // Schätzformel aus der Numbers-Datei: 12 h × (Tage + 1) – inkl. An-/Abreise
 function stundenSchaetzung(m) { return 12 * (marktTage(m) + 1); }
@@ -506,7 +520,8 @@ function einsatzTage(m) { return marktTage(m) + 2; }
 
 function istAbwesend(fahrerId, m) {
   return cache.abwesenheiten.some(a =>
-    a.marktfahrer_id === fahrerId && a.von <= m.end_datum && a.bis >= m.start_datum
+    a.marktfahrer_id === fahrerId &&
+    bloecke(m).some(b => a.von <= b.e && a.bis >= b.s)
   );
 }
 
@@ -514,8 +529,7 @@ function istAbwesend(fahrerId, m) {
 // Index eines Wochenendes: fortlaufende Wochennummer des Samstags seit Epoche
 function wochenendIndizes(m) {
   const res = new Set();
-  const perioden = [[m.start_datum, m.end_datum]];
-  if (m.start_datum_2 && m.end_datum_2) perioden.push([m.start_datum_2, m.end_datum_2]);
+  const perioden = bloecke(m).map(b => [b.s, b.e]);
   perioden.forEach(([von, bis]) => {
     const d = new Date(von + 'T12:00:00');
     const e = new Date(bis + 'T12:00:00');
@@ -593,8 +607,9 @@ function renderMatrix() {
     const distS = distanzAbLager(m, 'sued');
     const unbest = (m.status === 'interessent' || m.status === 'beworben');
 
-    let datum = fmt(m.start_datum) + (m.end_datum !== m.start_datum ? '–' + fmt(m.end_datum) : '');
-    if (m.start_datum_2) datum += ' +' + fmt(m.start_datum_2) + '–' + fmt(m.end_datum_2);
+    let datum = bloecke(m)
+      .map(b => fmt(b.s) + (b.e !== b.s ? '–' + fmt(b.e) : ''))
+      .join(' +');
 
     let distText = '';
     if (distN || distS) {
@@ -897,8 +912,7 @@ function icsLaden(fahrerId) {
     ].filter(Boolean).join('\n');
     const ort = [t.plz, t.ort].filter(Boolean).join(' ');
 
-    const perioden = [[m.start_datum, m.end_datum]];
-    if (m.start_datum_2 && m.end_datum_2) perioden.push([m.start_datum_2, m.end_datum_2]);
+    const perioden = bloecke(m).map(b => [b.s, b.e]);
 
     perioden.forEach(([von, bis], idx) => {
       events.push([
