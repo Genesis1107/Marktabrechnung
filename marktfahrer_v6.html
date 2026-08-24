@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.85</title>
+<title>Marktfahrer · v6.86</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -634,7 +634,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.85</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.86</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -766,7 +766,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.85</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.86</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -1192,7 +1192,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.85';
+const APP_VERSION = 'v6.86';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1206,6 +1206,12 @@ function marktReadonly(inst) {
 }
 let currentInstanzId = null;
 let standZuordnungen = [];   // {id, stand_id, marktfahrer_id} der offenen Instanz (v6.70)
+// Auf-/Zu-Zustand der Planung-Sektionen (v6.86). Der Planung-Tab wird nach
+// jedem Haken komplett neu gebaut; ohne diesen Merker klappte die Aufgaben-
+// bzw. Checklisten-Sektion dabei jedes Mal wieder zu. Gilt je Markt und wird
+// beim Wechsel auf einen anderen Markt geleert (Übersicht beim Betreten).
+let wfOffen = {};            // {aufgaben: true, checkliste: false}
+let wfOffenInstanzId = null; // zu welcher Instanz der Merker gehört
 let currentInstanz   = null;
 let currentStandId   = null;
 let currentStand     = null;
@@ -2220,8 +2226,22 @@ function passwortPflichtOffen() {
   return currentUser?.app_metadata?.passwort_gesetzt === false;
 }
 
-function pruefePasswortPflicht() {
+async function pruefePasswortPflicht() {
   if (!passwortPflichtOffen()) return;
+  // Zweiter Sicherheitsgurt (v6.86): Das gespeicherte JWT kann veraltet sein –
+  // etwa wenn das Passwort auf einem anderen Gerät gesetzt wurde. Deshalb den
+  // Serverstand holen, bevor der Zwang greift. Ohne Netz bleibt es beim JWT.
+  try {
+    const { data: u } = await sb.auth.getUser();
+    if (u?.user) {
+      currentUser = u.user;
+      if (!passwortPflichtOffen()) return;
+    }
+  } catch (e) {
+    // Serverfehler wie Netzfehler behandeln: der Zwang bleibt bestehen, statt
+    // die Startsequenz mit einem unbehandelten Fehler abzubrechen.
+    console.warn('Passwortstatus nicht prüfbar:', e);
+  }
   el('pw-neu').value = '';
   el('pw-neu2').value = '';
   el('pw-fehler').style.display = 'none';
@@ -2251,12 +2271,23 @@ async function passwortSetzenSpeichern() {
     const j = await res.json();
     if (!res.ok || !j.ok) { fehler(j.error || 'Konnte nicht gespeichert werden.'); return; }
 
-    // Ohne Refresh trägt das JWT weiter passwort_gesetzt=false und der Dialog
-    // käme beim nächsten Start erneut.
-    const { data: neu } = await sb.auth.refreshSession();
-    if (neu?.user) currentUser = neu.user;
+    // Das alte JWT trägt weiter passwort_gesetzt=false. Ein bloßes
+    // refreshSession() reicht nicht: die Passwortänderung über die Admin-API
+    // widerruft den Refresh-Token, der Refresh scheitert – bis v6.85 still,
+    // weshalb der Dialog beim nächsten App-Start erneut kam (Befund 24.08.2026).
+    // Sicherer Weg: mit dem soeben gesetzten Passwort neu anmelden.
+    let frisch = null;
+    const { data: sess } = await sb.auth.signInWithPassword(
+      { email: currentUser.email, password: pw1 });
+    if (sess?.user) frisch = sess.user;
+    else {
+      const { data: ref } = await sb.auth.refreshSession();
+      if (ref?.user) frisch = ref.user;
+    }
+    if (frisch) currentUser = frisch;
     closeModal('modal-passwort-setzen');
-    toast('✓ Passwort gesetzt', 'ok');
+    if (frisch) toast('✓ Passwort gesetzt', 'ok');
+    else toast('✓ Passwort gesetzt – bitte einmal abmelden und neu anmelden', 'err');
   } catch (e) {
     fehler(istNetzfehler(e) ? 'Keine Verbindung – bitte später erneut versuchen.' : 'Fehler: ' + e.message);
   } finally {
@@ -2866,6 +2897,9 @@ async function openMarktDetail(instanzId, tab = 'planung') {
 }
 
 async function _openMarktDetailIntern(instanzId, tab = 'planung') {
+  // Klappzustand gilt je Markt: nur beim echten Marktwechsel leeren, damit
+  // Zurücknavigieren innerhalb desselben Marktes ihn nicht verwirft.
+  if (wfOffenInstanzId !== instanzId) { wfOffen = {}; wfOffenInstanzId = instanzId; }
   currentInstanzId = instanzId;
   chronikInstanzId = instanzId; // Chronik zeigt standardmäßig aktuelle Instanz
   const { data: instanz, offline } = await ocQuery('instanz_' + instanzId, () => sb
@@ -7198,15 +7232,18 @@ async function renderAufgabenSection(instanz, aufgaben) {
       ${!allPflichtDone ? `<div class="wf-phase-btn-hint">Offen (Pflicht): ${pflichtOffen.slice(0,2).map(a => a.titel).join(' · ')}${pflichtOffen.length > 2 ? ' …' : ''}</div>` : ''}`;
   }
 
-  return `<div class="wf-section">
+  // Zugeklappt starten, es sei denn, der Nutzer hat sie in diesem Markt
+  // aufgeklappt (v6.86) – sonst schlösse sich die Liste bei jedem Haken.
+  const auf = wfOffen.aufgaben ? ' open' : '';
+  return `<div class="wf-section" data-wf="aufgaben">
     <div class="wf-section-header" onclick="toggleWfSection(this)">
       <span class="wf-section-title">📋 Aufgaben – ${STATUS_LABEL[phase] || phase}</span>
       <div class="wf-section-meta">
         <span class="wf-badge ${badgeCls}">${badgeTxt}</span>
-        <span class="wf-chevron">›</span>
+        <span class="wf-chevron${auf}">›</span>
       </div>
     </div>
-    <div class="wf-body">
+    <div class="wf-body${auf}">
       ${taskHtml || '<div style="padding:12px 14px;color:var(--text3);font-size:13px;">Keine Aufgaben angelegt.</div>'}
     </div>
   </div>
@@ -7225,15 +7262,16 @@ async function renderClSection(instanzId) {
   const hatMarktEintraege = items.some(i => i.event_instanz_id === instanzId);
 
   if (!items.length) {
-    return `<div class="wf-section">
+    const aufLeer = wfOffen.checkliste ? ' open' : '';
+    return `<div class="wf-section" data-wf="checkliste">
       <div class="wf-section-header" onclick="toggleWfSection(this)">
         <span class="wf-section-title">✅ Meine Checkliste</span>
         <div class="wf-section-meta">
           <span class="wf-badge wf-badge-grey">leer</span>
-          <span class="wf-chevron">›</span>
+          <span class="wf-chevron${aufLeer}">›</span>
         </div>
       </div>
-      <div class="wf-body">
+      <div class="wf-body${aufLeer}">
         <div style="padding:12px 14px;">
           <p style="font-size:13px;color:var(--text3);margin-bottom:10px;">Noch keine Einträge. Hier direkt hinzufügen oder in Einstellungen pflegen.</p>
           <button class="btn btn-sm btn-primary" onclick="openNeuesClItemModal()">+ Eintrag hinzufügen</button>
@@ -7288,8 +7326,9 @@ async function renderClSection(instanzId) {
   })());
 
   // Zugeklappt starten – außer es gibt Einträge, die nur für diesen Markt gelten.
-  const auf = hatMarktEintraege ? ' open' : '';
-  return `<div class="wf-section">
+  // Hat der Nutzer in diesem Markt selbst geklappt, gilt seine Wahl (v6.86).
+  const auf = (wfOffen.checkliste ?? hatMarktEintraege) ? ' open' : '';
+  return `<div class="wf-section" data-wf="checkliste">
     <div class="wf-section-header" onclick="toggleWfSection(this)">
       <span class="wf-section-title">✅ Meine Checkliste</span>
       <div class="wf-section-meta">
@@ -7311,6 +7350,9 @@ function toggleWfSection(header) {
   const chevron = header.querySelector('.wf-chevron');
   const open    = body.classList.toggle('open');
   if (chevron) chevron.classList.toggle('open', open);
+  // Sektionen mit data-wf überleben das Neuzeichnen des Planung-Tabs (v6.86).
+  const schluessel = header.parentElement?.dataset?.wf;
+  if (schluessel) wfOffen[schluessel] = open;
 }
 
 async function aufgabeToggle(aufgabeId, erledigt, shortId, isSkaldenmet) {
