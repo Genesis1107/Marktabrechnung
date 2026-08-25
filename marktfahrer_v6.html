@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.86</title>
+<title>Marktfahrer · v6.87</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -634,7 +634,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <div class="login-logo">
         <div class="login-logo-icon">⚜</div>
         <div class="login-logo-title">Marktfahrer</div>
-        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.86</span></div>
+        <div class="login-logo-sub">Beerenweine · Marktchronik · <span class="app-version">v6.87</span></div>
       </div>
       <div class="login-box">
         <div class="field">
@@ -766,7 +766,7 @@ body.rolle-fahrer .admin-only { display: none !important; }
         <button class="btn btn-full" onclick="qsStart(true)">🧭 Rundgang wiederholen</button>
       </div>
       <div class="section">
-        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.86</span> · Beerenweine</p>
+        <p style="color:var(--text3);font-size:11px;text-align:center;">Marktfahrer <span class="app-version">v6.87</span> · Beerenweine</p>
       </div>
     </div>
 
@@ -1192,7 +1192,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.86';
+const APP_VERSION = 'v6.87';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -4248,10 +4248,25 @@ async function deleteKassenzaehlung(id) {
 }
 
 // ── BUCHUNGEN MODAL ───────────────────────────────────────────
+// Zuletzt im Dialog verwendetes Datum, je Markt (v6.87). EC-Umsätze werden
+// oft nachträglich und in Serie erfasst (bei MPS je Mitarbeiter einzeln) –
+// „heute" wäre dann jedes Mal der falsche Tag und müsste neu gestellt werden.
+let letztesBuchungsDatum = {};   // instanzId -> 'JJJJ-MM-TT'
+
+// Vorschlag fürs Datumsfeld: zuletzt genutzter Tag dieses Marktes, sonst heute,
+// falls heute ein Markttag ist, sonst der letzte Markttag (Nacherfassung).
+function buchungsDatumVorschlag(instanzId) {
+  if (letztesBuchungsDatum[instanzId]) return letztesBuchungsDatum[instanzId];
+  const heute = isoToday();
+  const tage  = marktTage(currentInstanz);
+  if (!tage.length || tage.includes(heute)) return heute;
+  return tage[tage.length - 1];
+}
+
 function openNeueBuchungModal(instanzId, standId) {
   _modalBuchungInstanzId = instanzId;
   _modalBuchungStandId   = standId;
-  el('buch-datum').value  = isoToday();
+  el('buch-datum').value  = buchungsDatumVorschlag(instanzId);
   el('buch-typ').value    = 'einnahme';
   el('buch-art').value    = 'ec';
   el('buch-betrag').value = '';
@@ -4279,6 +4294,8 @@ async function saveBuchung() {
   const res = await dbSchreib('buchung', payload);
   if (res.error) { toast('Fehler: ' + res.error.message, 'err'); return; }
   ocEcho('buchung', payload);
+  // Nächste Buchung dieses Marktes startet auf demselben Tag (v6.87)
+  letztesBuchungsDatum[_modalBuchungInstanzId] = datum;
   closeModal('modal-neue-buchung');
   toast(res.offline ? '📡 Offline gespeichert – Sync folgt bei Netz' : '✓ Buchung gespeichert', 'ok');
   renderKasseTab();
