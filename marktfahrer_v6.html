@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.87</title>
+<title>Marktfahrer · v6.88</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -1192,7 +1192,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.87';
+const APP_VERSION = 'v6.88';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1726,7 +1726,7 @@ async function vormerkLaden(instanzId, phase) {
   ocSet('rest_' + instanzId, rr.data || []);
 
   const rbe = await sb.from('bestellung')
-    .select('id, lager_id, status, versendet_am, abhol_datum, fahrzeug, stand_id, erstellt_am')
+    .select('id, lager_id, status, versendet_am, abhol_datum, fahrzeug, stand_id, erstellt_am, lager_bearbeitung_start_am, kommissioniert_am')
     .eq('event_instanz_id', instanzId).is('geloescht_am', null).order('erstellt_am');
   if (rbe.error) throw rbe.error;
   ocSet('bestellungen_' + instanzId, rbe.data || []);
@@ -4369,7 +4369,7 @@ async function renderBestellungTab() {
     { data: staende },
   ] = await Promise.all([
     ocQuery('bestellungen_' + currentInstanzId, () => sb.from('bestellung')
-      .select('id, lager_id, status, versendet_am, abhol_datum, fahrzeug, stand_id, erstellt_am')
+      .select('id, lager_id, status, versendet_am, abhol_datum, fahrzeug, stand_id, erstellt_am, lager_bearbeitung_start_am, kommissioniert_am')
       .eq('event_instanz_id', currentInstanzId).is('geloescht_am', null).order('erstellt_am', {ascending:true})),
     sb.from('kategorie').select('id, name, reihenfolge, preis_modus').order('reihenfolge'),
     sb.from('produkt').select('id, name, artikelnr, kategorie_id').eq('aktiv', true).order('name'),
@@ -4529,6 +4529,7 @@ function renderBestellungUI(wrap) {
   const { kgGesamt, kistenBerechnet, paletten, umsatzCent } = bestGewicht();
   const ueberladen = bestUeberladen(kistenBerechnet);
   const versendet = bst.bestellung?.status === 'versendet';
+  const ampel = bestAmpel(bst.bestellung);
   const fzgSelOpt = FAHRZEUGE.map(f =>
     `<option value="${f.id}" ${f.id === bst.fahrzeug ? 'selected' : ''}>${f.kurz}</option>`
   ).join('');
@@ -4536,6 +4537,7 @@ function renderBestellungUI(wrap) {
   wrap.innerHTML = `
     <div class="best-topbar">
       <span class="best-topbar-chip">🏪 ${lager.code}</span>
+      <span class="best-topbar-chip" title="${esc(ampel.text)}"><span class="ampel ampel-${ampel.farbe}" style="margin-right:5px;"></span>${ampel.kurz}</span>
       <span class="best-topbar-chip ${ueberladen ? 'warn' : 'gold'}" id="best-chip-kg">${ueberladen ? '⚠️' : '⚖'} ${kistenBerechnet} Kisten · ${paletten} Pal. · ${kgGesamt} kg</span>
       <select class="best-topbar-fzg ${ueberladen ? 'warn' : ''}" id="best-chip-fzg" title="Fahrzeug"
         onchange="bestFahrzeugSetzen(this.value)" ${versendet ? 'disabled' : ''}>${fzgSelOpt}</select>
@@ -4595,10 +4597,28 @@ function bestellListeLeiste() {
   const btns = liste.map(b => {
     const aktiv = b.id === bst.bestellung?.id;
     const vs = b.status === 'versendet' ? ' ✓' : '';
-    return `<button class="best-liste-btn ${aktiv ? 'active' : ''}"
-      onclick="bestWechseln('${b.id}')">${esc(bestellungName(b))}${vs}</button>`;
+    const a = bestAmpel(b);
+    return `<button class="best-liste-btn ${aktiv ? 'active' : ''}" title="${esc(a.text)}"
+      onclick="bestWechseln('${b.id}')"><span class="ampel ampel-${a.farbe}" style="margin-right:4px;"></span>${esc(bestellungName(b))}${vs}</button>`;
   }).join('');
   return `<div class="best-liste-leiste">${btns}</div>`;
+}
+
+// Lager-Ampel (Schritt 2, Kommissionierungs-Modul): zeigt, ob eine Änderung
+// an DIESER Bestellung gerade noch gefahrlos möglich ist. Getrennt vom
+// Fahrer-seitigen Status (status/versendet_am, s. bestVersandLeiste) – die
+// hier beschreibt, wie weit das LAGER mit der Kommissionierung ist.
+// grün = noch nicht begonnen → Änderung problemlos möglich
+// gelb = Lager kommissioniert gerade → Änderung bitte mit Lager abstimmen
+// rot  = fertig kommissioniert → keine Änderung mehr möglich
+function bestAmpel(b) {
+  if (!b) return { farbe: 'gruen', kurz: 'Offen', text: 'Noch keine Bestellung angelegt' };
+  if (b.kommissioniert_am) return { farbe: 'rot', kurz: 'Kommissioniert',
+    text: 'Vom Lager fertig kommissioniert – keine Änderung mehr möglich' };
+  if (b.lager_bearbeitung_start_am) return { farbe: 'gelb', kurz: 'In Bearbeitung',
+    text: 'Lager kommissioniert gerade – Änderung bitte mit dem Lager abstimmen' };
+  return { farbe: 'gruen', kurz: 'Offen',
+    text: 'Kommissionierung noch nicht begonnen – Änderung problemlos möglich' };
 }
 
 // Versand-Markierung: Knopf zum Setzen, Bestätigungszeile mit Rücknahme.
