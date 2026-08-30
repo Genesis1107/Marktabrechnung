@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Lager · Kommissionierung</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ── TOKENS (identisch zur Marktfahrer-App) ─────────────────── */
+:root {
+  --bg: #1a1208; --bg2: #241a0e; --bg3: #2e2010; --surface: #3a2a14;
+  --surface2: #4a3520; --border: #6b4c28; --border2: #8a6438;
+  --gold: #c9942a; --gold2: #e8b84b; --gold3: #f5d070;
+  --text: #f5eed8; --text2: #dbc898; --text3: #a89868;
+  --red: #c0392b; --red2: #e74c3c; --green: #2e7d32; --green2: #4caf50;
+  --blue: #1565c0; --blue2: #42a5f5; --amber: #e65100; --amber2: #ff9800;
+  --radius: 8px; --radius2: 12px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+[data-theme="pergament"] {
+  --bg: #f0e6cc; --bg2: #e8dab8; --bg3: #ddd0a4; --surface: #d0c090;
+  --surface2: #c4b080; --border: #b09060; --border2: #907040;
+  --gold: #8b5e0a; --gold2: #a87010; --gold3: #c49020;
+  --text: #1c0e04; --text2: #3d2010; --text3: #785030;
+  --red: #8b1a1a; --red2: #c0392b; --green: #1e5c0a; --green2: #2e7d10;
+  --blue: #1a3a8b; --blue2: #2a5ab8; --amber: #c05000; --amber2: #e07020;
+}
+[data-theme="mitternacht"] {
+  --bg: #141b2e; --bg2: #1c2540; --bg3: #232e52; --surface: #2c3862;
+  --surface2: #354070; --border: #3d4e7c; --border2: #506098;
+  --gold: #d4a830; --gold2: #e8c050; --gold3: #f0d070;
+  --text: #f0e8d8; --text2: #c8bca0; --text3: #908060;
+  --red: #c0392b; --red2: #e05040; --green: #2a7030; --green2: #4caa50;
+  --blue: #1a4090; --blue2: #60a8f0; --amber: #c06000; --amber2: #e08820;
+}
+[data-theme="weinrot"] {
+  --bg: #1a0810; --bg2: #26101a; --bg3: #321424; --surface: #3d182e;
+  --surface2: #4a1e38; --border: #6a2848; --border2: #903860;
+  --gold: #c9942a; --gold2: #e8b84b; --gold3: #f5d070;
+  --text: #f5e8d5; --text2: #dcc8a8; --text3: #a08068;
+  --red: #c0392b; --red2: #e04040; --green: #2a6018; --green2: #50a030;
+  --blue: #1a3a8b; --blue2: #50a0e0; --amber: #b05000; --amber2: #e07820;
+}
+[data-theme="lcars"] {
+  --bg: #000000; --bg2: #0a0c14; --bg3: #10141f; --surface: #151a28;
+  --surface2: #1e2436; --border: #2a3148; --border2: #40598a;
+  --gold: #ff9c00; --gold2: #ffb060; --gold3: #ffcc99;
+  --text: #f5dfc0; --text2: #d8b890; --text3: #8fa8c8;
+  --red: #c04848; --red2: #e05a5a; --green: #3a8a58; --green2: #58b878;
+  --blue: #4868b8; --blue2: #8fb8e8; --amber: #c86a30; --amber2: #e8935a;
+  --radius: 14px; --radius2: 18px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 15px; overflow: hidden;
+  display: flex; flex-direction: column;
+  -webkit-text-size-adjust: 100%;
+}
+.hidden { display: none !important; }
+
+/* ── LOGIN / SPERRE ─────────────────────────────────────────── */
+#screen-login, #screen-sperre {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px; padding: 24px;
+}
+.login-logo-title { font-size: 26px; color: var(--gold2); font-weight: 700; text-align: center; }
+.login-sub { color: var(--text3); font-size: 14px; margin-bottom: 8px; text-align: center; }
+.login-box { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 10px; }
+input, select {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  padding: 11px 13px; font-size: 16px; width: 100%; font-family: inherit;
+}
+input:focus, select:focus { outline: 2px solid var(--gold); border-color: var(--gold); }
+.btn {
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--radius); color: var(--gold2);
+  padding: 12px 18px; font-size: 15px; font-weight: 600; cursor: pointer;
+  font-family: inherit;
+}
+.btn:active { background: var(--surface); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn-primary { background: var(--gold); color: var(--bg); border-color: var(--gold2); }
+.btn-full { width: 100%; }
+#login-error, #pw-fehler { color: var(--red2); font-size: 13px; min-height: 18px; text-align: center; }
+
+/* ── HEADER ─────────────────────────────────────────────────── */
+header {
+  padding: calc(10px + var(--safe-top)) 14px 10px;
+  background: var(--bg2); border-bottom: 2px solid var(--border);
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.header-back { background: none; border: none; color: var(--gold2); font-size: 26px; cursor: pointer; padding: 0 6px; }
+.header-title { font-size: 17px; font-weight: 700; color: var(--gold2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.header-sub { font-size: 11px; color: var(--text3); font-weight: 400; }
+.header-gear { background: none; border: none; font-size: 20px; cursor: pointer; padding: 0 4px; }
+
+#screen-app { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.screen { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 12px calc(20px + var(--safe-bot)); }
+
+/* ── FILTERLEISTE ───────────────────────────────────────────── */
+.filter-leiste {
+  display: flex; gap: 6px; padding: 8px 12px; background: var(--bg2);
+  border-bottom: 1px solid var(--border); overflow-x: auto; flex-shrink: 0;
+}
+.filter-btn {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 999px;
+  color: var(--text2); padding: 7px 14px; font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; font-family: inherit;
+}
+.filter-btn.active { background: var(--gold); color: var(--bg); border-color: var(--gold2); }
+
+/* ── BESTELLKARTE ───────────────────────────────────────────── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius2); padding: 12px 14px; margin-bottom: 10px;
+  cursor: pointer;
+}
+.card:active { background: var(--surface2); }
+.card-kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.card-titel { font-weight: 700; font-size: 16px; line-height: 1.25; }
+.card-sub { font-size: 12px; color: var(--text3); margin-top: 3px; }
+.card-fuss { display: flex; align-items: center; gap: 8px; margin-top: 9px; flex-wrap: wrap; }
+
+.zustand { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+.z-offen   { background: var(--bg3); color: var(--text2); border: 1px solid var(--border2); }
+.z-arbeit  { background: var(--amber); color: #fff; }
+.z-fertig  { background: var(--green); color: #fff; }
+.z-entwurf { background: transparent; color: var(--text3); border: 1px dashed var(--border2); }
+
+.marker { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.m-neu     { background: var(--blue); color: #fff; }
+.m-geaend  { background: var(--red); color: #fff; }
+.m-eilig   { background: var(--red2); color: #fff; }
+
+/* Fortschrittsbalken */
+.fortschritt { height: 7px; background: var(--bg3); border-radius: 999px; overflow: hidden; margin-top: 9px; }
+.fortschritt-fuell { height: 100%; background: var(--green2); border-radius: 999px; transition: width .2s; }
+.fortschritt-text { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+/* ── DETAIL: KOPF ───────────────────────────────────────────── */
+.detail-kopf { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 10px 12px; flex-shrink: 0; }
+.detail-zeile { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.chip { background: var(--bg3); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; font-size: 12px; color: var(--text2); white-space: nowrap; }
+.chip.gold { color: var(--gold2); border-color: var(--border2); }
+
+/* ── DETAIL: POSITIONEN ─────────────────────────────────────── */
+.kat-kopf {
+  font-size: 13px; font-weight: 700; color: var(--gold2);
+  padding: 12px 4px 6px; letter-spacing: .5px; text-transform: uppercase;
+  position: sticky; top: 0; background: var(--bg); z-index: 2;
+}
+.pos {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius2); padding: 10px 12px; margin-bottom: 8px;
+}
+.pos.erledigt { opacity: .5; background: var(--bg2); }
+.pos.abweichung { border-color: var(--amber2); border-width: 2px; }
+.pos-info { flex: 1; min-width: 0; }
+.pos-name { font-weight: 600; font-size: 15px; line-height: 1.25; }
+.pos.erledigt .pos-name { text-decoration: line-through; }
+.pos-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.pos-soll { font-size: 22px; font-weight: 700; color: var(--gold2); min-width: 52px; text-align: right; line-height: 1; }
+.pos-soll-einheit { font-size: 10px; color: var(--text3); font-weight: 400; display: block; margin-top: 2px; }
+.pos-ist {
+  width: 62px; flex-shrink: 0; text-align: center; font-size: 17px;
+  padding: 9px 4px; font-weight: 700;
+}
+.pos-haken {
+  width: 52px; height: 52px; flex-shrink: 0; border-radius: var(--radius2);
+  border: 2px solid var(--border2); background: var(--bg3);
+  font-size: 24px; cursor: pointer; color: var(--text3);
+  display: flex; align-items: center; justify-content: center; font-family: inherit;
+}
+.pos-haken.an { background: var(--green); border-color: var(--green2); color: #fff; }
+.pos-haken:active { transform: scale(.94); }
+
+.leer { text-align: center; color: var(--text3); padding: 40px 20px; font-size: 14px; line-height: 1.5; }
+
+/* ── AKTIONSLEISTE UNTEN ────────────────────────────────────── */
+.aktionsleiste {
+  background: var(--bg2); border-top: 2px solid var(--border);
+  padding: 10px 12px calc(10px + var(--safe-bot)); flex-shrink: 0;
+  display: flex; gap: 8px; align-items: center;
+}
+
+/* ── MODAL ──────────────────────────────────────────────────── */
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 100;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.modal {
+  background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius2);
+  padding: 18px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 11px;
+}
+.modal-titel { font-size: 17px; font-weight: 700; color: var(--gold2); }
+.modal-text { font-size: 14px; color: var(--text2); line-height: 1.45; }
+
+/* ── TOAST ──────────────────────────────────────────────────── */
+#toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(24px + var(--safe-bot)); background: var(--surface2);
+  border: 1px solid var(--border2); border-radius: var(--radius2);
+  padding: 11px 18px; font-size: 14px; z-index: 200; max-width: 88%;
+  opacity: 0; pointer-events: none; transition: opacity .2s; text-align: center;
+}
+#toast.show { opacity: 1; }
+#toast.err { border-color: var(--red2); color: var(--red2); }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ──────────────────────────────────────────────── -->
+<div id="screen-login" class="hidden">
+  <div class="login-logo-title">📦 Lager</div>
+  <div class="login-sub">Beerenweine · Kommissionierung</div>
+  <div class="login-box">
+    <input type="email" id="login-email" placeholder="E-Mail" autocomplete="username" autocapitalize="none">
+    <input type="password" id="login-pw" placeholder="Passwort" autocomplete="current-password">
+    <button class="btn btn-primary" onclick="doLogin()">Anmelden</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- ── SPERRE ─────────────────────────────────────────────── -->
+<div id="screen-sperre" class="hidden">
+  <div class="login-logo-title">🔒 Kein Zugang</div>
+  <div class="login-sub" id="sperre-text">Diese Ansicht ist nur für das Lager.</div>
+  <button class="btn" onclick="doLogout()">Abmelden</button>
+</div>
+
+<!-- ── APP ────────────────────────────────────────────────── -->
+<div id="screen-app" class="hidden">
+  <header>
+    <button class="header-back hidden" id="header-back" onclick="zurLise()">‹</button>
+    <div class="header-title" id="header-titel">Bestellungen
+      <div class="header-sub" id="header-sub"></div>
+    </div>
+    <button class="header-gear" onclick="ladeUndZeichne(true)" title="Aktualisieren">🔄</button>
+    <button class="header-gear" onclick="doLogout()" title="Abmelden">🚪</button>
+  </header>
+
+  <!-- LISTE -->
+  <div id="screen-liste" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+    <div class="filter-leiste" id="filter-leiste"></div>
+    <div class="screen" id="liste-inhalt"></div>
+  </div>
+
+  <!-- DETAIL -->
+  <div id="screen-detail" class="hidden" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+    <div class="detail-kopf" id="detail-kopf"></div>
+    <div class="screen" id="detail-inhalt"></div>
+    <div class="aktionsleiste" id="detail-aktionen"></div>
+  </div>
+</div>
+
+<div id="modal-halter"></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+const LG_VERSION = 'v1.0';
+const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
+
+// localStorage: Zeitstempel je Bestellung, wann sie hier zuletzt angesehen
+// wurde. Grundlage für die Marker NEU / GEÄNDERT. Bewusst gerätelokal – für
+// "neu für mich am Kommissionier-Tablet" ist das die richtige Ebene.
+const LS_GESEHEN = 'lg_gesehen_v1';
+
+let sb = null;
+let currentUser = null;
+let meineLager = [];        // [{id, code, name}]
+let bestellListe = [];      // angereicherte Bestellungen
+let posProBestellung = {};  // bestellungId → [position]
+let katalog = { kategorien: [], produkte: {}, varianten: {} };
+let aktFilter = 'zutun';    // zutun | arbeit | fertig | alle
+let aktBestellung = null;
+let nurOffeneZeigen = false;
+
+/* ── HILFSFUNKTIONEN ────────────────────────────────────────── */
+function el(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function dateFmt(iso) {
+  if (!iso) return '';
+  const [j, m, t] = String(iso).slice(0, 10).split('-');
+  return `${t}.${m}.${j}`;
+}
+function toast(msg, art) {
+  const t = el('toast');
+  t.textContent = msg;
+  t.className = art === 'err' ? 'show err' : 'show';
+  clearTimeout(toast._tm);
+  toast._tm = setTimeout(() => { t.className = ''; }, 2600);
+}
+
+function gesehenMap() {
+  try { return JSON.parse(localStorage.getItem(LS_GESEHEN) || '{}'); }
+  catch (e) { return {}; }
+}
+function gesehenSetzen(bestellungId) {
+  const m = gesehenMap();
+  m[bestellungId] = new Date().toISOString();
+  try { localStorage.setItem(LS_GESEHEN, JSON.stringify(m)); } catch (e) { /* Speicher voll: nicht kritisch */ }
+}
+
+/* ── INIT ───────────────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', async () => {
+  const theme = localStorage.getItem('mf_theme') || 'braun';
+  if (theme !== 'braun') document.documentElement.setAttribute('data-theme', theme);
+  document.title = 'Lager · ' + LG_VERSION;
+
+  sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
+    // Eigener Speicher-Schlüssel: sonst kollidiert die Session mit der
+    // Haupt-App und dem Produktkatalog (gleiche Domain, GitHub Pages).
+    auth: { storageKey: 'lg-auth-token' },
+  });
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT' || !session) zeigeLogin();
+  });
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) await pruefeZugangUndStart(session.user);
+  else zeigeLogin();
+});
+
+function zeigeLogin() {
+  el('screen-login').classList.remove('hidden');
+  el('screen-sperre').classList.add('hidden');
+  el('screen-app').classList.add('hidden');
+}
+
+async function doLogin() {
+  el('login-error').textContent = '';
+  const email = el('login-email').value.trim();
+  const pw = el('login-pw').value;
+  if (!email || !pw) { el('login-error').textContent = 'Bitte E-Mail und Passwort eingeben.'; return; }
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+  if (error) { el('login-error').textContent = 'Anmeldung fehlgeschlagen.'; return; }
+  await pruefeZugangUndStart(data.user);
+}
+
+async function doLogout() {
+  // scope 'local': meldet nur diese App ab, nicht die Sitzung der Haupt-App
+  await sb.auth.signOut({ scope: 'local' });
+  zeigeLogin();
+}
+
+async function pruefeZugangUndStart(user) {
+  currentUser = user;
+
+  const { data: rollen } = await sb.from('user_rolle').select('rolle').eq('user_id', user.id);
+  const hatLager = (rollen || []).some(r => r.rolle === 'lager');
+  const istAdmin = (rollen || []).some(r => r.rolle === 'admin');
+
+  if (!hatLager && !istAdmin) {
+    el('sperre-text').textContent = 'Dieser Zugang hat keine Lager-Berechtigung.';
+    el('screen-login').classList.add('hidden');
+    el('screen-app').classList.add('hidden');
+    el('screen-sperre').classList.remove('hidden');
+    return;
+  }
+
+  // Lager-Zuordnung (RLS liefert nur die eigene Zeile)
+  const { data: zuo } = await sb.from('lager_zuordnung')
+    .select('lager_id, lager(id, code, name)').is('geloescht_am', null);
+  meineLager = (zuo || []).map(z => z.lager).filter(Boolean);
+
+  if (!meineLager.length && !istAdmin) {
+    // Rolle da, aber keinem Lager zugeordnet – ohne Zuordnung greift keine
+    // Policy, die Liste bliebe leer. Das ist kein Fehler, sondern fehlende
+    // Einrichtung: klar benennen statt "keine Bestellungen" anzuzeigen.
+    el('sperre-text').textContent = 'Dieser Zugang ist keinem Lager zugeordnet. Bitte beim Administrator melden.';
+    el('screen-login').classList.add('hidden');
+    el('screen-app').classList.add('hidden');
+    el('screen-sperre').classList.remove('hidden');
+    return;
+  }
+  if (istAdmin && !meineLager.length) {
+    const { data: alle } = await sb.from('lager').select('id, code, name').order('code');
+    meineLager = alle || [];
+  }
+
+  el('screen-login').classList.add('hidden');
+  el('screen-sperre').classList.add('hidden');
+  el('screen-app').classList.remove('hidden');
+  el('header-sub').textContent = meineLager.map(l => l.code).join(' + ') + ' · ' + LG_VERSION;
+
+  await pruefePasswortPflicht();
+  await ladeUndZeichne();
+}
+
+/* ── ERSTANMELDUNG: EIGENES PASSWORT SETZEN ─────────────────── */
+// Gleiche Logik wie in der Haupt-App: app_metadata.passwort_gesetzt === false
+// bedeutet, dass noch das vom Administrator vergebene Einmal-Passwort gilt.
+async function pruefePasswortPflicht() {
+  if (currentUser?.app_metadata?.passwort_gesetzt !== false) return;
+  try {
+    const { data: u } = await sb.auth.getUser();
+    if (u?.user) {
+      currentUser = u.user;
+      if (currentUser.app_metadata?.passwort_gesetzt !== false) return;
+    }
+  } catch (e) { console.warn('Passwortstatus nicht prüfbar', e); }
+  zeigePasswortModal();
+}
+
+function zeigePasswortModal() {
+  el('modal-halter').innerHTML = `
+    <div class="modal-bg">
+      <div class="modal">
+        <div class="modal-titel">🔑 Eigenes Passwort setzen</div>
+        <div class="modal-text">Das vergebene Passwort ist ein Einmal-Passwort.
+          Bitte jetzt ein eigenes festlegen (mindestens 8 Zeichen).</div>
+        <input type="password" id="pw-neu" placeholder="Neues Passwort" autocomplete="new-password">
+        <input type="password" id="pw-neu2" placeholder="Wiederholen" autocomplete="new-password">
+        <div id="pw-fehler"></div>
+        <button class="btn btn-primary btn-full" id="btn-pw" onclick="passwortSpeichern()">Passwort setzen</button>
+      </div>
+    </div>`;
+}
+
+async function passwortSpeichern() {
+  const pw1 = el('pw-neu').value, pw2 = el('pw-neu2').value;
+  const fehler = t => { el('pw-fehler').textContent = t; };
+  if (pw1.length < 8) return fehler('Mindestens 8 Zeichen.');
+  if (pw1 !== pw2)    return fehler('Die beiden Eingaben stimmen nicht überein.');
+
+  const btn = el('btn-pw');
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(SUPA_URL + '/functions/v1/passwort-setzen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json',
+                 // Edge Functions mit verify_jwt brauchen das Access-Token explizit
+                 Authorization: 'Bearer ' + session.access_token },
+      body: JSON.stringify({ passwort: pw1 }),
+    });
+    const j = await res.json();
+    if (!res.ok || !j.ok) { fehler(j.error || 'Konnte nicht gespeichert werden.'); return; }
+    // Passwortänderung über die Admin-API widerruft den Refresh-Token –
+    // deshalb neu anmelden statt refreshSession (Befund aus der Haupt-App).
+    const { data: sess } = await sb.auth.signInWithPassword({ email: currentUser.email, password: pw1 });
+    if (sess?.user) currentUser = sess.user;
+    el('modal-halter').innerHTML = '';
+    toast('✓ Passwort gesetzt');
+  } catch (e) {
+    fehler('Fehler: ' + (e.message || e));
+  } finally {
+    btn.disabled = false; btn.textContent = 'Passwort setzen';
+  }
+}
+
+/* ── DATEN LADEN ────────────────────────────────────────────── */
+async function ladeUndZeichne(mitHinweis) {
+  const ziel = el('liste-inhalt');
+  if (!bestellListe.length) ziel.innerHTML = '<div class="leer">Lade …</div>';
+
+  const [rb, rk, rp, rv] = await Promise.all([
+    // RLS begrenzt bereits auf das eigene Lager – kein Filter nötig, aber
+    // ein zusätzlicher .in() schadet nicht und macht die Absicht sichtbar.
+    sb.from('bestellung')
+      .select(`id, lager_id, status, versendet_am, abhol_datum, fahrzeug, stand_id,
+               erstellt_am, geaendert_am, lager_bearbeitung_start_am, kommissioniert_am,
+               event_instanz_id,
+               event_instanz(id, name, saison_jahr, start_datum, end_datum, event_template(ort, plz)),
+               stand(id, bezeichnung)`)
+      .is('geloescht_am', null)
+      .in('lager_id', meineLager.map(l => l.id))
+      .order('erstellt_am', { ascending: true }),
+    sb.from('kategorie').select('id, name, reihenfolge').order('reihenfolge'),
+    sb.from('produkt').select('id, name, artikelnr, kategorie_id'),
+    sb.from('produkt_variante').select('id, produkt_id, groesse, pro_kiste').is('geloescht_am', null),
+  ]);
+
+  if (rb.error) { toast('⚠️ Laden fehlgeschlagen: ' + rb.error.message, 'err'); return; }
+
+  katalog.kategorien = rk.data || [];
+  katalog.produkte = {};  (rp.data || []).forEach(p => { katalog.produkte[p.id] = p; });
+  katalog.varianten = {}; (rv.data || []).forEach(v => { katalog.varianten[v.id] = v; });
+
+  bestellListe = rb.data || [];
+
+  // Positionen aller Bestellungen in einem Rutsch – die Liste braucht sie
+  // für den Fortschritt, sonst müsste jede Karte einzeln nachladen.
+  posProBestellung = {};
+  const ids = bestellListe.map(b => b.id);
+  if (ids.length) {
+    const rpos = await sb.from('bestellposition')
+      .select('id, bestellung_id, variante_id, menge, ist_menge, kommissioniert_am, geaendert_am')
+      .in('bestellung_id', ids).is('geloescht_am', null);
+    if (rpos.error) { toast('⚠️ Positionen: ' + rpos.error.message, 'err'); return; }
+    (rpos.data || []).forEach(p => {
+      (posProBestellung[p.bestellung_id] ||= []).push(p);
+    });
+  }
+
+  // Bestellart je Kutsche bestimmen (erste = Grundbestellung, dann Nachbestellung).
+  // Gleiche Regel wie in der Haupt-App: Reihenfolge über erstellt_am.
+  const gruppen = {};
+  bestellListe.forEach(b => {
+    const k = b.event_instanz_id + '|' + (b.stand_id || '');
+    (gruppen[k] ||= []).push(b);
+  });
+  Object.values(gruppen).forEach(liste => {
+    liste.forEach((b, i) => {
+      b._art = i === 0 ? 'Grundbestellung' : (liste.length > 2 ? `Nachbestellung ${i}` : 'Nachbestellung');
+    });
+  });
+
+  if (mitHinweis) toast('Aktualisiert');
+  if (aktBestellung) {
+    const frisch = bestellListe.find(b => b.id === aktBestellung.id);
+    if (frisch) { aktBestellung = frisch; zeichneDetail(); return; }
+  }
+  zeichneListe();
+}
+
+/* ── ZUSTAND & MARKER ───────────────────────────────────────── */
+// Lager-Sicht, bewusst NICHT die Ampelfarben der Fahrer-App: dort heißt grün
+// "noch änderbar", hier hieße grün intuitiv "fertig". Deshalb eigene Wörter
+// und Symbole, damit am Tablet keine Verwechslung entsteht.
+function zustandVon(b) {
+  if (b.kommissioniert_am)          return { key: 'fertig',  label: '✅ Fertig',    cls: 'z-fertig' };
+  if (b.lager_bearbeitung_start_am) return { key: 'arbeit',  label: '⏳ In Arbeit', cls: 'z-arbeit' };
+  if (b.status !== 'versendet')     return { key: 'entwurf', label: '✎ Entwurf',   cls: 'z-entwurf' };
+  return { key: 'offen', label: '⬜ Offen', cls: 'z-offen' };
+}
+
+function fortschrittVon(b) {
+  const pos = posProBestellung[b.id] || [];
+  const fertig = pos.filter(p => p.kommissioniert_am).length;
+  return { gesamt: pos.length, fertig, prozent: pos.length ? Math.round(fertig / pos.length * 100) : 0 };
+}
+
+// Letzte inhaltliche Änderung durch den Marktfahrer: die Bestellung selbst
+// oder eine ihrer Positionen.
+function letzteAenderung(b) {
+  let max = b.geaendert_am || b.erstellt_am;
+  (posProBestellung[b.id] || []).forEach(p => {
+    if (p.geaendert_am && p.geaendert_am > max) max = p.geaendert_am;
+  });
+  return max;
+}
+
+function markerVon(b) {
+  const gesehen = gesehenMap()[b.id];
+  if (!gesehen) return { neu: true, geaendert: false };
+  return { neu: false, geaendert: letzteAenderung(b) > gesehen };
+}
+
+// Abholdatum ist die Lager-Deadline; fehlt es, gilt der Marktstart.
+function stichtag(b) {
+  return b.abhol_datum || b.event_instanz?.start_datum || '9999-12-31';
+}
+
+/* ── LISTE ──────────────────────────────────────────────────── */
+const FILTER = [
+  { key: 'zutun',  label: 'Zu tun' },
+  { key: 'arbeit', label: 'In Arbeit' },
+  { key: 'fertig', label: 'Fertig' },
+  { key: 'alle',   label: 'Alle' },
+];
+
+function passtZuFilter(b) {
+  const z = zustandVon(b).key;
+  if (aktFilter === 'alle')   return true;
+  if (aktFilter === 'zutun')  return z === 'offen' || z === 'arbeit';
+  if (aktFilter === 'arbeit') return z === 'arbeit';
+  if (aktFilter === 'fertig') return z === 'fertig';
+  return true;
+}
+
+function setzeFilter(key) { aktFilter = key; zeichneListe(); }
+
+function zeichneListe() {
+  el('screen-liste').classList.remove('hidden');
+  el('screen-detail').classList.add('hidden');
+  el('header-back').classList.add('hidden');
+  el('header-titel').firstChild.textContent = 'Bestellungen ';
+  aktBestellung = null;
+
+  // Filterleiste mit Zählern
+  el('filter-leiste').innerHTML = FILTER.map(f => {
+    const alt = aktFilter; aktFilter = f.key;
+    const n = bestellListe.filter(passtZuFilter).length;
+    aktFilter = alt;
+    return `<button class="filter-btn ${f.key === aktFilter ? 'active' : ''}"
+      onclick="setzeFilter('${f.key}')">${f.label}${n ? ` (${n})` : ''}</button>`;
+  }).join('');
+
+  const liste = bestellListe.filter(passtZuFilter)
+    .sort((a, b) => stichtag(a).localeCompare(stichtag(b)));
+
+  if (!liste.length) {
+    el('liste-inhalt').innerHTML = `<div class="leer">Keine Bestellungen in dieser Ansicht.<br>
+      ${aktFilter === 'zutun' ? 'Alles abgearbeitet. ⚜️' : ''}</div>`;
+    return;
+  }
+
+  const heute = new Date().toISOString().slice(0, 10);
+  el('liste-inhalt').innerHTML = liste.map(b => {
+    const z = zustandVon(b);
+    const f = fortschrittVon(b);
+    const mk = markerVon(b);
+    const inst = b.event_instanz;
+    const ort = inst?.event_template?.ort || '';
+    const kutsche = b.stand?.bezeichnung ? ` · ${esc(b.stand.bezeichnung)}` : '';
+    const abhol = b.abhol_datum ? `📅 Abholung ${dateFmt(b.abhol_datum)}` : '📅 kein Abholdatum';
+    // Eilig: Abholung heute oder überfällig und noch nicht fertig
+    const eilig = z.key !== 'fertig' && b.abhol_datum && b.abhol_datum <= heute;
+
+    return `<div class="card" onclick="oeffneDetail('${b.id}')">
+      <div class="card-kopf">
+        <div style="min-width:0;">
+          <div class="card-titel">${esc(inst?.name || 'Markt')}${kutsche}</div>
+          <div class="card-sub">${esc(b._art)}${ort ? ' · ' + esc(ort) : ''}${inst?.start_datum ? ' · ab ' + dateFmt(inst.start_datum) : ''}</div>
+        </div>
+        <span class="zustand ${z.cls}">${z.label}</span>
+      </div>
+      <div class="card-fuss">
+        <span class="chip">${abhol}</span>
+        ${eilig ? '<span class="marker m-eilig">EILIG</span>' : ''}
+        ${mk.neu ? '<span class="marker m-neu">NEU</span>' : ''}
+        ${mk.geaendert ? '<span class="marker m-geaend">GEÄNDERT</span>' : ''}
+      </div>
+      ${f.gesamt ? `<div class="fortschritt"><div class="fortschritt-fuell" style="width:${f.prozent}%"></div></div>
+        <div class="fortschritt-text">${f.fertig} von ${f.gesamt} Positionen erledigt</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+/* ── DETAIL ─────────────────────────────────────────────────── */
+function oeffneDetail(id) {
+  const b = bestellListe.find(x => x.id === id);
+  if (!b) return;
+  if (zustandVon(b).key === 'entwurf') {
+    toast('Diese Bestellung ist noch nicht abgeschickt', 'err');
+    return;
+  }
+  aktBestellung = b;
+  nurOffeneZeigen = false;
+  gesehenSetzen(b.id);   // ab jetzt gilt sie als gesehen
+  zeichneDetail();
+}
+
+function zurLise() { zeichneListe(); }
+
+// Positionen in Kommissionier-Reihenfolge: Kategorie, dann Artikelnummer
+// bzw. Produktname, dann Größe. So läuft man das Lager einmal durch.
+function sortiertePositionen(b) {
+  const katRang = {};
+  katalog.kategorien.forEach((k, i) => { katRang[k.id] = i; });
+  return (posProBestellung[b.id] || []).map(p => {
+    const v = katalog.varianten[p.variante_id];
+    const prod = v ? katalog.produkte[v.produkt_id] : null;
+    return { ...p, _var: v, _prod: prod,
+             _kat: prod ? (katalog.kategorien.find(k => k.id === prod.kategorie_id) || null) : null };
+  }).sort((a, c) => {
+    const ka = a._kat ? katRang[a._kat.id] : 999, kc = c._kat ? katRang[c._kat.id] : 999;
+    if (ka !== kc) return ka - kc;
+    const na = (a._prod?.artikelnr || a._prod?.name || ''), nc = (c._prod?.artikelnr || c._prod?.name || '');
+    if (na !== nc) return String(na).localeCompare(String(nc), 'de');
+    return String(a._var?.groesse || '').localeCompare(String(c._var?.groesse || ''), 'de');
+  });
+}
+
+function zeichneDetail() {
+  const b = aktBestellung;
+  if (!b) { zeichneListe(); return; }
+  el('screen-liste').classList.add('hidden');
+  el('screen-detail').classList.remove('hidden');
+  el('header-back').classList.remove('hidden');
+  el('header-titel').firstChild.textContent = (b.event_instanz?.name || 'Bestellung') + ' ';
+
+  const z = zustandVon(b);
+  const f = fortschrittVon(b);
+  const kutsche = b.stand?.bezeichnung || '';
+
+  el('detail-kopf').innerHTML = `
+    <div class="detail-zeile">
+      <span class="zustand ${z.cls}">${z.label}</span>
+      <span class="chip gold">${esc(b._art)}</span>
+      ${kutsche ? `<span class="chip">🛒 ${esc(kutsche)}</span>` : ''}
+      <span class="chip">📅 ${b.abhol_datum ? 'Abholung ' + dateFmt(b.abhol_datum) : 'kein Abholdatum'}</span>
+      ${b.fahrzeug ? `<span class="chip">🚚 ${esc(b.fahrzeug)}</span>` : ''}
+    </div>
+    <div class="fortschritt"><div class="fortschritt-fuell" style="width:${f.prozent}%"></div></div>
+    <div class="fortschritt-text">${f.fertig} von ${f.gesamt} Positionen erledigt${
+      f.gesamt - f.fertig ? ` · noch ${f.gesamt - f.fertig} offen` : ''}</div>`;
+
+  const alle = sortiertePositionen(b);
+  const zeigen = nurOffeneZeigen ? alle.filter(p => !p.kommissioniert_am) : alle;
+  const gesperrt = !!b.kommissioniert_am;
+
+  if (!zeigen.length) {
+    el('detail-inhalt').innerHTML = `<div class="leer">${
+      nurOffeneZeigen ? 'Keine offenen Positionen mehr. ✅' : 'Diese Bestellung hat keine Positionen.'}</div>`;
+  } else {
+    let html = '', letzteKat = null;
+    zeigen.forEach(p => {
+      const katName = p._kat?.name || 'Ohne Kategorie';
+      if (katName !== letzteKat) { html += `<div class="kat-kopf">${esc(katName)}</div>`; letzteKat = katName; }
+      const erledigt = !!p.kommissioniert_am;
+      const abweichung = erledigt && p.ist_menge !== p.menge;
+      const kisten = p._var?.pro_kiste ? ` · ${(p.menge / p._var.pro_kiste).toFixed(1).replace('.0','')} Kisten` : '';
+      html += `<div class="pos ${erledigt ? 'erledigt' : ''} ${abweichung ? 'abweichung' : ''}">
+        <div class="pos-info">
+          <div class="pos-name">${esc(p._prod?.name || 'Unbekannt')}</div>
+          <div class="pos-sub">${esc(p._var?.groesse || '')}${p._prod?.artikelnr ? ' · Art. ' + esc(p._prod.artikelnr) : ''}${kisten}${
+            abweichung ? ` · <span style="color:var(--amber2);font-weight:700;">geliefert ${p.ist_menge}</span>` : ''}</div>
+        </div>
+        <div class="pos-soll">${p.menge}<span class="pos-soll-einheit">Soll</span></div>
+        <input type="number" class="pos-ist" id="ist-${p.id.slice(0,8)}"
+          value="${erledigt ? p.ist_menge : ''}" placeholder="${p.menge}"
+          min="0" step="1" inputmode="numeric" pattern="[0-9]*"
+          onfocus="this.select()" onchange="istMengeGesetzt('${p.id}', this.value)"
+          ${gesperrt ? 'disabled' : ''} title="Abweichende Menge">
+        <button class="pos-haken ${erledigt ? 'an' : ''}"
+          onclick="hakenUmschalten('${p.id}')" ${gesperrt ? 'disabled' : ''}
+          title="${erledigt ? 'Zurücknehmen' : 'Als erledigt abhaken'}">${erledigt ? '✓' : ''}</button>
+      </div>`;
+    });
+    el('detail-inhalt').innerHTML = html;
+  }
+
+  // Aktionsleiste
+  const alleFertig = f.gesamt > 0 && f.fertig === f.gesamt;
+  if (gesperrt) {
+    el('detail-aktionen').innerHTML = `
+      <div style="flex:1;font-size:13px;color:var(--green2);">✅ Abgeschlossen am ${dateFmt(b.kommissioniert_am.slice(0,10))}</div>
+      <button class="btn" onclick="wiederOeffnen()">Wieder öffnen</button>`;
+  } else {
+    el('detail-aktionen').innerHTML = `
+      <button class="btn" onclick="toggleNurOffene()" style="flex-shrink:0;">${
+        nurOffeneZeigen ? '👁 Alle' : '👁 Nur offene'}</button>
+      <button class="btn btn-primary" style="flex:1;" onclick="abschliessen()"
+        ${alleFertig ? '' : 'disabled'}>${
+        alleFertig ? '✅ Kommissionierung abschließen' : `Noch ${f.gesamt - f.fertig} offen`}</button>`;
+  }
+}
+
+function toggleNurOffene() { nurOffeneZeigen = !nurOffeneZeigen; zeichneDetail(); }
+
+/* ── SCHREIBEN (alles über SECURITY-DEFINER-RPCs) ───────────── */
+// Die Rolle 'lager' hat bewusst KEIN direktes UPDATE-Recht auf bestellung /
+// bestellposition. Jeder Schreibweg läuft über eine geprüfte Funktion, die
+// Lagerzugehörigkeit und Sperrzustand serverseitig durchsetzt.
+
+async function hakenUmschalten(posId) {
+  const p = (posProBestellung[aktBestellung.id] || []).find(x => x.id === posId);
+  if (!p) return;
+
+  if (p.kommissioniert_am) {
+    const { error } = await sb.rpc('lager_position_zuruecksetzen', { p_position_id: posId });
+    if (error) { toast('⚠️ ' + error.message, 'err'); return; }
+    p.kommissioniert_am = null; p.ist_menge = null;
+  } else {
+    // Voreinstellung: Ist = Soll. Abweichungen über das Zahlenfeld.
+    const feld = el('ist-' + posId.slice(0, 8));
+    const eingabe = feld && feld.value !== '' ? parseInt(feld.value, 10) : p.menge;
+    const menge = Math.max(0, isNaN(eingabe) ? p.menge : eingabe);
+    const { error } = await sb.rpc('lager_position_abhaken', { p_position_id: posId, p_ist_menge: menge });
+    if (error) { toast('⚠️ ' + error.message, 'err'); return; }
+    p.kommissioniert_am = new Date().toISOString(); p.ist_menge = menge;
+    // Erstes Abhaken startet die Bearbeitung – Ampel des Fahrers springt auf gelb
+    if (!aktBestellung.lager_bearbeitung_start_am) {
+      aktBestellung.lager_bearbeitung_start_am = new Date().toISOString();
+    }
+  }
+  gesehenSetzen(aktBestellung.id);  // eigene Aktion darf nicht als "GEÄNDERT" gelten
+  zeichneDetail();
+}
+
+// Zahlenfeld verlassen: Menge eintragen hakt die Position gleich mit ab.
+async function istMengeGesetzt(posId, val) {
+  const p = (posProBestellung[aktBestellung.id] || []).find(x => x.id === posId);
+  if (!p) return;
+  if (val === '') {
+    if (p.kommissioniert_am) await hakenUmschalten(posId);  // leeren = zurücknehmen
+    return;
+  }
+  const menge = Math.max(0, parseInt(val, 10) || 0);
+  const { error } = await sb.rpc('lager_position_abhaken', { p_position_id: posId, p_ist_menge: menge });
+  if (error) { toast('⚠️ ' + error.message, 'err'); return; }
+  p.kommissioniert_am = p.kommissioniert_am || new Date().toISOString();
+  p.ist_menge = menge;
+  if (!aktBestellung.lager_bearbeitung_start_am) {
+    aktBestellung.lager_bearbeitung_start_am = new Date().toISOString();
+  }
+  gesehenSetzen(aktBestellung.id);
+  zeichneDetail();
+}
+
+async function abschliessen() {
+  const f = fortschrittVon(aktBestellung);
+  const abw = (posProBestellung[aktBestellung.id] || []).filter(p => p.kommissioniert_am && p.ist_menge !== p.menge);
+  const text = abw.length
+    ? `${f.gesamt} Positionen sind erledigt, davon ${abw.length} mit abweichender Menge. Nach dem Abschluss kann der Marktfahrer diese Bestellung nicht mehr ändern.`
+    : `Alle ${f.gesamt} Positionen sind erledigt. Nach dem Abschluss kann der Marktfahrer diese Bestellung nicht mehr ändern.`;
+  if (!(await frage('Kommissionierung abschließen?', text, 'Abschließen'))) return;
+
+  const { error } = await sb.rpc('lager_bestellung_abschliessen', { p_bestellung_id: aktBestellung.id });
+  if (error) { toast('⚠️ ' + error.message, 'err'); return; }
+  aktBestellung.kommissioniert_am = new Date().toISOString();
+  gesehenSetzen(aktBestellung.id);
+  toast('✅ Kommissionierung abgeschlossen');
+  zeichneDetail();
+}
+
+async function wiederOeffnen() {
+  if (!(await frage('Wieder öffnen?', 'Der Marktfahrer kann die Bestellung danach wieder ändern.', 'Öffnen'))) return;
+  const { error } = await sb.rpc('lager_bestellung_wieder_oeffnen', { p_bestellung_id: aktBestellung.id });
+  if (error) { toast('⚠️ ' + error.message, 'err'); return; }
+  aktBestellung.kommissioniert_am = null;
+  gesehenSetzen(aktBestellung.id);
+  toast('Wieder geöffnet');
+  zeichneDetail();
+}
+
+/* ── BESTÄTIGUNGSDIALOG ─────────────────────────────────────── */
+let _frageResolve = null;
+function frage(titel, text, jaLabel) {
+  return new Promise(resolve => {
+    _frageResolve = resolve;
+    el('modal-halter').innerHTML = `
+      <div class="modal-bg">
+        <div class="modal">
+          <div class="modal-titel">${esc(titel)}</div>
+          <div class="modal-text">${esc(text)}</div>
+          <button class="btn btn-primary btn-full" onclick="frageAntwort(true)">${esc(jaLabel)}</button>
+          <button class="btn btn-full" onclick="frageAntwort(false)">Abbrechen</button>
+        </div>
+      </div>`;
+  });
+}
+function frageAntwort(wahl) {
+  el('modal-halter').innerHTML = '';
+  const r = _frageResolve; _frageResolve = null;
+  if (r) r(wahl);
+}
+</script>
+</body>
+</html>

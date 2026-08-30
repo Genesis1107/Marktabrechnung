@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.88</title>
+<title>Marktfahrer · v6.89</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -1192,7 +1192,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.88';
+const APP_VERSION = 'v6.89';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1734,7 +1734,7 @@ async function vormerkLaden(instanzId, phase) {
   const bIds = (rbe.data || []).map(b => b.id);
   if (bIds.length) {
     const rbp = await sb.from('bestellposition')
-      .select('id, bestellung_id, variante_id, menge')
+      .select('id, bestellung_id, variante_id, menge, kommissioniert_am, ist_menge')
       .in('bestellung_id', bIds).is('geloescht_am', null);
     if (rbp.error) throw rbp.error;
     ocSet('bestellpos_' + instanzId, rbp.data || []);
@@ -4428,7 +4428,7 @@ async function renderBestellungTab() {
   const alleIds = (bst.bestellListe || []).map(b => b.id);
   if (alleIds.length) {
     const rp = await ocQuery('bestellpos_' + currentInstanzId, () => sb.from('bestellposition')
-      .select('id, bestellung_id, variante_id, menge')
+      .select('id, bestellung_id, variante_id, menge, kommissioniert_am, ist_menge')
       .in('bestellung_id', alleIds).is('geloescht_am', null));
     (rp.data || []).forEach(p => {
       if (!bst.posProBestellung[p.bestellung_id]) bst.posProBestellung[p.bestellung_id] = [];
@@ -4437,7 +4437,11 @@ async function renderBestellungTab() {
   }
   if (bst.bestellung) {
     const pos = bst.posProBestellung[bst.bestellung.id] || [];
-    (pos || []).forEach(p => { bst.positionen[p.variante_id] = { id: p.id, menge: p.menge }; });
+    // kommissioniert_am/ist_menge mitführen: eine bereits vom Lager gepackte
+    // Position ist für den Fahrer gesperrt (v6.89), auch wenn die Bestellung
+    // insgesamt noch "in Bearbeitung" ist.
+    (pos || []).forEach(p => { bst.positionen[p.variante_id] =
+      { id: p.id, menge: p.menge, kommissioniert_am: p.kommissioniert_am, ist_menge: p.ist_menge }; });
     bst.lagerId = bst.bestellung.lager_id;
     // Fahrzeug aus der DB übernehmen – sonst fiele es beim Neuladen auf 'solo'
     // zurück und die Kapazitätswarnung wäre falsch (Bug bis v6.67).
@@ -4540,7 +4544,7 @@ function renderBestellungUI(wrap) {
       <span class="best-topbar-chip" title="${esc(ampel.text)}"><span class="ampel ampel-${ampel.farbe}" style="margin-right:5px;"></span>${ampel.kurz}</span>
       <span class="best-topbar-chip ${ueberladen ? 'warn' : 'gold'}" id="best-chip-kg">${ueberladen ? '⚠️' : '⚖'} ${kistenBerechnet} Kisten · ${paletten} Pal. · ${kgGesamt} kg</span>
       <select class="best-topbar-fzg ${ueberladen ? 'warn' : ''}" id="best-chip-fzg" title="Fahrzeug"
-        onchange="bestFahrzeugSetzen(this.value)" ${versendet ? 'disabled' : ''}>${fzgSelOpt}</select>
+        onchange="bestFahrzeugSetzen(this.value)" ${versendet || bestGesperrt() ? 'disabled' : ''}>${fzgSelOpt}</select>
       <span class="best-topbar-chip gold" id="best-chip-umsatz">💰 ${eur(umsatzCent)}</span>
       <button class="best-menu-btn" onclick="oeffneNotizSheet()" title="Marktnotizen">📝</button>
       <button class="best-menu-btn" onclick="oeffneBestMenue()" title="Mehr">⋯</button>
@@ -4554,9 +4558,10 @@ function renderBestellungUI(wrap) {
       <label style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;">📅 Abholdatum</label>
       <input type="date" id="best-abholdatum" value="${bst.abholdatum}"
         onchange="saveAbholdatum(this.value)"
-        style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:14px;outline:none;max-width:180px;" ${marktReadonly() ? 'disabled' : ''}>
+        style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:14px;outline:none;max-width:180px;" ${marktReadonly() || bestGesperrt() ? 'disabled' : ''}>
     </div>
     ${marktReadonly() ? '<div class="hinweis-box" style="margin:10px 14px 0;">🔒 Markt abgeschlossen – nur Ansicht und PDF-Druck.</div>' : ''}
+    ${bestLagerLeiste()}
     ${bestVersandLeiste(versendet)}
     <div class="best-kat-tabs" id="best-kat-tabs">
       ${bst.kategorien.map((k,i) => {
@@ -4619,6 +4624,44 @@ function bestAmpel(b) {
     text: 'Lager kommissioniert gerade – Änderung bitte mit dem Lager abstimmen' };
   return { farbe: 'gruen', kurz: 'Offen',
     text: 'Kommissionierung noch nicht begonnen – Änderung problemlos möglich' };
+}
+
+// Harte Sperre der aktiven Bestellung: das Lager hat sie fertig kommissioniert.
+// Gilt zusätzlich zu marktReadonly() (Markt abgeschlossen) – beide sperren
+// Eingaben, haben aber unterschiedliche Ursachen und Texte.
+function bestGesperrt() {
+  return !!bst.bestellung?.kommissioniert_am;
+}
+
+// Sperre auf EINZELNER Position (v6.89): Was das Lager abgehakt hat, liegt
+// kommissioniert auf der Palette – die Flaschen lassen sich nicht mehr
+// heraussuchen, um die Menge zu korrigieren. Deshalb ist diese Position fest,
+// auch wenn die Bestellung insgesamt erst "in Bearbeitung" (gelb) ist.
+// Freigeben kann nur das Lager, indem es den Haken zurücknimmt.
+function positionGesperrt(varId) {
+  return !!bst.positionen[varId]?.kommissioniert_am;
+}
+
+// Erklärende Leiste unter der Topbar, sobald das Lager an der Bestellung ist.
+// Bei grün bleibt die Ansicht unverändert – kein Kasten für den Normalfall.
+function bestLagerLeiste() {
+  const b = bst.bestellung;
+  if (!b) return '';
+  if (b.kommissioniert_am) {
+    return `<div class="hinweis-box" style="margin:10px 14px 0;">🔴 Vom Lager fertig kommissioniert
+      am ${dateFmt(b.kommissioniert_am.slice(0,10))} – diese Bestellung ist gesperrt.
+      Zusätzliche Ware bitte als Nachbestellung anlegen.</div>`;
+  }
+  if (b.lager_bearbeitung_start_am) {
+    // Zahl der bereits gepackten Positionen mit ausweisen – sonst wirkt es
+    // wie ein Anzeigefehler, wenn einzelne Zeilen nicht mehr eingebbar sind.
+    const fest = Object.values(bst.positionen || {}).filter(p => p.kommissioniert_am).length;
+    return `<div class="hinweis-box" style="margin:10px 14px 0;">🟡 Das Lager kommissioniert seit
+      ${dateFmt(b.lager_bearbeitung_start_am.slice(0,10))} – Änderungen bitte vorher mit dem Lager absprechen.${
+      fest ? ` <strong>${fest} Position${fest === 1 ? '' : 'en'} (🔒) ${fest === 1 ? 'liegt' : 'liegen'} schon auf der Palette
+      und ${fest === 1 ? 'ist' : 'sind'} nicht mehr änderbar.</strong>` : ''}</div>`;
+  }
+  return '';
 }
 
 // Versand-Markierung: Knopf zum Setzen, Bestätigungszeile mit Rücknahme.
@@ -5035,6 +5078,9 @@ async function bestVersendetSetzen() {
 async function bestVersendetZuruecknehmen() {
   const b = bst.bestellung;
   if (!b || marktReadonly()) return;
+  // Was das Lager fertig gepackt hat, war zwangsläufig versendet – die
+  // Markierung darf dann nicht mehr zurückgenommen werden.
+  if (bestGesperrt()) { toast('🔴 Bestellung ist fertig kommissioniert – Rücknahme nicht möglich', 'err'); return; }
   if (!(await confirmMed(
     'Die Markierung „versendet" wieder entfernen? Der Haken in der Planung bleibt bestehen.',
     { titel: 'Markierung zurücknehmen', ja: 'Entfernen' }))) return;
@@ -5084,33 +5130,115 @@ async function aufgabeWarenbestellungHaken() {
 // Schutz vor versehentlichem Überschreiben einer bereits versendeten
 // Bestellung: einmal je Bestellung und Sitzung nachfragen und dabei den
 // richtigen Weg (Nachbestellung) anbieten.
+//
+// Seit v6.88 sind DREI Stufen gestaffelt, nach dem Stand im Lager (Ampel):
+//   rot  (kommissioniert_am)          → harte Sperre, die Ware ist gepackt
+//   gelb (lager_bearbeitung_start_am) → Dialog mit Absprache-Hinweis
+//   grün + versendet                  → bisheriger Drei-Wege-Dialog
+// Die Reihenfolge ist wichtig: rot gewinnt immer, auch wenn die Warnung für
+// diese Bestellung in dieser Sitzung schon quittiert wurde.
+// varId = betroffene Variante, für die positionsgenaue Sperre (v6.89).
 // Rückgabe: true = Änderung darf laufen.
-async function bestAenderungErlaubt() {
+async function bestAenderungErlaubt(varId) {
   const b = bst.bestellung;
-  if (!b || b.status !== 'versendet') return true;
+  if (!b) return true;
+
+  // Rot: fertig kommissioniert – keine Änderung mehr, auch nicht "trotzdem".
+  // Der Weg ist eine Nachbestellung (eigener Datensatz, bleibt erlaubt).
+  if (b.kommissioniert_am) {
+    const wahl = await bestGesperrtWarnung();
+    if (wahl === 'nach') await bestellungAnlegen(true);
+    return false;
+  }
+
+  // Diese eine Position ist schon gepackt – unabhängig vom Gesamtzustand.
+  // Vorrang vor der gelben Warnung: hier hilft auch keine Absprache mehr,
+  // ohne dass das Lager den Haken zurücknimmt.
+  if (varId && positionGesperrt(varId)) {
+    await bestPositionGesperrtWarnung();
+    return false;
+  }
+
+  // Gelb: Lager packt gerade. Änderung möglich, aber nur nach Absprache.
+  if (b.lager_bearbeitung_start_am) {
+    if (bst.warnungGezeigt[b.id]) return true;
+    const wahl = await bestVersandWarnung(true);
+    if (wahl === 'nach')   { await bestellungAnlegen(true); return false; }
+    if (wahl === 'weiter') { bst.warnungGezeigt[b.id] = true; return true; }
+    return false;
+  }
+
+  if (b.status !== 'versendet') return true;
   if (bst.warnungGezeigt[b.id]) return true;
 
-  const wahl = await bestVersandWarnung();
+  const wahl = await bestVersandWarnung(false);
   if (wahl === 'nach')   { await bestellungAnlegen(true); return false; }
   if (wahl === 'weiter') { bst.warnungGezeigt[b.id] = true;   return true;  }
   return false; // abbrechen
 }
 
 // Drei-Wege-Dialog. Nutzt das vorhandene Sheet, weil confirmMed nur ja/nein kann.
-function bestVersandWarnung() {
+// inBearbeitung = true: Lager hat mit dem Kommissionieren begonnen (gelb).
+function bestVersandWarnung(inBearbeitung) {
   return new Promise(resolve => {
     bst._warnResolve = resolve;
-    const html = `
-      <div class="hinweis-box" style="margin-bottom:14px;">
-        Diese Bestellung ist bereits ans Lager gegangen. Änderungen hier ändern
-        nichts an der Ware, die schon unterwegs ist.
-      </div>
+    const box = inBearbeitung
+      ? `<div class="hinweis-box" style="margin-bottom:14px;">
+           Das Lager kommissioniert diese Bestellung gerade. Eine Änderung hier
+           bleibt dort unbemerkt – <strong>bitte vorher mit dem Lager absprechen</strong>.
+           Bereits gepackte Positionen (🔒) sind ohnehin fest.
+         </div>`
+      : `<div class="hinweis-box" style="margin-bottom:14px;">
+           Diese Bestellung ist bereits ans Lager gegangen. Änderungen hier ändern
+           nichts an der Ware, die schon unterwegs ist.
+         </div>`;
+    const html = `${box}
       <button class="btn btn-primary btn-full" style="margin-bottom:8px;"
         onclick="bestWarnWahl('nach')">📦 Nachbestellung anlegen</button>
       <button class="btn btn-full" style="margin-bottom:8px;"
         onclick="bestWarnWahl('weiter')">✏️ Trotzdem ändern</button>
       <button class="btn btn-full" onclick="bestWarnWahl('ab')">Abbrechen</button>`;
-    oeffneSheet('⚠️ Bereits versendet', 'Wolltest du vielleicht nachbestellen?', html);
+    oeffneSheet(
+      inBearbeitung ? '🟡 Lager ist dran' : '⚠️ Bereits versendet',
+      inBearbeitung ? 'Änderung nur nach Absprache' : 'Wolltest du vielleicht nachbestellen?',
+      html);
+  });
+}
+
+// Einzelne Position gesperrt: Die Ware dieser Zeile liegt bereits auf der
+// Palette. Bewusst nur ein Hinweis ohne Auswahl – der einzige Weg führt über
+// das Lager, und eine Nachbestellung für eine einzelne Zeile anzubieten wäre
+// hier irreführend (dafür ist der reguläre Weg im gelben Zustand da).
+function bestPositionGesperrtWarnung() {
+  return new Promise(resolve => {
+    bst._warnResolve = resolve;
+    const html = `
+      <div class="hinweis-box" style="margin-bottom:14px;">
+        Diese Position hat das Lager bereits kommissioniert – die Flaschen
+        liegen auf der Palette und lassen sich nicht mehr heraussuchen.
+        <br><br>
+        Wenn die Menge wirklich geändert werden muss: beim Lager melden.
+        Nimmt das Lager den Haken zurück, ist die Position hier wieder frei.
+      </div>
+      <button class="btn btn-full" onclick="bestWarnWahl('ab')">Verstanden</button>`;
+    oeffneSheet('🔒 Position bereits gepackt', 'Änderung nur über das Lager', html);
+  });
+}
+
+// Rot: fertig kommissioniert. Kein "trotzdem ändern" – die Ware steht gepackt.
+function bestGesperrtWarnung() {
+  return new Promise(resolve => {
+    bst._warnResolve = resolve;
+    const html = `
+      <div class="hinweis-box" style="margin-bottom:14px;">
+        Das Lager hat diese Bestellung fertig kommissioniert – die Ware ist
+        gepackt. Diese Bestellung lässt sich nicht mehr ändern.
+        Brauchst du zusätzliche Ware, leg eine Nachbestellung an.
+      </div>
+      <button class="btn btn-primary btn-full" style="margin-bottom:8px;"
+        onclick="bestWarnWahl('nach')">📦 Nachbestellung anlegen</button>
+      <button class="btn btn-full" onclick="bestWarnWahl('ab')">Schließen</button>`;
+    oeffneSheet('🔴 Bestellung abgeschlossen', 'Kommissionierung ist fertig', html);
   });
 }
 
@@ -5368,9 +5496,13 @@ function renderBestProduktListe() {
       // lag höher als die Menge, ein Aufschlag ist Erfahrungssache.
       const avk = bst.ausverkauftVorjahr?.has(v.id)
         ? '<span class="best-var-avk" title="Im Vorjahr ausverkauft – Bedarf lag höher">🔥</span>' : '';
+      // Vom Lager gepackte Zeile: Schloss statt Eingabe (v6.89)
+      const gepackt = positionGesperrt(v.id);
+      const schloss = gepackt
+        ? '<span class="best-var-avk" title="Vom Lager kommissioniert – liegt auf der Palette">🔒</span>' : '';
       return `<div class="best-var-row">
         <span class="best-var-groesse">${v.groesse}</span>
-        <span class="best-var-preis">${preis != null ? eur(preis) : '—'}</span>${avk}
+        <span class="best-var-preis">${preis != null ? eur(preis) : '—'}</span>${avk}${schloss}
         <div class="best-var-controls">
           <input type="number" class="best-qty-input ${menge>0?'aktiv':''}"
             id="bqv-${v.id.slice(0,8)}" value="${menge||''}" min="0" step="1"
@@ -5378,7 +5510,7 @@ function renderBestProduktListe() {
             placeholder="0"
             oninput="bestQtyLive('${v.id}','${p.id}',${v.pro_kiste||0},this.value)"
             onchange="bestMengeSetzen('${v.id}','${p.id}',${v.pro_kiste||0},this.value)"
-            onfocus="this.select()" ${marktReadonly() ? 'disabled' : ''}>
+            onfocus="this.select()" ${marktReadonly() || bestGesperrt() || gepackt ? 'disabled' : ''}>
           <span class="best-qty-einheit">Stk</span>
         </div>
       </div>`;
@@ -5538,6 +5670,7 @@ async function bestellungAnlegen(alsNachbestellung = false) {
 
 async function saveAbholdatum(val) {
   if (marktReadonly()) return;
+  if (bestGesperrt()) { toast('🔴 Bestellung ist fertig kommissioniert – keine Änderung möglich', 'err'); return; }
   bst.abholdatum = val;
   if (bst.bestellung?.id) {
     await dbW(sb.from('bestellung').update({ abhol_datum: val || null, geaendert_am: new Date().toISOString() })
@@ -5550,6 +5683,7 @@ async function saveAbholdatum(val) {
 // beim Neuladen verloren (Spalte bestellung.fahrzeug seit v6.67).
 async function bestFahrzeugSetzen(val) {
   if (marktReadonly()) return;
+  if (bestGesperrt()) { toast('🔴 Bestellung ist fertig kommissioniert – keine Änderung möglich', 'err'); return; }
   bst.fahrzeug = val;
   bestChipsAktualisieren();
   if (bst.bestellung?.id) {
@@ -5764,7 +5898,7 @@ async function bestMengeSetzen(varId, prodId, proKiste, val) {
   // Schutz bei bereits versendeter Bestellung (einmal je Bestellung/Sitzung).
   // Kommt der Abbruch, muss das Eingabefeld auf den alten Wert zurück – das
   // onchange hat es optisch längst geändert.
-  if (!(await bestAenderungErlaubt())) {
+  if (!(await bestAenderungErlaubt(varId))) {
     const alt = bst.positionen[varId]?.menge || 0;
     const inp = el('bqv-' + varId.slice(0, 8));
     if (inp) inp.value = alt > 0 ? alt : '';
