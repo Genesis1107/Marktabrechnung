@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.89</title>
+<title>Marktfahrer · v6.90</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -1192,7 +1192,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.89';
+const APP_VERSION = 'v6.90';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -1488,6 +1488,39 @@ function toast(msg, type='') {
   t.className = 'show' + (type ? ' ' + type : '');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.className = ''; }, 2800);
+}
+
+// ── DRUCKEN (v6.90) ──────────────────────────────────────────
+// Läuft die App als Web-App vom Homescreen, ignoriert iOS print() still –
+// der Button war dort ohne Funktion. In diesem Modus öffnen wir die fertige
+// Druckseite deshalb als Blob in einer Safari-Ansicht; dort führt
+// Teilen → Drucken bzw. „In Dateien sichern“ weiter (getestet mit drucktest.html,
+// iOS 27.2). Im normalen Safari-Tab bleibt der bisherige iframe-Weg.
+// Wichtig: Aufruf nur synchron aus einem Tipp heraus, sonst blockiert iOS window.open.
+function istWebApp() {
+  return window.navigator.standalone === true ||
+    !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+}
+function druckeHtml(printHtml, frameId, hoehePx) {
+  if (istWebApp()) {
+    const url = URL.createObjectURL(new Blob([printHtml], { type: 'text/html;charset=utf-8' }));
+    const w = window.open(url, '_blank');
+    // Großzügig freigeben – die Ansicht kann länger offen bleiben (Neuladen braucht die URL)
+    setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
+    if (!w) { toast('Druckansicht wurde blockiert – bitte erneut tippen', 'err'); return; }
+    toast('Teilen ⬆ → Drucken oder „In Dateien sichern“', 'ok');
+    return;
+  }
+  const alt = document.getElementById(frameId);
+  if (alt) alt.remove();
+  const iframe = document.createElement('iframe');
+  iframe.id = frameId;
+  iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:820px;height:' + hoehePx + 'px;border:none;';
+  document.body.appendChild(iframe);
+  iframe.contentDocument.open();
+  iframe.contentDocument.write(printHtml);
+  iframe.contentDocument.close();
+  setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 800);
 }
 
 function closeModal(id) { el(id).classList.add('hidden'); }
@@ -5855,16 +5888,7 @@ ${katBlöcke}
 <div class="footer">Marktfahrer App · Beerenweine · ${APP_VERSION}</div>
 </body></html>`;
 
-  let old = document.getElementById('best-pdf-frame');
-  if (old) old.remove();
-  const iframe = document.createElement('iframe');
-  iframe.id = 'best-pdf-frame';
-  iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:820px;height:1200px;border:none;';
-  document.body.appendChild(iframe);
-  iframe.contentDocument.open();
-  iframe.contentDocument.write(printHtml);
-  iframe.contentDocument.close();
-  setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 800);
+  druckeHtml(printHtml, 'best-pdf-frame', 1200);
 }
 
 // Live-Update Topbar beim Tippen (kein DB-Write)
@@ -6524,16 +6548,7 @@ function exportChronikPDF() {
 ${contentHtml}
 <div class="pdf-footer"><p>Marktfahrer App · Beerenweine · ${APP_VERSION} · Erstellt am ${heute}</p></div>
 </body></html>`;
-  let old2 = document.getElementById('chr-pdf-frame');
-  if (old2) old2.remove();
-  const iframe = document.createElement('iframe');
-  iframe.id = 'chr-pdf-frame';
-  iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:820px;height:600px;border:none;';
-  document.body.appendChild(iframe);
-  iframe.contentDocument.open();
-  iframe.contentDocument.write(printHtml);
-  iframe.contentDocument.close();
-  setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 800);
+  druckeHtml(printHtml, 'chr-pdf-frame', 600);
 }
 
 
