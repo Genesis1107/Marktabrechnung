@@ -395,7 +395,7 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
     <!-- SORTENLISTEN -->
     <div id="screen-flyer" class="screen hidden">
       <h2>Sortenlisten (DIN A4)</h2>
-      <div class="field"><label>Bestellung wählen</label><select id="flyer-bestellung"></select></div>
+      <div class="field"><label>Markt &amp; Kutsche wählen</label><select id="flyer-bestellung"></select></div>
       <div class="field">
         <label>Sprachen &mdash; je Sprache ein Blatt</label>
         <div class="chips" id="flyer-sprachen" style="padding-top:2px;"></div>
@@ -411,7 +411,7 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
         <label style="display:block;margin-bottom:4px;"><input type="checkbox" id="sl-opt-rahmen" style="width:auto;" onchange="slOptSetzen('rahmen', this.checked)"> Zierrahmen</label>
       </div>
       <p class="hint" style="margin-bottom:10px;">
-        Gedruckt wird nur, was in der gewählten Bestellung vorkommt; leere Blätter entfallen.
+        Gedruckt wird alles, was in den versendeten Bestellungen dieses Markts (je Kutsche) vorkommt – Grund- und Nachbestellungen zusammen, Entwürfe nicht. Leere Blätter entfallen.
         Schriftgröße und Spaltenzahl bestimmt die App selbst, damit jedes Blatt auf <b>eine</b> Seite passt.
         Sortiert wird je Kategorie alphabetisch nach dem übersetzten Namen.
       </p>
@@ -453,7 +453,7 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
 
 <script>
 'use strict';
-const PK_VERSION = 'v1.9';
+const PK_VERSION = 'v1.10';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
@@ -1122,6 +1122,9 @@ function slOptSetzen(feld, an) {
 let flyerSprachenAuswahl = [];
 let slPlan = null;
 let slSeitenDaten = [];
+/* v1.10: Bestellgruppen (Markt + Kutsche) und zählende Status – Entwürfe/Stornos bleiben außen vor */
+let slGruppen = [];
+const SL_BESTELL_STATUS = ['versendet', 'bestaetigt', 'geliefert'];
 let slPlanOffen = false;
 
 /* ── Blattplan laden/speichern ──────────────────────────────── */
@@ -1190,19 +1193,57 @@ async function initFlyer() {
   el('flyer-sprachen').innerHTML = sprachen.map(s =>
     `<button class="chip ${flyerSprachenAuswahl.includes(s.code) ? 'active' : ''}" onclick="toggleFlyerSprache('${esc(s.code)}')">${esc(s.name)}</button>`
   ).join('');
+  // v1.10: Auswahl je Markt + Kutsche statt je Einzelbestellung.
+  // Alle versendeten Bestellungen einer Gruppe werden zusammengefasst; Entwürfe zählen nicht.
+  const vorher = el('flyer-bestellung').value;
   const { data, error } = await sb.from('bestellung')
-    .select('id, status, versendet_am, erstellt_am, event_instanz:event_instanz_id(name, saison_jahr)')
+    .select('id, status, stand_id, erstellt_am, stand:stand_id(bezeichnung), event_instanz:event_instanz_id(id, name, saison_jahr)')
     .is('geloescht_am', null)
+    .in('status', SL_BESTELL_STATUS)
     .order('erstellt_am', { ascending: false })
-    .limit(60);
+    .limit(1000);
   if (error) { console.error(error); toast('⚠️ Bestellungen laden fehlgeschlagen'); return; }
   cache.bestellungen = data || [];
-  el('flyer-bestellung').innerHTML = '<option value="">— Bestellung wählen —</option>' +
-    cache.bestellungen.map(b => {
-      const ev = b.event_instanz ? `${b.event_instanz.name} ${b.event_instanz.saison_jahr}` : 'Ohne Markt';
-      const dat = (b.versendet_am || b.erstellt_am || '').slice(0, 10);
-      return `<option value="${b.id}">${esc(ev)} · ${esc(b.status)} · ${esc(dat)}</option>`;
-    }).join('');
+  slGruppen = slGruppenBilden(cache.bestellungen);
+  el('flyer-bestellung').innerHTML = '<option value="">— Markt wählen —</option>' +
+    slGruppen.map(g =>
+      `<option value="${esc(g.schluessel)}">${esc(g.markt)} · ${esc(g.kutsche)} · ${g.ids.length} Bestellung${g.ids.length > 1 ? 'en' : ''}</option>`
+    ).join('');
+  // Auswahl beim Neuaufbau (z. B. Sprach-Chip getippt) erhalten
+  if (vorher && slGruppen.some(g => g.schluessel === vorher)) el('flyer-bestellung').value = vorher;
+}
+
+/* Gruppiert Bestellungen nach Markt (Instanz) + Kutsche (stand_id).
+   Markt-weite Bestellungen (stand_id NULL) bilden eine eigene Gruppe „ganzer Markt“ –
+   gibt es am selben Markt zusätzlich Kutschen-Bestellungen, zählen sie bei jeder Kutsche mit. */
+function slGruppenBilden(bestellungen) {
+  const jeMarkt = new Map();
+  for (const b of bestellungen) {
+    const ev = b.event_instanz;
+    if (!ev) continue;
+    if (!jeMarkt.has(ev.id)) jeMarkt.set(ev.id, { ev: ev, weit: [], kutschen: new Map() });
+    const m = jeMarkt.get(ev.id);
+    if (!b.stand_id) { m.weit.push(b.id); continue; }
+    if (!m.kutschen.has(b.stand_id)) m.kutschen.set(b.stand_id, { name: (b.stand && b.stand.bezeichnung) || 'Kutsche', ids: [] });
+    m.kutschen.get(b.stand_id).ids.push(b.id);
+  }
+  const gruppen = [];
+  for (const [evId, m] of jeMarkt) {
+    const markt = `${m.ev.name} ${m.ev.saison_jahr}`;
+    const mehrereKutschen = m.kutschen.size > 1;
+    if (!m.kutschen.size) {
+      gruppen.push({ schluessel: evId + '|alle', markt: markt, kutsche: 'ganzer Markt', dateiTeil: markt, ids: m.weit, jahr: m.ev.saison_jahr });
+      continue;
+    }
+    for (const [standId, k] of m.kutschen) {
+      gruppen.push({
+        schluessel: evId + '|' + standId, markt: markt, kutsche: k.name,
+        dateiTeil: mehrereKutschen ? markt + ' ' + k.name : markt,
+        ids: k.ids.concat(m.weit), jahr: m.ev.saison_jahr
+      });
+    }
+  }
+  return gruppen.sort((a, b) => (b.jahr - a.jahr) || a.markt.localeCompare(b.markt, 'de') || a.kutsche.localeCompare(b.kutsche, 'de'));
 }
 function toggleFlyerSprache(code) {
   if (flyerSprachenAuswahl.includes(code)) flyerSprachenAuswahl = flyerSprachenAuswahl.filter(c => c !== code);
@@ -1544,8 +1585,8 @@ function slDateiname(t) {
 
 /* Sammelt Bestellung + Blattplan zu Blattmodellen – von Vorschau und Export genutzt */
 async function slDatenLaden() {
-  const bestId = el('flyer-bestellung').value;
-  if (!bestId) { toast('Bitte Bestellung wählen'); return null; }
+  const gruppe = slGruppen.find(g => g.schluessel === el('flyer-bestellung').value);
+  if (!gruppe) { toast('Bitte Markt wählen'); return null; }
   const sprachen = aktiveSprachen().filter(s => flyerSprachenAuswahl.includes(s.code));
   if (!sprachen.length) { toast('Bitte mindestens eine Sprache wählen'); return null; }
   if (!slPlan) slPlanLaden();
@@ -1554,7 +1595,7 @@ async function slDatenLaden() {
   el('flyer-status').textContent = 'Lade Bestellpositionen…';
   const { data: pos, error } = await sb.from('bestellposition')
     .select('menge, variante:variante_id(produkt_id, groesse)')
-    .eq('bestellung_id', bestId)
+    .in('bestellung_id', gruppe.ids)
     .is('geloescht_am', null);
   if (error) { console.error(error); toast('⚠️ Positionen laden fehlgeschlagen'); el('flyer-status').textContent = ''; return null; }
 
@@ -1566,7 +1607,8 @@ async function slDatenLaden() {
     groessenJeProdukt.get(x.variante.produkt_id).add(x.variante.groesse);
   }
   const bestellt = produktIds.map(id => cache.produkte.find(p => p.id === id)).filter(Boolean);
-  if (!bestellt.length) { el('flyer-status').textContent = 'Diese Bestellung enthält keine Produkte.'; return null; }
+  if (!bestellt.length) { el('flyer-status').textContent = 'Die Bestellungen dieses Markts enthalten keine Produkte.'; return null; }
+  const quelle = `${gruppe.markt} · ${gruppe.kutsche}: ${gruppe.ids.length} Bestellung${gruppe.ids.length > 1 ? 'en' : ''} · ${bestellt.length} Sorten`;
 
   const blaetter = [];
   for (const id of SL_BLATT_IDS) {
@@ -1579,15 +1621,14 @@ async function slDatenLaden() {
     }
     if (gruppen.length) blaetter.push({ id: id, gruppen: gruppen });
   }
-  if (!blaetter.length) { el('flyer-status').textContent = 'Kein Blatt enthält Produkte dieser Bestellung – Blattplan prüfen.'; return null; }
+  if (!blaetter.length) { el('flyer-status').textContent = 'Kein Blatt enthält Produkte dieser Bestellungen – Blattplan prüfen.'; return null; }
 
   const modelle = [];
   for (const sp of sprachen) {
     for (const bl of blaetter) modelle.push(slBlattModell(bl.id, sp, bl.gruppen, groessenJeProdukt));
   }
-  const markt = (el('flyer-bestellung').selectedOptions[0] || {}).text || 'Bestellung';
   const ohneBlatt = bestellt.filter(p => !slBlattVon(katName(p.kategorie_id))).length;
-  return { modelle: modelle, markt: markt.split(' · ')[0], ohneBlatt: ohneBlatt };
+  return { modelle: modelle, markt: gruppe.dateiTeil, quelle: quelle, ohneBlatt: ohneBlatt };
 }
 
 async function erzeugeSortenlisten() {
@@ -1625,7 +1666,7 @@ async function erzeugeSortenlisten() {
   const fehlendGesamt = daten.modelle.reduce((sum, d) => sum + d.fehlend, 0);
   el('sl-info').textContent = `${seiten.length} Seite${seiten.length > 1 ? 'n' : ''}` +
     (warnungen ? ` · ${warnungen} zu voll` : '') + (fehlendGesamt ? ` · ${fehlendGesamt} Textlücken` : '');
-  el('flyer-status').innerHTML = berichte.map(t => esc(t)).join('<br>') +
+  el('flyer-status').innerHTML = esc(daten.quelle) + '<br>' + berichte.map(t => esc(t)).join('<br>') +
     (daten.ohneBlatt ? `<br>ℹ️ ${daten.ohneBlatt} bestellte Produkte stehen auf keinem Blatt (Blattplan).` : '') +
     (fehlendGesamt ? `<br>⚠️ ${fehlendGesamt} fehlende Übersetzung(en) – im Wiki ergänzen.` : '<br>Alle Übersetzungen vorhanden.');
 }
@@ -1656,6 +1697,7 @@ async function exportiereSortenlisten() {
 
   const fehlend = daten.modelle.reduce((s, d) => s + d.fehlend, 0);
   el('flyer-status').innerHTML =
+    esc(daten.quelle) + '<br>' +
     esc(`${dateien.length} Datei(en) in ${name}`) + '<br>' +
     esc(dateien.map(d => d.name).join(' · ')) +
     (fehlend ? `<br>⚠️ ${fehlend} fehlende Übersetzung(en) – im Wiki ergänzen.` : '');
