@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Drucktest</title>
+<style>
+  /* Temporäre Testseite: welche Druckwege funktionieren im Web-App-Modus (Homescreen)? */
+  body { font-family: Georgia, serif; background: #f5efe6; color: #1a1410; margin: 0; padding: 16px; }
+  h1 { font-size: 22px; color: #8b3a1e; margin: 0 0 6px; }
+  .info { background: #fff8ec; border: 1px solid #c9982a; border-radius: 6px; padding: 10px; font-size: 14px; margin-bottom: 14px; }
+  button { display: block; width: 100%; text-align: left; font: inherit; font-size: 16px; padding: 12px; margin: 0 0 10px;
+           border: 1px solid #8b3a1e; border-radius: 6px; background: #fff; color: #1a1410; }
+  button b { color: #8b3a1e; }
+  small { color: #6b7a6e; display: block; margin-top: 3px; font-size: 13px; }
+  #log { font-family: Menlo, monospace; font-size: 12px; white-space: pre-wrap; background: #1a1410; color: #f5efe6; padding: 10px; border-radius: 6px; min-height: 60px; }
+</style>
+</head>
+<body>
+<h1>🖨 Drucktest</h1>
+<div class="info" id="modus"></div>
+
+<button onclick="t1()"><b>1</b> · window.print() direkt<small>Erwartung im Web-App-Modus: passiert nichts</small></button>
+<button onclick="t2()"><b>2</b> · Neues Fenster beschreiben + drucken<small>Öffnet ein leeres Fenster, schreibt die Seite hinein, ruft dort print() auf</small></button>
+<button onclick="t3()"><b>3</b> · HTML als Blob öffnen<small>Öffnet die Druckseite als eigene Ansicht – dort ggf. über Teilen → Drucken</small></button>
+<button onclick="t4()"><b>4</b> · HTML-Datei teilen<small>Teilen-Menü mit einer .html-Datei – gibt es dort „Drucken“?</small></button>
+<button onclick="t5()"><b>5</b> · PDF-Datei teilen<small>Teilen-Menü mit einer kleinen echten PDF – gibt es dort „Drucken“?</small></button>
+<button onclick="t6()"><b>6</b> · PDF als Blob öffnen<small>Öffnet die PDF in einer Vorschau – dort ggf. Teilen → Drucken</small></button>
+
+<div id="log">Protokoll:</div>
+
+<script>
+function log(t) { document.getElementById('log').textContent += '\n' + new Date().toLocaleTimeString('de-DE') + '  ' + t; }
+
+const standalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+document.getElementById('modus').innerHTML =
+  'Modus: <b>' + (standalone ? 'Web-App (Homescreen)' : 'normaler Browser-Tab') + '</b><br>' +
+  'navigator.share: ' + (navigator.share ? 'ja' : 'nein') +
+  ' · canShare(Dateien): ' + (navigator.canShare ? 'ja' : 'nein') + '<br>' +
+  '<small>' + navigator.userAgent + '</small>';
+
+const TEST_HTML = '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">' +
+  '<meta name="viewport" content="width=device-width, initial-scale=1"><title>Drucktest</title>' +
+  '<style>body{font-family:Georgia,serif;padding:20px}h1{color:#8b3a1e}</style></head>' +
+  '<body><h1>Drucktest Beerenweine</h1><p>Wenn du das als Druckvorschau oder PDF siehst, funktioniert dieser Weg.</p></body></html>';
+
+// Minimale, gültige PDF (eine A4-Seite mit Text), Offsets der xref-Tabelle werden berechnet
+function testPdf() {
+  const inhalt = 'BT /F1 24 Tf 72 760 Td (Drucktest Beerenweine) Tj ET';
+  const objekte = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    '<< /Length ' + inhalt.length + ' >>\nstream\n' + inhalt + '\nendstream',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >>'
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = [];
+  objekte.forEach((o, i) => { offsets.push(pdf.length); pdf += (i + 1) + ' 0 obj\n' + o + '\nendobj\n'; });
+  const xref = pdf.length;
+  pdf += 'xref\n0 ' + (objekte.length + 1) + '\n0000000000 65535 f \n' +
+    offsets.map(n => String(n).padStart(10, '0') + ' 00000 n \n').join('') +
+    'trailer\n<< /Size ' + (objekte.length + 1) + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF';
+  return new Blob([pdf], { type: 'application/pdf' });
+}
+
+function t1() {
+  log('1: window.print() …');
+  try { window.print(); log('1: Aufruf ohne Fehler zurückgekehrt'); } catch (e) { log('1: Fehler ' + e.message); }
+}
+function t2() {
+  log('2: öffne neues Fenster …');
+  try {
+    const w = window.open('', '_blank');
+    if (!w) { log('2: Fenster blockiert (null)'); return; }
+    w.document.open(); w.document.write(TEST_HTML); w.document.close();
+    setTimeout(() => { try { w.focus(); w.print(); log('2: print() im Fenster aufgerufen'); } catch (e) { log('2: Fehler ' + e.message); } }, 500);
+  } catch (e) { log('2: Fehler ' + e.message); }
+}
+function t3() {
+  log('3: öffne HTML-Blob …');
+  try {
+    const url = URL.createObjectURL(new Blob([TEST_HTML], { type: 'text/html' }));
+    const w = window.open(url, '_blank');
+    log('3: ' + (w ? 'Fenster geöffnet' : 'Fenster blockiert (null)'));
+  } catch (e) { log('3: Fehler ' + e.message); }
+}
+async function teilen(datei, nr) {
+  if (!navigator.share) { log(nr + ': navigator.share fehlt'); return; }
+  if (navigator.canShare && !navigator.canShare({ files: [datei] })) { log(nr + ': canShare = false für ' + datei.type); return; }
+  try { await navigator.share({ files: [datei], title: 'Drucktest' }); log(nr + ': Teilen abgeschlossen'); }
+  catch (e) { log(nr + ': ' + e.name + ' – ' + e.message); }
+}
+function t4() { log('4: teile HTML-Datei …'); teilen(new File([TEST_HTML], 'Drucktest.html', { type: 'text/html' }), 4); }
+function t5() { log('5: teile PDF-Datei …'); teilen(new File([testPdf()], 'Drucktest.pdf', { type: 'application/pdf' }), 5); }
+function t6() {
+  log('6: öffne PDF-Blob …');
+  try {
+    const w = window.open(URL.createObjectURL(testPdf()), '_blank');
+    log('6: ' + (w ? 'Fenster geöffnet' : 'Fenster blockiert (null)'));
+  } catch (e) { log('6: Fehler ' + e.message); }
+}
+</script>
+</body>
+</html>
