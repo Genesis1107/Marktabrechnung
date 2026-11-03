@@ -453,7 +453,7 @@ table.wiki { border-collapse: separate; border-spacing: 0; min-width: 100%; }
 
 <script>
 'use strict';
-const PK_VERSION = 'v1.10';
+const PK_VERSION = 'v1.11';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
@@ -1323,6 +1323,40 @@ function slSkalieren() {
   skala.style.transform = 'scale(' + faktor + ')';
   skala.style.height = Math.ceil(natHoehe * faktor) + 'px';
 }
+/* Drucken (v1.11): In der Web-App vom Homescreen ignoriert iOS window.print() still.
+   Dort werden die bereits eingepassten Blätter (inkl. --fs und Spaltenzahl) samt
+   Sortenlisten-CSS als eigene Seite in einer Safari-Ansicht geöffnet –
+   weiter über Teilen → Drucken / „In Dateien sichern“ (wie v6.90).
+   Muss synchron im Tipp laufen, sonst blockiert iOS window.open. */
+let slSetztNoch = false;
+function slIstWebApp() {
+  return window.navigator.standalone === true ||
+    !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+}
+function slDrucken() {
+  if (slSetztNoch) { el('sl-info').textContent = 'Seiten werden noch gesetzt – bitte kurz warten'; return; }
+  if (!slIstWebApp()) { window.print(); return; }
+  const seiten = [...document.querySelectorAll('#sl-skala .sl-seite')];
+  if (!seiten.length) return;
+  // Sortenlisten-Regeln aus dem eigenen Stylesheet übernehmen (ab dem Abschnitts-Kommentar)
+  const css = [...document.querySelectorAll('style')].map(st => st.textContent).join('\n');
+  const ab = css.indexOf('/* ── SORTENLISTEN');
+  const slCss = ab >= 0 ? css.slice(ab) : css;
+  const html = '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=800">' +
+    '<title>Sortenlisten</title><style>' + slCss +
+    '\nbody { margin: 0; padding: 10px; background: #6b6257; }' +
+    '\n@media print { body { padding: 0; background: #fff; } }' +
+    '</style></head><body><div id="sl-skala">' +
+    seiten.map(sei => sei.outerHTML).join('') +
+    '</div></body></html>';
+  const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+  const w = window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
+  el('sl-info').textContent = w
+    ? 'Teilen ⬆ → Drucken oder „In Dateien sichern“'
+    : 'Druckansicht wurde blockiert – bitte erneut tippen';
+}
 function slSchliessen() {
   el('flyer-print').classList.remove('offen');
   document.body.style.overflow = '';
@@ -1640,12 +1674,13 @@ async function erzeugeSortenlisten() {
   druck.innerHTML =
     `<div class="sl-leiste">` +
       `<button onclick="slSchliessen()">✕ Schließen</button>` +
-      `<button class="prim" onclick="window.print()">🖨 Drucken / PDF</button>` +
+      `<button class="prim" onclick="slDrucken()">🖨 Drucken / PDF</button>` +
       `<div class="sl-info" id="sl-info">Setze Seiten…</div>` +
     `</div>` +
     `<div id="sl-buehne"><div id="sl-skala">` + daten.modelle.map(slSeiteHtml).join('') + `</div></div>`;
   druck.classList.add('offen');
   document.body.style.overflow = 'hidden';
+  slSetztNoch = true;
 
   const seiten = druck.querySelectorAll('.sl-seite');
   const berichte = [];
@@ -1662,6 +1697,7 @@ async function erzeugeSortenlisten() {
       (fit.passt ? '' : ' ⚠️ passt nicht auf eine Seite'));
   }
   slSkalieren();
+  slSetztNoch = false;
 
   const fehlendGesamt = daten.modelle.reduce((sum, d) => sum + d.fehlend, 0);
   el('sl-info').textContent = `${seiten.length} Seite${seiten.length > 1 ? 'n' : ''}` +
