@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>Marktfahrer · v6.90</title>
+<title>Marktfahrer · v6.91</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────────────────────── */
@@ -984,6 +984,8 @@ body.rolle-fahrer .admin-only { display: none !important; }
       <label>Notiz</label>
       <input type="text" id="nj-notiz" placeholder="Optional…">
     </div>
+    <!-- v6.91: Hinweis, wenn das Jahr für diesen Markt schon existiert -->
+    <div id="nj-hinweis" class="hinweis-box" style="display:none;margin-top:14px;font-size:13px;"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('modal-neues-jahr')">Abbrechen</button>
       <button class="btn btn-primary" onclick="saveNeuesJahr()">Anlegen</button>
@@ -1192,7 +1194,7 @@ const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 
 // Einzige Quelle der Versionsnummer — bei jeder Änderung nur hier anpassen.
-const APP_VERSION = 'v6.90';
+const APP_VERSION = 'v6.91';
 
 // ── STATE ────────────────────────────────────────────────────
 let sb, currentUser, currentProfil;
@@ -3146,7 +3148,7 @@ async function renderPlanungTab(scrollHalten = false) {
           <div class="wf-section-meta"><span class="wf-chevron">›</span></div>
         </div>
         <div class="wf-body" style="padding:12px 14px;">
-          <p style="color:var(--text3);font-size:13px;margin-bottom:12px;">Selben Markt für ein anderes Jahr anlegen (z.B. für Vorjahresdaten).</p>
+          <p style="color:var(--text3);font-size:13px;margin-bottom:12px;">Selben Markt für ein anderes Jahr anlegen. Start in der Zukunft → Status „Interessent“ mit Planungsaufgaben; Start in der Vergangenheit → „Abgeschlossen“ (Vorjahresdaten).</p>
           <button class="btn btn-sm btn-full" onclick="openNeuesJahrModal()">+ Neues Jahr anlegen</button>
         </div>
       </div>
@@ -7792,7 +7794,27 @@ function openNeuesJahrModal() {
   el('nj-start').value  = '';
   el('nj-ende').value   = '';
   el('nj-notiz').value  = '';
+  njHinweis(null);
   openModal('modal-neues-jahr');
+}
+
+// v6.91: Hinweis im Modal „Neues Jahr“ zeigen (inst) bzw. ausblenden (null) –
+// statt der rohen Meldung des Unique-Index uq_instanz_template_jahr.
+function njHinweis(inst, jahr) {
+  const box = el('nj-hinweis');
+  if (!inst) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const zr = zeitraumText(inst);
+  const st = STATUS_LABEL[inst.status] || inst.status || '';
+  box.innerHTML = `⚠️ Für ${jahr} gibt es diesen Markt bereits`
+    + (zr || st ? ` (${esc([zr, st].filter(Boolean).join(', '))})` : '')
+    + `. Je Markt und Jahr ist nur ein Eintrag möglich – bitte den vorhandenen öffnen und dort ändern.`
+    + (inst.id ? `<button class="btn btn-sm btn-full" style="margin-top:10px;" onclick="njVorhandenenOeffnen('${inst.id}')">Vorhandenen Eintrag öffnen</button>` : '');
+  box.style.display = '';
+}
+
+async function njVorhandenenOeffnen(id) {
+  closeModal('modal-neues-jahr');
+  await openMarktDetail(id);
 }
 
 async function saveNeuesJahr() {
@@ -7805,19 +7827,38 @@ async function saveNeuesJahr() {
   const jahr  = parseInt(start.slice(0, 4));
   const now   = new Date().toISOString();
 
+  // v6.91: Vorab prüfen, ob es das Jahr für diesen Markt schon gibt
+  // (Unique-Index uq_instanz_template_jahr, gilt nur für nicht gelöschte).
+  njHinweis(null);
+  const { data: vorh, error: vErr } = await sb.from('event_instanz')
+    .select('id, status, zeitraeume, start_datum, end_datum, start_datum_2, end_datum_2')
+    .eq('template_id', currentInstanz.template_id)
+    .eq('saison_jahr', jahr)
+    .is('geloescht_am', null)
+    .limit(1);
+  if (vErr) { toast('Fehler: ' + vErr.message, 'err'); return; }
+  if (vorh && vorh.length) { njHinweis(vorh[0], jahr); return; }
+
+  // v6.91: Liegt der Start in der Zukunft, wird der Markt geplant (Interessent
+  // + Planungsaufgaben); sonst Vorjahresdaten nachtragen (Abgeschlossen).
+  const zukuenftig = start > isoToday();
+  const njStatus = zukuenftig ? 'interessent' : 'abgeschlossen';
+
   const instanzId = uuid();
   const { error } = await sb.from('event_instanz').insert({
     id: instanzId,
     template_id: currentInstanz.template_id,
     saison_jahr: jahr,
     name: currentInstanz.name || currentInstanz.event_template?.name,
-    status: 'abgeschlossen',
+    status: njStatus,
     ...njFelder,
     notiz: el('nj-notiz').value || null,
     nextcloud_url: currentInstanz.nextcloud_url || null,
     erstellt_am: now, geaendert_am: now,
     erstellt_von: currentUser.id, geaendert_von: currentUser.id,
   });
+  // Netz, falls die Vorabprüfung den Eintrag nicht sah (z. B. RLS, gleichzeitiges Anlegen)
+  if (error && error.code === '23505') { njHinweis({}, jahr); return; }
   if (error) { toast('Fehler: ' + error.message, 'err'); return; }
 
   // K1 automatisch anlegen
@@ -7827,8 +7868,11 @@ async function saveNeuesJahr() {
     erstellt_am: now, geaendert_am: now,
   }), 'Kutsche speichern');
 
+  // Planungsaufgaben nur für künftige Märkte (wie bei „Neuer Markt“)
+  if (zukuenftig) await aufgabenAnlegen(instanzId, 'interessent');
+
   closeModal('modal-neues-jahr');
-  toast('✓ Jahr angelegt', 'ok');
+  toast(zukuenftig ? '✓ Jahr angelegt (Interessent)' : '✓ Jahr angelegt (Abgeschlossen)', 'ok');
   await openMarktDetail(instanzId);
 }
 // ── SAISON ────────────────────────────────────────────────────
