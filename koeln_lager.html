@@ -162,6 +162,14 @@ header {
 .palette-pos { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; padding: 5px 0; border-top: 1px solid var(--border); }
 .palette-pos span:last-child { white-space: nowrap; color: var(--text2); }
 .btn-klein { padding: 7px 12px; font-size: 13px; }
+.zeile.tippbar { cursor: pointer; }
+.zeile.tippbar:active { background: var(--surface2); }
+.zeile.angefordert { border-color: var(--green2); border-width: 2px; }
+.chip.ok { color: var(--green2); border-color: var(--green2); }
+.wahl { display: flex; gap: 8px; }
+.wahl .btn { flex: 1; padding: 12px 6px; font-size: 14px; }
+.wahl .btn.an { background: var(--gold); color: var(--bg); border-color: var(--gold2); }
+textarea { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); padding: 10px 12px; font-size: 16px; width: 100%; font-family: inherit; resize: vertical; }
 .summe { font-size: 13px; color: var(--text2); padding: 4px 4px 10px; }
 .hinweis-box { border-left: 4px solid var(--amber2); background: var(--bg2); padding: 10px 12px; border-radius: var(--radius); font-size: 13px; color: var(--text); margin-bottom: 10px; line-height: 1.4; }
 </style>
@@ -197,7 +205,9 @@ header {
     <button class="header-gear" onclick="doLogout()" title="Abmelden">🚪</button>
   </header>
   <div class="filter-leiste">
-    <button class="filter-btn active" id="tab-bestand" onclick="zeigeTab('bestand')">Bestand</button>
+    <button class="filter-btn active" id="tab-anfordern" onclick="zeigeTab('anfordern')">Anfordern</button>
+    <button class="filter-btn" id="tab-offen" onclick="zeigeTab('offen')">Offen</button>
+    <button class="filter-btn" id="tab-bestand" onclick="zeigeTab('bestand')">Bestand</button>
     <button class="filter-btn" id="tab-paletten" onclick="zeigeTab('paletten')">Paletten</button>
   </div>
   <div class="screen" id="inhalt"></div>
@@ -209,7 +219,7 @@ header {
 <script>
 'use strict';
 
-const NL_VERSION = 'v0.1';
+const NL_VERSION = 'v0.2';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 const BOXEN = ['6005', '6009'];
@@ -219,8 +229,11 @@ let currentUser = null;
 let artikelListe = [];   // nl_artikel
 let palettenListe = [];  // nl_palette
 let bewegungen = [];     // nl_bewegung (nicht gelöscht)
-let aktTab = 'bestand';
+let anforderungen = [];  // nl_anforderung, nur offene
+let namenMap = {};       // user_id → Anzeigename
+let aktTab = 'anfordern';
 let suchText = '';
+const TABS = ['anfordern', 'offen', 'bestand', 'paletten'];
 
 /* ── HILFSFUNKTIONEN ────────────────────────────────────────── */
 function el(id) { return document.getElementById(id); }
@@ -366,12 +379,14 @@ async function passwortSpeichern() {
 /* ── DATEN ──────────────────────────────────────────────────── */
 async function ladeUndZeichne(mitHinweis) {
   if (!artikelListe.length) el('inhalt').innerHTML = '<div class="leer">Lade …</div>';
-  const [ra, rp, rb] = await Promise.all([
+  const [ra, rp, rb, rf, rn] = await Promise.all([
     sb.from('nl_artikel').select('*').is('geloescht_am', null),
     sb.from('nl_palette').select('*').is('geloescht_am', null).order('nummer'),
     sb.from('nl_bewegung').select('id, artikel_id, palette_id, art, stueck, erstellt_am').is('geloescht_am', null),
+    sb.from('nl_anforderung').select('*').eq('status', 'offen').is('geloescht_am', null).order('erstellt_am'),
+    sb.from('profile').select('id, anzeigename'),
   ]);
-  const fehler = ra.error || rp.error || rb.error;
+  const fehler = ra.error || rp.error || rb.error || rf.error;
   if (fehler) {
     console.error(fehler);
     el('inhalt').innerHTML = '<div class="leer">Daten konnten nicht geladen werden.<br>Bitte Verbindung prüfen und 🔄 tippen.</div>';
@@ -381,6 +396,10 @@ async function ladeUndZeichne(mitHinweis) {
     a.name.localeCompare(b.name, 'de') || groessenRang(a.groesse) - groessenRang(b.groesse));
   palettenListe = rp.data || [];
   bewegungen = rb.data || [];
+  anforderungen = rf.data || [];
+  // Profile sind evtl. nicht alle lesbar (RLS) – dann fehlt nur der Name, kein Fehler
+  namenMap = {};
+  for (const n of (rn.data || [])) namenMap[n.id] = n.anzeigename;
   // Leere Antwort trotz Zugang = vermutlich fehlende RLS-Policy, nicht "Lager leer"
   if (!artikelListe.length) {
     el('inhalt').innerHTML = '<div class="leer">Keine Artikel sichtbar.<br>Falls das unerwartet ist: Zugang/Berechtigung prüfen.</div>';
@@ -406,12 +425,15 @@ function paletteVon(id) { return palettenListe.find(p => p.id === id); }
 /* ── ANSICHTEN ──────────────────────────────────────────────── */
 function zeigeTab(tab) {
   aktTab = tab;
-  el('tab-bestand').classList.toggle('active', tab === 'bestand');
-  el('tab-paletten').classList.toggle('active', tab === 'paletten');
+  for (const x of TABS) el('tab-' + x).classList.toggle('active', tab === x);
   zeichne();
 }
 function zeichne() {
-  if (aktTab === 'paletten') zeichnePaletten(); else zeichneBestand();
+  el('tab-offen').textContent = anforderungen.length ? `Offen (${anforderungen.length})` : 'Offen';
+  if (aktTab === 'paletten') zeichnePaletten();
+  else if (aktTab === 'bestand') zeichneBestand();
+  else if (aktTab === 'offen') zeichneOffen();
+  else zeichneAnfordern();
 }
 
 function zeichneBestand() {
@@ -478,6 +500,164 @@ function zeichnePaletten() {
     }
   }
   el('inhalt').innerHTML = h;
+}
+
+
+/* ── ANFORDERN (Bude) ───────────────────────────────────────── */
+// Eine Anforderung gilt immer für BEIDE Buden. 1 Kiste = Normalfall,
+// 2 Kisten = 1 in die Bude + 1 als Reserve ins Auto.
+function uuidv7() {
+  const ms = Date.now();
+  const b = new Uint8Array(16);
+  crypto.getRandomValues(b);
+  for (let i = 0; i < 6; i++) b[i] = Math.floor(ms / Math.pow(2, 8 * (5 - i))) & 0xff;
+  b[6] = 0x70 | (b[6] & 0x0f);
+  b[8] = 0x80 | (b[8] & 0x3f);
+  const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+function offeneAnforderung(artikelId) { return anforderungen.find(f => f.artikel_id === artikelId); }
+function artikelVon(id) { return artikelListe.find(a => a.id === id); }
+function wer(userId) {
+  if (userId && currentUser && userId === currentUser.id) return 'dir';
+  return namenMap[userId] || '';
+}
+function uhrzeit(iso) {
+  const d = new Date(iso);
+  const heute = new Date();
+  const hm = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  if (d.toDateString() === heute.toDateString()) return hm;
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ' ' + hm;
+}
+
+function zeichneAnfordern() {
+  el('inhalt').innerHTML = `
+    <input class="suche" type="search" placeholder="Artikel suchen …" value="${esc(suchText)}"
+      oninput="suchText=this.value; zeichneAnfordernListe()">
+    <div class="summe">Antippen zum Anfordern · gilt für beide Buden</div>
+    <div id="anfordern-liste"></div>`;
+  zeichneAnfordernListe();
+}
+
+function zeichneAnfordernListe() {
+  const { proArtikel } = bestandsIndex();
+  const such = normal(suchText);
+  const liste = artikelListe.filter(a => !such || normal(a.name + ' ' + a.groesse).includes(such));
+  if (!liste.length) { el('anfordern-liste').innerHTML = '<div class="leer">Kein Artikel gefunden.</div>'; return; }
+  el('anfordern-liste').innerHTML = liste.map(a => {
+    const stk = proArtikel[a.id] || 0;
+    const f = offeneAnforderung(a.id);
+    const bestellbar = a.nachschub && stk > 0;
+    let chips = '';
+    if (f) chips += `<span class="chip ok">✓ angefordert: ${f.kisten === 2 ? '1 + 1 Reserve' : '1 Kiste'}</span>`;
+    if (!a.nachschub) chips += '<span class="chip">kein Nachschub im Lager</span>';
+    else if (stk <= 0) chips += '<span class="chip warn">Lager leer</span>';
+    else if (stk < a.pro_kiste) chips += '<span class="chip warn">nur noch Anbruch</span>';
+    const klick = (bestellbar || f) ? ` onclick="anfordernDialog('${a.id}')"` : '';
+    return `<div class="zeile${bestellbar || f ? ' tippbar' : ' ohne'}${f ? ' angefordert' : ''}"${klick}>
+      <div class="zeile-kopf">
+        <div class="zeile-name">${esc(a.name)} <span class="zeile-gr">${esc(a.groesse)}</span></div>
+        <div class="zeile-menge">${esc(kistenText(stk, a.pro_kiste))}<small>im Lager</small></div>
+      </div>
+      ${chips ? `<div class="orte">${chips}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+let dialogKisten = 1;
+function anfordernDialog(artikelId) {
+  const a = artikelVon(artikelId);
+  if (!a) return;
+  const { proArtikel } = bestandsIndex();
+  const stk = proArtikel[a.id] || 0;
+  const f = offeneAnforderung(a.id);
+  dialogKisten = f ? f.kisten : 1;
+  // Reserve nur anbieten, wenn mehr als eine Kiste im Lager ist
+  const reserveMoeglich = stk > a.pro_kiste;
+  if (!reserveMoeglich && dialogKisten === 2) dialogKisten = 1;
+  let hinweis = '';
+  if (stk <= 0) hinweis = '<div class="hinweis-box">Das Lager ist für diesen Artikel leer.</div>';
+  else if (stk < a.pro_kiste) hinweis = `<div class="hinweis-box">Im Lager ist nur noch ein Anbruch (${stk} Stk).</div>`;
+  el('modal-halter').innerHTML = `
+    <div class="modal-bg" onclick="if(event.target===this) modalZu()"><div class="modal">
+      <div class="modal-titel">${esc(a.name)} ${esc(a.groesse)}</div>
+      <div class="modal-text">Im Lager: <b>${esc(kistenText(stk, a.pro_kiste))}</b> · gilt für beide Buden</div>
+      ${hinweis}
+      ${f ? `<div class="modal-text">Bereits angefordert von ${esc(wer(f.erstellt_von) || '–')} um ${esc(uhrzeit(f.erstellt_am))}.</div>` : ''}
+      <div class="wahl">
+        <button class="btn${dialogKisten === 1 ? ' an' : ''}" id="wahl-1" onclick="waehleKisten(1)">1 Kiste</button>
+        <button class="btn${dialogKisten === 2 ? ' an' : ''}" id="wahl-2" onclick="waehleKisten(2)"${reserveMoeglich ? '' : ' disabled'}>1 + 1 Reserve 🚐</button>
+      </div>
+      <textarea id="anf-notiz" rows="2" placeholder="Notiz (optional)">${esc(f ? f.notiz || '' : '')}</textarea>
+      <button class="btn btn-primary btn-full" id="btn-anfordern" onclick="anforderungSpeichern('${a.id}')">${f ? 'Ändern' : 'Anfordern'}</button>
+      ${f ? `<button class="btn btn-full" onclick="anforderungStornieren('${f.id}')">Anforderung zurücknehmen</button>` : ''}
+      <button class="btn btn-full" onclick="modalZu()">Abbrechen</button>
+    </div></div>`;
+}
+function waehleKisten(n) {
+  dialogKisten = n;
+  el('wahl-1').classList.toggle('an', n === 1);
+  el('wahl-2').classList.toggle('an', n === 2);
+}
+
+async function anforderungSpeichern(artikelId) {
+  const btn = el('btn-anfordern');
+  btn.disabled = true;
+  const notiz = el('anf-notiz').value.trim() || null;
+  const f = offeneAnforderung(artikelId);
+  let error;
+  if (f) {
+    ({ error } = await sb.from('nl_anforderung').update({ kisten: dialogKisten, notiz }).eq('id', f.id));
+  } else {
+    ({ error } = await sb.from('nl_anforderung').insert({
+      id: uuidv7(), artikel_id: artikelId, kisten: dialogKisten, notiz, erstellt_von: currentUser.id,
+    }));
+  }
+  if (error) {
+    console.error(error);
+    btn.disabled = false;
+    // 23505 = jemand anderes hat den Artikel gerade angefordert
+    if (error.code === '23505') {
+      toast('Wurde gerade schon angefordert – Liste wird aktualisiert.', 'err');
+      modalZu(); await ladeUndZeichne();
+    } else {
+      toast('Speichern fehlgeschlagen – bitte Verbindung prüfen.', 'err');
+    }
+    return;
+  }
+  modalZu();
+  toast(f ? '✓ Anforderung geändert' : '✓ Angefordert');
+  await ladeUndZeichne();
+}
+
+async function anforderungStornieren(id) {
+  const { error } = await sb.from('nl_anforderung').update({ status: 'storniert' }).eq('id', id);
+  if (error) { console.error(error); toast('Zurücknehmen fehlgeschlagen – bitte Verbindung prüfen.', 'err'); return; }
+  modalZu();
+  toast('Anforderung zurückgenommen');
+  await ladeUndZeichne();
+}
+
+function zeichneOffen() {
+  if (!anforderungen.length) {
+    el('inhalt').innerHTML = '<div class="leer">Keine offenen Anforderungen.<br>Unter „Anfordern“ Artikel antippen.</div>';
+    return;
+  }
+  const kisten = anforderungen.reduce((s, f) => s + f.kisten, 0);
+  el('inhalt').innerHTML = `<div class="summe">${anforderungen.length} Artikel · ${kisten} Kisten aus dem Lager holen</div>` +
+    anforderungen.map(f => {
+      const a = artikelVon(f.artikel_id);
+      if (!a) return '';
+      const von = wer(f.erstellt_von);
+      return `<div class="zeile tippbar" onclick="anfordernDialog('${a.id}')">
+        <div class="zeile-kopf">
+          <div class="zeile-name">${esc(a.name)} <span class="zeile-gr">${esc(a.groesse)}</span></div>
+          <div class="zeile-menge">${f.kisten === 2 ? '1 + 1 🚐' : '1 Kiste'}</div>
+        </div>
+        <div class="palette-sub" style="margin-top:4px">${esc(uhrzeit(f.erstellt_am))}${von ? ' · von ' + esc(von) : ''}</div>
+        ${f.notiz ? `<div class="modal-text" style="margin-top:4px">📝 ${esc(f.notiz)}</div>` : ''}
+      </div>`;
+    }).join('');
 }
 
 /* ── PALETTE VERSCHIEBEN ────────────────────────────────────── */
