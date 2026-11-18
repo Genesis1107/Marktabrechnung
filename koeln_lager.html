@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Nachschublager Köln</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ── TOKENS (identisch zur Marktfahrer-App) ─────────────────── */
+:root {
+  --bg: #1a1208; --bg2: #241a0e; --bg3: #2e2010; --surface: #3a2a14;
+  --surface2: #4a3520; --border: #6b4c28; --border2: #8a6438;
+  --gold: #c9942a; --gold2: #e8b84b; --gold3: #f5d070;
+  --text: #f5eed8; --text2: #dbc898; --text3: #a89868;
+  --red: #c0392b; --red2: #e74c3c; --green: #2e7d32; --green2: #4caf50;
+  --blue: #1565c0; --blue2: #42a5f5; --amber: #e65100; --amber2: #ff9800;
+  --radius: 8px; --radius2: 12px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+[data-theme="pergament"] {
+  --bg: #f0e6cc; --bg2: #e8dab8; --bg3: #ddd0a4; --surface: #d0c090;
+  --surface2: #c4b080; --border: #b09060; --border2: #907040;
+  --gold: #8b5e0a; --gold2: #a87010; --gold3: #c49020;
+  --text: #1c0e04; --text2: #3d2010; --text3: #785030;
+  --red: #8b1a1a; --red2: #c0392b; --green: #1e5c0a; --green2: #2e7d10;
+  --blue: #1a3a8b; --blue2: #2a5ab8; --amber: #c05000; --amber2: #e07020;
+}
+[data-theme="mitternacht"] {
+  --bg: #141b2e; --bg2: #1c2540; --bg3: #232e52; --surface: #2c3862;
+  --surface2: #354070; --border: #3d4e7c; --border2: #506098;
+  --gold: #d4a830; --gold2: #e8c050; --gold3: #f0d070;
+  --text: #f0e8d8; --text2: #c8bca0; --text3: #908060;
+  --red: #c0392b; --red2: #e05040; --green: #2a7030; --green2: #4caa50;
+  --blue: #1a4090; --blue2: #60a8f0; --amber: #c06000; --amber2: #e08820;
+}
+[data-theme="weinrot"] {
+  --bg: #1a0810; --bg2: #26101a; --bg3: #321424; --surface: #3d182e;
+  --surface2: #4a1e38; --border: #6a2848; --border2: #903860;
+  --gold: #c9942a; --gold2: #e8b84b; --gold3: #f5d070;
+  --text: #f5e8d5; --text2: #dcc8a8; --text3: #a08068;
+  --red: #c0392b; --red2: #e04040; --green: #2a6018; --green2: #50a030;
+  --blue: #1a3a8b; --blue2: #50a0e0; --amber: #b05000; --amber2: #e07820;
+}
+[data-theme="lcars"] {
+  --bg: #000000; --bg2: #0a0c14; --bg3: #10141f; --surface: #151a28;
+  --surface2: #1e2436; --border: #2a3148; --border2: #40598a;
+  --gold: #ff9c00; --gold2: #ffb060; --gold3: #ffcc99;
+  --text: #f5dfc0; --text2: #d8b890; --text3: #8fa8c8;
+  --red: #c04848; --red2: #e05a5a; --green: #3a8a58; --green2: #58b878;
+  --blue: #4868b8; --blue2: #8fb8e8; --amber: #c86a30; --amber2: #e8935a;
+  --radius: 14px; --radius2: 18px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 15px; overflow: hidden;
+  display: flex; flex-direction: column;
+  -webkit-text-size-adjust: 100%;
+}
+.hidden { display: none !important; }
+
+/* ── LOGIN / SPERRE ─────────────────────────────────────────── */
+#screen-login, #screen-sperre {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px; padding: 24px;
+}
+.login-logo-title { font-size: 26px; color: var(--gold2); font-weight: 700; text-align: center; }
+.login-sub { color: var(--text3); font-size: 14px; margin-bottom: 8px; text-align: center; }
+.login-box { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 10px; }
+input, select {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  padding: 11px 13px; font-size: 16px; width: 100%; font-family: inherit;
+}
+input:focus, select:focus { outline: 2px solid var(--gold); border-color: var(--gold); }
+.btn {
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--radius); color: var(--gold2);
+  padding: 12px 18px; font-size: 15px; font-weight: 600; cursor: pointer;
+  font-family: inherit;
+}
+.btn:active { background: var(--surface); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn-primary { background: var(--gold); color: var(--bg); border-color: var(--gold2); }
+.btn-full { width: 100%; }
+#login-error, #pw-fehler { color: var(--red2); font-size: 13px; min-height: 18px; text-align: center; }
+
+/* ── HEADER ─────────────────────────────────────────────────── */
+header {
+  padding: calc(10px + var(--safe-top)) 14px 10px;
+  background: var(--bg2); border-bottom: 2px solid var(--border);
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.header-back { background: none; border: none; color: var(--gold2); font-size: 26px; cursor: pointer; padding: 0 6px; }
+.header-title { font-size: 17px; font-weight: 700; color: var(--gold2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.header-sub { font-size: 11px; color: var(--text3); font-weight: 400; }
+.header-gear { background: none; border: none; font-size: 20px; cursor: pointer; padding: 0 4px; }
+
+#screen-app { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.screen { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 12px calc(20px + var(--safe-bot)); }
+.filter-leiste {
+  display: flex; gap: 6px; padding: 8px 12px; background: var(--bg2);
+  border-bottom: 1px solid var(--border); overflow-x: auto; flex-shrink: 0;
+}
+.filter-btn {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 999px;
+  color: var(--text2); padding: 7px 14px; font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; font-family: inherit;
+}
+.filter-btn.active { background: var(--gold); color: var(--bg); border-color: var(--gold2); }
+.leer { text-align: center; color: var(--text3); padding: 40px 20px; font-size: 14px; line-height: 1.5; }
+/* ── MODAL ──────────────────────────────────────────────────── */
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 100;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.modal {
+  background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius2);
+  padding: 18px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 11px;
+}
+.modal-titel { font-size: 17px; font-weight: 700; color: var(--gold2); }
+.modal-text { font-size: 14px; color: var(--text2); line-height: 1.45; }
+
+/* ── TOAST ──────────────────────────────────────────────────── */
+#toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(24px + var(--safe-bot)); background: var(--surface2);
+  border: 1px solid var(--border2); border-radius: var(--radius2);
+  padding: 11px 18px; font-size: 14px; z-index: 200; max-width: 88%;
+  opacity: 0; pointer-events: none; transition: opacity .2s; text-align: center;
+}
+#toast.show { opacity: 1; }
+#toast.err { border-color: var(--red2); color: var(--red2); }
+
+/* ── NACHSCHUBLAGER: EIGENE ELEMENTE ────────────────────────── */
+.suche { margin-bottom: 10px; }
+.kat-kopf {
+  font-size: 13px; font-weight: 700; color: var(--gold2);
+  padding: 12px 4px 6px; letter-spacing: .5px; text-transform: uppercase;
+}
+.zeile {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius2); padding: 10px 12px; margin-bottom: 8px;
+}
+.zeile.ohne { opacity: .6; background: var(--bg2); }
+.zeile-kopf { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.zeile-name { font-weight: 600; font-size: 15px; line-height: 1.25; min-width: 0; }
+.zeile-gr { color: var(--text3); font-weight: 400; font-size: 13px; }
+.zeile-menge { font-size: 18px; font-weight: 700; color: var(--gold2); white-space: nowrap; text-align: right; }
+.zeile-menge small { display: block; font-size: 11px; font-weight: 400; color: var(--text3); }
+.orte { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; }
+.chip { background: var(--bg3); border: 1px solid var(--border); border-radius: 999px; padding: 3px 9px; font-size: 12px; color: var(--text2); white-space: nowrap; }
+.chip.warn { color: var(--amber2); border-color: var(--amber2); }
+.palette-kopf { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.palette-titel { font-weight: 700; font-size: 16px; color: var(--gold2); }
+.palette-sub { font-size: 12px; color: var(--text3); }
+.palette-pos { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; padding: 5px 0; border-top: 1px solid var(--border); }
+.palette-pos span:last-child { white-space: nowrap; color: var(--text2); }
+.btn-klein { padding: 7px 12px; font-size: 13px; }
+.summe { font-size: 13px; color: var(--text2); padding: 4px 4px 10px; }
+.hinweis-box { border-left: 4px solid var(--amber2); background: var(--bg2); padding: 10px 12px; border-radius: var(--radius); font-size: 13px; color: var(--text); margin-bottom: 10px; line-height: 1.4; }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ──────────────────────────────────────────────── -->
+<div id="screen-login" class="hidden">
+  <div class="login-logo-title">🎄 Nachschublager Köln</div>
+  <div class="login-sub">Beerenweine · Weihnachtsmarkt 2026</div>
+  <div class="login-box">
+    <input type="email" id="login-email" placeholder="E-Mail" autocomplete="username" autocapitalize="none">
+    <input type="password" id="login-pw" placeholder="Passwort" autocomplete="current-password">
+    <button class="btn btn-primary" onclick="doLogin()">Anmelden</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- ── SPERRE ─────────────────────────────────────────────── -->
+<div id="screen-sperre" class="hidden">
+  <div class="login-logo-title">🔒 Kein Zugang</div>
+  <div class="login-sub" id="sperre-text">Dieser Zugang ist für das Nachschublager nicht freigeschaltet.</div>
+  <button class="btn" onclick="doLogout()">Abmelden</button>
+</div>
+
+<!-- ── APP ────────────────────────────────────────────────── -->
+<div id="screen-app" class="hidden">
+  <header>
+    <div class="header-title">Nachschublager Köln
+      <div class="header-sub" id="header-sub"></div>
+    </div>
+    <button class="header-gear" onclick="ladeUndZeichne(true)" title="Aktualisieren">🔄</button>
+    <button class="header-gear" onclick="doLogout()" title="Abmelden">🚪</button>
+  </header>
+  <div class="filter-leiste">
+    <button class="filter-btn active" id="tab-bestand" onclick="zeigeTab('bestand')">Bestand</button>
+    <button class="filter-btn" id="tab-paletten" onclick="zeigeTab('paletten')">Paletten</button>
+  </div>
+  <div class="screen" id="inhalt"></div>
+</div>
+
+<div id="modal-halter"></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+const NL_VERSION = 'v0.1';
+const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
+const BOXEN = ['6005', '6009'];
+
+let sb = null;
+let currentUser = null;
+let artikelListe = [];   // nl_artikel
+let palettenListe = [];  // nl_palette
+let bewegungen = [];     // nl_bewegung (nicht gelöscht)
+let aktTab = 'bestand';
+let suchText = '';
+
+/* ── HILFSFUNKTIONEN ────────────────────────────────────────── */
+function el(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function toast(msg, art) {
+  const t = el('toast');
+  t.textContent = msg;
+  t.className = art === 'err' ? 'show err' : 'show';
+  clearTimeout(toast._tm);
+  toast._tm = setTimeout(() => { t.className = ''; }, 2600);
+}
+// Stück → "3 Kisten + 25 Stk" (Lager denkt in Kisten, intern zählen Stück)
+function kistenText(stueck, proKiste) {
+  if (!stueck) return '0';
+  const ki = Math.floor(stueck / proKiste), rest = stueck % proKiste;
+  const teile = [];
+  if (ki) teile.push(ki + (ki === 1 ? ' Kiste' : ' Kisten'));
+  if (rest) teile.push(rest + ' Stk');
+  return teile.join(' + ');
+}
+function normal(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+function groessenRang(g) { return { '0,05': 0, '0,2': 1, '0,5': 2, '0,75': 3 }[g] ?? 9; }
+
+/* ── INIT ───────────────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', async () => {
+  const theme = localStorage.getItem('mf_theme') || 'braun';
+  if (theme !== 'braun') document.documentElement.setAttribute('data-theme', theme);
+  document.title = 'Nachschublager Köln · ' + NL_VERSION;
+
+  sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
+    // Eigener Speicher-Schlüssel: sonst kollidiert die Session mit den
+    // anderen Modulen auf derselben Domain (GitHub Pages, iOS Safari).
+    auth: { storageKey: 'nl-auth-token' },
+  });
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT' || !session) zeigeLogin();
+  });
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) await pruefeZugangUndStart(session.user);
+  else zeigeLogin();
+});
+
+function zeigeLogin() {
+  el('screen-login').classList.remove('hidden');
+  el('screen-sperre').classList.add('hidden');
+  el('screen-app').classList.add('hidden');
+}
+
+async function doLogin() {
+  el('login-error').textContent = '';
+  const email = el('login-email').value.trim();
+  const pw = el('login-pw').value;
+  if (!email || !pw) { el('login-error').textContent = 'Bitte E-Mail und Passwort eingeben.'; return; }
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+  if (error) { el('login-error').textContent = 'Anmeldung fehlgeschlagen.'; return; }
+  await pruefeZugangUndStart(data.user);
+}
+
+async function doLogout() {
+  // scope 'local': meldet nur dieses Modul ab, nicht die Haupt-App
+  await sb.auth.signOut({ scope: 'local' });
+  zeigeLogin();
+}
+
+async function pruefeZugangUndStart(user) {
+  currentUser = user;
+  // Zugang = Admin oder Eintrag in nl_zugang (dieselbe Regel wie nl_darf() in der DB)
+  const [rr, rz] = await Promise.all([
+    sb.from('user_rolle').select('rolle').eq('user_id', user.id),
+    sb.from('nl_zugang').select('user_id').eq('user_id', user.id),
+  ]);
+  const istAdmin = (rr.data || []).some(r => r.rolle === 'admin');
+  const hatZugang = (rz.data || []).length > 0;
+  if (!istAdmin && !hatZugang) {
+    el('screen-login').classList.add('hidden');
+    el('screen-app').classList.add('hidden');
+    el('screen-sperre').classList.remove('hidden');
+    return;
+  }
+  el('screen-login').classList.add('hidden');
+  el('screen-sperre').classList.add('hidden');
+  el('screen-app').classList.remove('hidden');
+  el('header-sub').textContent = 'Weihnachtsmarkt 23.11.–23.12. · ' + NL_VERSION;
+  await pruefePasswortPflicht();
+  await ladeUndZeichne();
+}
+
+/* ── ERSTANMELDUNG: EIGENES PASSWORT SETZEN ─────────────────── */
+// Gleiche Logik wie Haupt-App und lager.html (app_metadata.passwort_gesetzt)
+async function pruefePasswortPflicht() {
+  if (currentUser?.app_metadata?.passwort_gesetzt !== false) return;
+  try {
+    const { data: u } = await sb.auth.getUser();
+    if (u?.user) {
+      currentUser = u.user;
+      if (currentUser.app_metadata?.passwort_gesetzt !== false) return;
+    }
+  } catch (e) { console.warn('Passwortstatus nicht prüfbar', e); }
+  el('modal-halter').innerHTML = `
+    <div class="modal-bg"><div class="modal">
+      <div class="modal-titel">🔑 Eigenes Passwort setzen</div>
+      <div class="modal-text">Das vergebene Passwort ist ein Einmal-Passwort.
+        Bitte jetzt ein eigenes festlegen (mindestens 8 Zeichen).</div>
+      <input type="password" id="pw-neu" placeholder="Neues Passwort" autocomplete="new-password">
+      <input type="password" id="pw-neu2" placeholder="Wiederholen" autocomplete="new-password">
+      <div id="pw-fehler"></div>
+      <button class="btn btn-primary btn-full" id="btn-pw" onclick="passwortSpeichern()">Passwort setzen</button>
+    </div></div>`;
+}
+
+async function passwortSpeichern() {
+  const pw1 = el('pw-neu').value, pw2 = el('pw-neu2').value;
+  const fehler = t => { el('pw-fehler').textContent = t; };
+  if (pw1.length < 8) return fehler('Mindestens 8 Zeichen.');
+  if (pw1 !== pw2)    return fehler('Die beiden Eingaben stimmen nicht überein.');
+  const btn = el('btn-pw');
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(SUPA_URL + '/functions/v1/passwort-setzen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+      body: JSON.stringify({ passwort: pw1 }),
+    });
+    const j = await res.json();
+    if (!res.ok || !j.ok) { fehler(j.error || 'Konnte nicht gespeichert werden.'); return; }
+    const { data: sess } = await sb.auth.signInWithPassword({ email: currentUser.email, password: pw1 });
+    if (sess?.user) currentUser = sess.user;
+    el('modal-halter').innerHTML = '';
+    toast('✓ Passwort gesetzt');
+  } catch (e) {
+    fehler('Passwort konnte nicht gesetzt werden. Bitte später erneut versuchen.');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Passwort setzen';
+  }
+}
+
+/* ── DATEN ──────────────────────────────────────────────────── */
+async function ladeUndZeichne(mitHinweis) {
+  if (!artikelListe.length) el('inhalt').innerHTML = '<div class="leer">Lade …</div>';
+  const [ra, rp, rb] = await Promise.all([
+    sb.from('nl_artikel').select('*').is('geloescht_am', null),
+    sb.from('nl_palette').select('*').is('geloescht_am', null).order('nummer'),
+    sb.from('nl_bewegung').select('id, artikel_id, palette_id, art, stueck, erstellt_am').is('geloescht_am', null),
+  ]);
+  const fehler = ra.error || rp.error || rb.error;
+  if (fehler) {
+    console.error(fehler);
+    el('inhalt').innerHTML = '<div class="leer">Daten konnten nicht geladen werden.<br>Bitte Verbindung prüfen und 🔄 tippen.</div>';
+    return;
+  }
+  artikelListe = (ra.data || []).sort((a, b) =>
+    a.name.localeCompare(b.name, 'de') || groessenRang(a.groesse) - groessenRang(b.groesse));
+  palettenListe = rp.data || [];
+  bewegungen = rb.data || [];
+  // Leere Antwort trotz Zugang = vermutlich fehlende RLS-Policy, nicht "Lager leer"
+  if (!artikelListe.length) {
+    el('inhalt').innerHTML = '<div class="leer">Keine Artikel sichtbar.<br>Falls das unerwartet ist: Zugang/Berechtigung prüfen.</div>';
+    return;
+  }
+  zeichne();
+  if (mitHinweis) toast('✓ Aktualisiert');
+}
+
+// Bestand je Artikel und je Palette (Summe des Journals). Schlüssel "auto" = Reserve im Auto.
+function bestandsIndex() {
+  const proArtikel = {}, proOrt = {};
+  for (const b of bewegungen) {
+    proArtikel[b.artikel_id] = (proArtikel[b.artikel_id] || 0) + b.stueck;
+    const ort = b.palette_id || 'auto';
+    proOrt[b.artikel_id] = proOrt[b.artikel_id] || {};
+    proOrt[b.artikel_id][ort] = (proOrt[b.artikel_id][ort] || 0) + b.stueck;
+  }
+  return { proArtikel, proOrt };
+}
+function paletteVon(id) { return palettenListe.find(p => p.id === id); }
+
+/* ── ANSICHTEN ──────────────────────────────────────────────── */
+function zeigeTab(tab) {
+  aktTab = tab;
+  el('tab-bestand').classList.toggle('active', tab === 'bestand');
+  el('tab-paletten').classList.toggle('active', tab === 'paletten');
+  zeichne();
+}
+function zeichne() {
+  if (aktTab === 'paletten') zeichnePaletten(); else zeichneBestand();
+}
+
+function zeichneBestand() {
+  const { proArtikel } = bestandsIndex();
+  const gesamtKisten = artikelListe.reduce((s, a) => s + (proArtikel[a.id] || 0) / a.pro_kiste, 0);
+
+  const h = `<input class="suche" type="search" placeholder="Artikel suchen …" value="${esc(suchText)}"
+            oninput="suchText=this.value; zeichneBestandListe()">
+           <div class="summe">${artikelListe.length} Artikel · insgesamt ca. ${Math.round(gesamtKisten)} Kisten im Lager</div>
+           <div id="bestand-liste"></div>`;
+  el('inhalt').innerHTML = h;
+  zeichneBestandListe();
+}
+
+function zeichneBestandListe() {
+  const { proArtikel, proOrt } = bestandsIndex();
+  const such = normal(suchText);
+  const liste = artikelListe.filter(a => !such || normal(a.name + ' ' + a.groesse).includes(such));
+  if (!liste.length) { el('bestand-liste').innerHTML = '<div class="leer">Kein Artikel gefunden.</div>'; return; }
+  el('bestand-liste').innerHTML = liste.map(a => {
+    const stk = proArtikel[a.id] || 0;
+    const orte = Object.entries(proOrt[a.id] || {}).filter(([, n]) => n > 0).map(([ort, n]) => {
+      if (ort === 'auto') return `<span class="chip">🚐 Auto: ${esc(kistenText(n, a.pro_kiste))}</span>`;
+      const p = paletteVon(ort);
+      return `<span class="chip">${p ? esc(p.box) + ' · P' + p.nummer : '?'}: ${esc(kistenText(n, a.pro_kiste))}</span>`;
+    }).join('');
+    let zusatz = '';
+    if (!a.nachschub) zusatz = '<span class="chip">kein Nachschub im Lager</span>';
+    else if (stk <= 0) zusatz = '<span class="chip warn">Lager leer</span>';
+    return `<div class="zeile${stk <= 0 ? ' ohne' : ''}">
+      <div class="zeile-kopf">
+        <div class="zeile-name">${esc(a.name)} <span class="zeile-gr">${esc(a.groesse)}</span></div>
+        <div class="zeile-menge">${esc(kistenText(stk, a.pro_kiste))}<small>${stk} Stk · ${a.pro_kiste}/Kiste</small></div>
+      </div>
+      ${(orte || zusatz) ? `<div class="orte">${orte}${zusatz}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function zeichnePaletten() {
+  const { proOrt } = bestandsIndex();
+  let h = '';
+  for (const box of BOXEN) {
+    const pals = palettenListe.filter(p => p.box === box);
+    h += `<div class="kat-kopf">Box ${box}</div>`;
+    if (!pals.length) {
+      h += `<div class="leer" style="padding:14px">Keine Paletten erfasst.</div>`;
+      continue;
+    }
+    for (const p of pals) {
+      const posten = artikelListe
+        .map(a => ({ a, n: (proOrt[a.id] || {})[p.id] || 0 }))
+        .filter(x => x.n > 0);
+      const kisten = posten.reduce((s, x) => s + x.n / x.a.pro_kiste, 0);
+      h += `<div class="zeile">
+        <div class="palette-kopf">
+          <div><div class="palette-titel">Palette ${p.nummer}</div>
+               <div class="palette-sub">${posten.length} Posten · ca. ${Math.round(kisten)} Kisten</div></div>
+          <button class="btn btn-klein" onclick="paletteVerschiebenDialog('${p.id}')">↔ Box</button>
+        </div>
+        ${posten.map(x => `<div class="palette-pos"><span>${esc(x.a.name)} ${esc(x.a.groesse)}</span>
+          <span>${esc(kistenText(x.n, x.a.pro_kiste))}</span></div>`).join('') || '<div class="palette-sub">leer</div>'}
+      </div>`;
+    }
+  }
+  el('inhalt').innerHTML = h;
+}
+
+/* ── PALETTE VERSCHIEBEN ────────────────────────────────────── */
+function paletteVerschiebenDialog(id) {
+  const p = paletteVon(id);
+  if (!p) return;
+  const ziel = BOXEN.find(b => b !== p.box);
+  el('modal-halter').innerHTML = `
+    <div class="modal-bg" onclick="if(event.target===this) modalZu()"><div class="modal">
+      <div class="modal-titel">Palette ${p.nummer} verschieben</div>
+      <div class="modal-text">Von Box <b>${esc(p.box)}</b> nach Box <b>${esc(ziel)}</b>?
+        Die Ware auf der Palette wandert mit.</div>
+      <button class="btn btn-primary btn-full" id="btn-verschieben" onclick="paletteVerschieben('${p.id}','${ziel}')">Nach ${esc(ziel)} verschieben</button>
+      <button class="btn btn-full" onclick="modalZu()">Abbrechen</button>
+    </div></div>`;
+}
+function modalZu() { el('modal-halter').innerHTML = ''; }
+
+async function paletteVerschieben(id, box) {
+  const btn = el('btn-verschieben');
+  btn.disabled = true;
+  const { error } = await sb.from('nl_palette').update({ box }).eq('id', id);
+  if (error) {
+    console.error(error);
+    btn.disabled = false;
+    toast('Verschieben fehlgeschlagen – bitte Verbindung prüfen.', 'err');
+    return;
+  }
+  const p = paletteVon(id);
+  if (p) p.box = box;
+  modalZu();
+  toast(`✓ Palette ${p ? p.nummer : ''} steht jetzt in ${box}`);
+  zeichne();
+}
+</script>
+</body>
+</html>
