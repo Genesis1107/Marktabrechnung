@@ -225,6 +225,7 @@ textarea { background: var(--bg3); border: 1px solid var(--border); border-radiu
     <button class="filter-btn active" id="tab-anfordern" onclick="zeigeTab('anfordern')">Anfordern</button>
     <button class="filter-btn" id="tab-offen" onclick="zeigeTab('offen')">Pickliste</button>
     <button class="filter-btn" id="tab-prognose" onclick="zeigeTab('prognose')">Prognose</button>
+    <button class="filter-btn" id="tab-auto" onclick="zeigeTab('auto')">🚐 Auto</button>
     <button class="filter-btn" id="tab-bestand" onclick="zeigeTab('bestand')">Bestand</button>
     <button class="filter-btn" id="tab-paletten" onclick="zeigeTab('paletten')">Paletten</button>
   </div>
@@ -237,7 +238,7 @@ textarea { background: var(--bg3); border: 1px solid var(--border); border-radiu
 <script>
 'use strict';
 
-const NL_VERSION = 'v0.5';
+const NL_VERSION = 'v0.7';
 const SUPA_URL = 'https://ebgljksgatvysgjjfyem.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViZ2xqa3NnYXR2eXNnampmeWVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjM3MzAsImV4cCI6MjA5Nzg5OTczMH0.O9q_ZRwAETCofkI_bulSXTsvbDi4057f6ig1-rRIXJE';
 const BOXEN = ['6005', '6009'];
@@ -251,7 +252,7 @@ let anforderungen = [];  // nl_anforderung, nur offene
 let namenMap = {};       // user_id → Anzeigename
 let aktTab = 'anfordern';
 let suchText = '';
-const TABS = ['anfordern', 'offen', 'prognose', 'bestand', 'paletten'];
+const TABS = ['anfordern', 'offen', 'prognose', 'auto', 'bestand', 'paletten'];
 // Hochrechnung
 const MARKT_START = '2026-11-23';
 const MARKT_ENDE = '2026-12-23';
@@ -294,7 +295,10 @@ function kistenText(stueck, proKiste) {
 function normal(s) {
   return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
-function groessenRang(g) { return { '0,05': 0, '0,2': 1, '0,5': 2, '0,75': 3 }[g] ?? 9; }
+function groessenRang(g) { return { '0,04': 0, '0,05': 0, '0,2': 1, '0,5': 2, '0,75': 3 }[g] ?? 9; }
+// Lagerplatz-Kurzform, z. B. "P3" oder "lose Ware" (Bezeichnung statt Nummer, falls gesetzt)
+function palKurz(p) { return p.bezeichnung ? p.bezeichnung : 'P' + p.nummer; }
+function palLang(p) { return p.bezeichnung ? p.bezeichnung : 'Palette ' + p.nummer; }
 
 /* ── INIT ───────────────────────────────────────────────────── */
 window.addEventListener('DOMContentLoaded', async () => {
@@ -494,6 +498,7 @@ function zeichne() {
   else if (aktTab === 'bestand') zeichneBestand();
   else if (aktTab === 'offen') zeichnePickliste();
   else if (aktTab === 'prognose') zeichnePrognose();
+  else if (aktTab === 'auto') zeichneAuto();
   else zeichneAnfordern();
 }
 
@@ -519,7 +524,7 @@ function zeichneBestandListe() {
     const orte = Object.entries(proOrt[a.id] || {}).filter(([, n]) => n > 0).map(([ort, n]) => {
       if (ort === 'auto') return `<span class="chip">🚐 Auto: ${esc(kistenText(n, a.pro_kiste))}</span>`;
       const p = paletteVon(ort);
-      return `<span class="chip">${p ? esc(p.box) + ' · P' + p.nummer : '?'}: ${esc(kistenText(n, a.pro_kiste))}</span>`;
+      return `<span class="chip">${p ? esc(p.box) + ' · ' + esc(palKurz(p)) : '?'}: ${esc(kistenText(n, a.pro_kiste))}</span>`;
     }).join('');
     let zusatz = '';
     if (!a.nachschub) zusatz = '<span class="chip">kein Nachschub im Lager</span>';
@@ -552,7 +557,7 @@ function zeichnePaletten() {
       const kisten = posten.reduce((s, x) => s + x.n / x.a.pro_kiste, 0);
       h += `<div class="zeile">
         <div class="palette-kopf">
-          <div><div class="palette-titel">Palette ${p.nummer}</div>
+          <div><div class="palette-titel">${esc(palLang(p))}</div>
                <div class="palette-sub">${posten.length} Posten · ca. ${Math.round(kisten)} Kisten</div></div>
           <button class="btn btn-klein" onclick="paletteVerschiebenDialog('${p.id}')">↔ Box</button>
         </div>
@@ -781,7 +786,7 @@ function zeichnePickliste() {
     if (g !== gruppe) { h += `<div class="kat-kopf">${g}</div>`; gruppe = g; }
     const a = plan.artikel;
     const zeilen = plan.zeilen.map(z => {
-      const ort = z.palette ? `📍 ${esc(z.palette.box)} · Palette ${z.palette.nummer}` : '🚐 Auto-Reserve';
+      const ort = z.palette ? `📍 ${esc(z.palette.box)} · ${esc(palLang(z.palette))}` : '🚐 Auto-Reserve';
       const wohin = z.zweck === 'reserve' ? ' → ins Auto (Reserve)' : ' → Bude';
       return `<div class="palette-pos"><span>${ort}${wohin}</span><span>${esc(kistenText(z.stueck, a.pro_kiste))}</span></div>`;
     }).join('');
@@ -902,7 +907,8 @@ function cacheLesen() {
 /* ── HOCHRECHNUNG ───────────────────────────────────────────── */
 // Annahme (Andy): Was aus dem Lager geholt wird, ist verkauft. Verkauf verläuft
 // nicht linear: Tagesgewicht = Wochentagsfaktor × (1 + Wachstum)^Marktwoche.
-// Verbrauch = Entnahme vom Lager in die Bude + Auto-Reserve in die Bude
+// Verbrauch = Entnahme vom Lager in die Bude + Auto → Bude
+// − Bude → Auto (passt nicht in die Bude, v0.7)
 // (die Reserve-Fahrt ins Auto zählt noch nicht). Buchungen vor Marktstart
 // (Erstbestückung) zählen nicht.
 function isoDatum(d) {
@@ -938,7 +944,7 @@ function prognoseAlle(idx, heuteIso) {
   const wBis = vergangen.reduce((s, t) => s + tagesGewicht(tage.indexOf(t), t.wd), 0);
   const verbrauch = {};
   for (const b of bewegungen) {
-    if (b.art !== 'entnahme' && b.art !== 'reserve_bude') continue;
+    if (b.art !== 'entnahme' && b.art !== 'reserve_bude' && b.art !== 'bude_auto') continue;
     const tag = isoDatum(new Date(b.erstellt_am));
     if (tag < MARKT_START || tag > heute) continue;
     verbrauch[b.artikel_id] = (verbrauch[b.artikel_id] || 0) - b.stueck;
@@ -1123,7 +1129,7 @@ function raeumungsListe(idx) {
   return `<div class="kat-kopf">Räumungsliste</div>` + liste.map(a => {
     const orte = Object.entries(idx.proOrt[a.id] || {}).filter(([, n]) => n > 0).map(([ort, n]) => {
       const p = ort === 'auto' ? null : paletteVon(ort);
-      return `<span class="chip">${p ? esc(p.box) + ' · P' + p.nummer : '🚐 Auto'}: ${esc(kistenText(n, a.pro_kiste))}</span>`;
+      return `<span class="chip">${p ? esc(p.box) + ' · ' + esc(palKurz(p)) : '🚐 Auto'}: ${esc(kistenText(n, a.pro_kiste))}</span>`;
     }).join('');
     return `<div class="zeile">
       <div class="zeile-kopf">
@@ -1161,7 +1167,7 @@ async function artikelDialog(id) {
   const a = artikelVon(id);
   if (!a) return;
   const orte = bestandsIndex().proOrt[id] || {};
-  const ortListe = palettenListe.map(p => ({ id: p.id, text: `${p.box} · Palette ${p.nummer}`, n: orte[p.id] || 0 }))
+  const ortListe = palettenListe.map(p => ({ id: p.id, text: `${p.box} · ${palLang(p)}`, n: orte[p.id] || 0 }))
     .concat([{ id: 'auto', text: '🚐 Auto-Reserve', n: orte.auto || 0 }]);
   const belegt = ortListe.filter(o => o.n !== 0);
   const frei = ortListe.filter(o => o.n === 0);
@@ -1236,6 +1242,102 @@ async function paletteAnlegen(box) {
   await ladeUndZeichne();
 }
 
+
+/* ── AUTO ALS ZWISCHENLAGER (v0.7) ──────────────────────────── */
+// Bude → Auto ("passt nicht"): mindert den gezählten Verkauf wieder.
+// Auto → Bude: zählt als Verkauf. Anforderungen bedienen die Bude zuerst aus dem Auto.
+function zeichneAuto() {
+  const idx = bestandsIndex();
+  const liste = artikelListe.filter(a => ((idx.proOrt[a.id] || {}).auto || 0) > 0);
+  const kisten = liste.reduce((s, a) => s + idx.proOrt[a.id].auto / a.pro_kiste, 0);
+  let h = `<button class="btn btn-primary btn-full" style="margin-bottom:10px" onclick="autoReinDialog()">＋ Passt nicht in die Bude → ins Auto</button>`;
+  if (!liste.length) {
+    el('inhalt').innerHTML = h + '<div class="leer">Das Auto ist leer.</div>';
+    return;
+  }
+  h += `<div class="summe">${liste.length} Artikel · ca. ${Math.round(kisten)} Kisten im Auto</div>`;
+  h += liste.map(a => {
+    const n = idx.proOrt[a.id].auto;
+    return `<div class="zeile">
+      <div class="zeile-kopf">
+        <div class="zeile-name">${esc(a.name)} <span class="zeile-gr">${esc(a.groesse)}</span></div>
+        <div class="zeile-menge">${esc(kistenText(n, a.pro_kiste))}<small>${n} Stk</small></div>
+      </div>
+      <button class="btn btn-klein" style="margin-top:8px" onclick="autoRausDialog('${a.id}')">→ in die Bude</button>
+    </div>`;
+  }).join('');
+  el('inhalt').innerHTML = h;
+}
+
+function mengenFelder(proKiste, kisten, stk) {
+  return `<div class="wahl">
+      <label class="modal-text" style="flex:1">Kisten<input type="number" inputmode="numeric" min="0" id="auto-kisten" value="${kisten}"></label>
+      <label class="modal-text" style="flex:1">+ Stück<input type="number" inputmode="numeric" min="0" id="auto-stk" value="${stk}"></label>
+    </div>
+    <div class="palette-sub" id="auto-kiste-info">${proKiste ? proKiste + ' Stück je Kiste' : ''}</div>`;
+}
+function mengeLesen(proKiste) {
+  const k = parseInt(el('auto-kisten').value || '0', 10), s = parseInt(el('auto-stk').value || '0', 10);
+  if (!isFinite(k) || !isFinite(s) || k < 0 || s < 0) return null;
+  return k * proKiste + s;
+}
+
+function autoReinDialog() {
+  const opts = artikelListe.map(a => `<option value="${a.id}">${esc(a.name)} ${esc(a.groesse)}</option>`).join('');
+  el('modal-halter').innerHTML = `
+    <div class="modal-bg" onclick="if(event.target===this) modalZu()"><div class="modal">
+      <div class="modal-titel">🚐 Ins Auto legen</div>
+      <div class="modal-text">Ware, die nicht in die Bude passt. Sie zählt dann nicht mehr als verkauft.</div>
+      <select id="auto-artikel" onchange="autoKisteInfo()"><option value="">Artikel wählen …</option>${opts}</select>
+      ${mengenFelder(0, 1, 0)}
+      <button class="btn btn-primary btn-full" id="btn-auto" onclick="autoBuchen('rein')">Ins Auto buchen</button>
+      <button class="btn btn-full" onclick="modalZu()">Abbrechen</button>
+    </div></div>`;
+}
+function autoKisteInfo() {
+  const a = artikelVon(el('auto-artikel').value);
+  el('auto-kiste-info').textContent = a ? a.pro_kiste + ' Stück je Kiste' : '';
+}
+
+function autoRausDialog(id) {
+  const a = artikelVon(id);
+  const n = (bestandsIndex().proOrt[id] || {}).auto || 0;
+  const k = Math.min(1, Math.floor(n / a.pro_kiste));
+  el('modal-halter').innerHTML = `
+    <div class="modal-bg" onclick="if(event.target===this) modalZu()"><div class="modal">
+      <div class="modal-titel">${esc(a.name)} ${esc(a.groesse)} → Bude</div>
+      <div class="modal-text">Im Auto: <b>${esc(kistenText(n, a.pro_kiste))}</b> (${n} Stk)</div>
+      <input type="hidden" id="auto-artikel" value="${a.id}">
+      ${mengenFelder(a.pro_kiste, k, k ? 0 : n)}
+      <button class="btn btn-full" onclick="el('auto-kisten').value=${Math.floor(n / a.pro_kiste)}; el('auto-stk').value=${n % a.pro_kiste}">Alles</button>
+      <button class="btn btn-primary btn-full" id="btn-auto" onclick="autoBuchen('raus')">In die Bude buchen</button>
+      <button class="btn btn-full" onclick="modalZu()">Abbrechen</button>
+    </div></div>`;
+}
+
+async function autoBuchen(richtung) {
+  const a = artikelVon(el('auto-artikel').value);
+  if (!a) { toast('Bitte einen Artikel wählen.', 'err'); return; }
+  const stk = mengeLesen(a.pro_kiste);
+  if (!stk) { toast('Bitte eine Menge eingeben.', 'err'); return; }
+  if (richtung === 'raus' && stk > ((bestandsIndex().proOrt[a.id] || {}).auto || 0)) {
+    toast('So viel ist nicht im Auto.', 'err'); return;
+  }
+  el('btn-auto').disabled = true;
+  const { error } = await sb.rpc('nl_auto_buchen', {
+    p_id: uuidv7(), p_artikel: a.id, p_stueck: stk, p_richtung: richtung, p_notiz: null,
+  });
+  if (error) {
+    console.error(error);
+    el('btn-auto').disabled = false;
+    toast(error.code === 'P0001' ? 'Bestand hat sich geändert – bitte neu laden.' : 'Buchen fehlgeschlagen – bitte Verbindung prüfen.', 'err');
+    return;
+  }
+  modalZu();
+  toast(richtung === 'rein' ? `✓ ${kistenText(stk, a.pro_kiste)} im Auto` : `✓ ${kistenText(stk, a.pro_kiste)} in die Bude`);
+  await ladeUndZeichne();
+}
+
 /* ── PALETTE VERSCHIEBEN ────────────────────────────────────── */
 function paletteVerschiebenDialog(id) {
   const p = paletteVon(id);
@@ -1243,7 +1345,7 @@ function paletteVerschiebenDialog(id) {
   const ziel = BOXEN.find(b => b !== p.box);
   el('modal-halter').innerHTML = `
     <div class="modal-bg" onclick="if(event.target===this) modalZu()"><div class="modal">
-      <div class="modal-titel">Palette ${p.nummer} verschieben</div>
+      <div class="modal-titel">${esc(palLang(p))} verschieben</div>
       <div class="modal-text">Von Box <b>${esc(p.box)}</b> nach Box <b>${esc(ziel)}</b>?
         Die Ware auf der Palette wandert mit.</div>
       <button class="btn btn-primary btn-full" id="btn-verschieben" onclick="paletteVerschieben('${p.id}','${ziel}')">Nach ${esc(ziel)} verschieben</button>
